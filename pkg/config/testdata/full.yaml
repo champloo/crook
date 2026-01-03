@@ -1,0 +1,30 @@
+kubernetes:
+  rook-operator-namespace: custom-operator
+  rook-cluster-namespace: custom-cluster
+  context: test-context
+
+state:
+  file-path-template: "/tmp/state-{{.Node}}.json"
+  backup-enabled: false
+  backup-directory: /tmp/backups
+
+deployment-filters:
+  prefixes:
+    - custom-a
+    - custom-b
+
+ui:
+  theme: neon
+  progress-refresh-ms: 150
+  dashboard-refresh-node-ms: 2500
+  dashboard-refresh-ceph-ms: 4500
+
+timeouts:
+  api-call-timeout-seconds: 10
+  wait-deployment-timeout-seconds: 20
+  ceph-command-timeout-seconds: 30
+
+logging:
+  level: debug
+  file: /tmp/crook.log
+  format: json

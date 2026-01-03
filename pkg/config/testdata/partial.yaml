@@ -1,0 +1,8 @@
+kubernetes:
+  rook-operator-namespace: partial-operator
+
+state:
+  backup-enabled: false
+
+ui:
+  theme: minimal
