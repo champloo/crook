@@ -1,0 +1,198 @@
+# Capability: Cluster Monitoring
+
+Real-time cluster health monitoring and status display for Rook-Ceph and Kubernetes resources.
+
+## ADDED Requirements
+
+### Requirement: Node Status Monitoring
+
+The system SHALL monitor and display Kubernetes node status for the target node.
+
+#### Scenario: Query node status
+
+- **WHEN** system monitors node "worker-01"
+- **THEN** system retrieves node object from API
+- **THEN** system extracts and displays:
+  - Node name
+  - Ready condition status (True/False/Unknown)
+  - Reason for not-ready state (if applicable)
+  - Taints (especially "unschedulable" taint)
+  - Schedulable status (from `.spec.unschedulable`)
+  - Kubelet version
+  - Number of pods currently running on node
+
+#### Scenario: Node ready condition
+
+- **WHEN** node Ready condition is True
+- **THEN** system displays status as "Ready" in green
+- **WHEN** node Ready condition is False
+- **THEN** system displays status as "NotReady" in red with reason
+- **WHEN** node Ready condition is Unknown
+- **THEN** system displays status as "Unknown" in yellow with warning icon
+
+#### Scenario: Node scheduling status
+
+- **WHEN** node has `.spec.unschedulable = true`
+- **THEN** system displays "SchedulingDisabled (Cordoned)" badge
+- **WHEN** node has "NoSchedule" taint
+- **THEN** system displays "SchedulingDisabled (Tainted)" badge
+- **WHEN** node is schedulable
+- **THEN** system displays "Schedulable" in normal text
+
+### Requirement: Ceph Cluster Health Monitoring
+
+The system SHALL monitor and display Ceph cluster health status.
+
+#### Scenario: Query Ceph health
+
+- **WHEN** system monitors Ceph cluster health
+- **THEN** system executes `ceph status --format json` via rook-ceph-tools
+- **THEN** system parses JSON output
+- **THEN** system extracts:
+  - Overall health (HEALTH_OK, HEALTH_WARN, HEALTH_ERR)
+  - Health summary messages (if not HEALTH_OK)
+  - Number of OSDs (total, up, in)
+  - Number of monitors (total, in quorum)
+  - Data usage (used, available, total)
+  - PG states summary
+
+#### Scenario: Healthy cluster
+
+- **WHEN** Ceph status is HEALTH_OK
+- **THEN** system displays "HEALTH_OK" in green with checkmark icon
+- **THEN** system shows brief summary: "X OSDs up, Y monitors in quorum"
+
+#### Scenario: Warning state
+
+- **WHEN** Ceph status is HEALTH_WARN
+- **THEN** system displays "HEALTH_WARN" in yellow with warning icon
+- **THEN** system displays health summary messages
+- **THEN** system highlights that maintenance may worsen cluster state
+
+#### Scenario: Error state
+
+- **WHEN** Ceph status is HEALTH_ERR
+- **THEN** system displays "HEALTH_ERR" in red with error icon
+- **THEN** system displays health summary messages
+- **THEN** system warns that performing maintenance is risky
+- **THEN** system requires explicit confirmation to proceed
+
+### Requirement: OSD Status Monitoring
+
+The system SHALL monitor and display OSD (Object Storage Daemon) status.
+
+#### Scenario: List OSDs on node
+
+- **WHEN** system monitors OSDs for node "worker-01"
+- **THEN** system executes `ceph osd tree --format json`
+- **THEN** system parses output to find OSDs on target node
+- **THEN** system displays for each OSD:
+  - OSD ID (e.g., osd.0)
+  - Status (up/down, in/out)
+  - Weight
+  - Associated deployment name (e.g., rook-ceph-osd-0)
+
+#### Scenario: OSD status indicators
+
+- **WHEN** OSD is "up" and "in"
+- **THEN** system displays status in green
+- **WHEN** OSD is "down" or "out"
+- **THEN** system displays status in red
+- **WHEN** OSD has "noout" flag set
+- **THEN** system displays "(noout)" badge next to status
+
+### Requirement: Deployment Status Monitoring
+
+The system SHALL monitor Rook-Ceph deployment status in configured namespaces.
+
+#### Scenario: Monitor operator deployment
+
+- **WHEN** system monitors rook-ceph-operator deployment
+- **THEN** system retrieves deployment from configured namespace
+- **THEN** system displays:
+  - Desired replicas
+  - Current replicas
+  - Ready replicas
+  - Available replicas
+  - Deployment conditions (Available, Progressing)
+
+#### Scenario: Monitor discovered deployments
+
+- **WHEN** system discovers deployments to be scaled down
+- **THEN** system monitors each deployment status
+- **THEN** system displays table with columns:
+  - Deployment name
+  - Current replicas
+  - Ready replicas
+  - Status indicator (Ready, Scaling, Unavailable)
+
+#### Scenario: Deployment not ready
+
+- **WHEN** deployment has ready replicas < desired replicas
+- **THEN** system displays status as "Scaling" in yellow
+- **WHEN** deployment has 0 ready replicas but >0 desired
+- **THEN** system displays status as "Unavailable" in red
+
+### Requirement: Health Dashboard Refresh
+
+The system SHALL refresh monitoring data at configurable intervals without blocking user interaction.
+
+#### Scenario: Background data refresh
+
+- **WHEN** dashboard is visible
+- **THEN** system spawns goroutine for each monitor type (node, Ceph, deployments)
+- **THEN** system refreshes node status every 2 seconds
+- **THEN** system refreshes Ceph health every 5 seconds
+- **THEN** system refreshes deployment status every 2 seconds
+- **THEN** system sends update messages to Bubble Tea model on each refresh
+- **THEN** system updates display without blocking user input
+
+#### Scenario: Refresh error handling
+
+- **WHEN** API call fails during refresh
+- **THEN** system logs error to log file
+- **THEN** system displays stale data with "Last updated X seconds ago" indicator
+- **THEN** system continues retry on next refresh cycle
+- **THEN** system does not crash or stop refreshing other monitors
+
+#### Scenario: Configurable refresh rates
+
+- **WHEN** user configures custom refresh intervals in config file
+- **THEN** system uses configured intervals instead of defaults
+- **THEN** system validates intervals are >= 1 second
+- **THEN** system warns if intervals are too aggressive (< 1 second)
+
+### Requirement: Status Aggregation
+
+The system SHALL aggregate individual statuses into overall health assessment.
+
+#### Scenario: Calculate overall health
+
+- **WHEN** system aggregates all monitoring data
+- **THEN** system evaluates:
+  - Node ready: critical
+  - Ceph HEALTH_OK: warning if not OK, critical if ERR
+  - Operator available: warning if not available
+  - OSDs up: warning if any down
+- **THEN** system determines overall status: Healthy, Degraded, Critical
+- **THEN** system displays overall status prominently in dashboard header
+
+#### Scenario: Healthy state
+
+- **WHEN** node is Ready, Ceph is HEALTH_OK, operator is available, all OSDs are up
+- **THEN** system displays overall status "Healthy" in green
+- **THEN** system shows checkmark icon
+
+#### Scenario: Degraded state
+
+- **WHEN** Ceph is HEALTH_WARN or some OSDs are down
+- **THEN** system displays overall status "Degraded" in yellow
+- **THEN** system shows warning icon
+- **THEN** system lists degradation reasons
+
+#### Scenario: Critical state
+
+- **WHEN** node is NotReady or Ceph is HEALTH_ERR
+- **THEN** system displays overall status "Critical" in red
+- **THEN** system shows error icon
+- **THEN** system strongly warns against proceeding with maintenance
