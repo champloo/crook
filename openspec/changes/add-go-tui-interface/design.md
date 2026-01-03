@@ -16,7 +16,6 @@ We're building a Go application with TUI to provide:
 
 ### Constraints
 
-- Must maintain compatibility with existing TSV state file format (migration path)
 - Must work in environments without GUI (terminal-only)
 - Must be deployable as single binary (no runtime dependencies)
 - Must support same namespaces/configuration as bash script
@@ -36,7 +35,7 @@ We're building a Go application with TUI to provide:
 - Add cluster health dashboard view
 - Implement proper error handling and validation
 - Support configuration via file + CLI flags
-- Maintain state file compatibility
+- Maintain a stable, versioned state file format
 
 ### Non-Goals
 
@@ -69,7 +68,7 @@ pkg/
     ceph.go           # Ceph command execution
   state/             # State persistence
     state.go          # State file read/write
-    format.go         # TSV format handling
+    format.go         # JSON format handling
   tui/               # Bubble Tea components
     models/
       app.go          # Main app model
@@ -129,7 +128,7 @@ kubernetes:
   kubeconfig: ~/.kube/config  # Optional, defaults to standard locations
 
 state:
-  file-path-template: "./crook-state-{{.Node}}.tsv"
+  file-path-template: "./crook-state-{{.Node}}.json"
   backup-enabled: true
 
 deployment-filters:
@@ -146,31 +145,44 @@ ui:
 
 **Rationale**: Standard Go tooling pattern, familiar to operators, supports automation.
 
-### State Persistence: Enhanced TSV Format
+### State Persistence: JSON Format
 
-**Decision**: Keep TSV format for now, add metadata header for future extensibility
+**Decision**: Use JSON format for state files, with a `resources` array for future extensibility.
 
-**Format** (backwards compatible):
-```tsv
-# crook-state v1
-# Node: worker-01
-# Timestamp: 2026-01-03T10:30:00Z
-# OperatorReplicas: 1
-Deployment	rook-ceph	rook-ceph-osd-0	1
-Deployment	rook-ceph	rook-ceph-mon-a	1
+**Format**:
+```json
+{
+  "version": "v1",
+  "node": "worker-01",
+  "timestamp": "2026-01-03T10:30:00Z",
+  "operatorReplicas": 1,
+  "resources": [
+    {
+      "kind": "Deployment",
+      "namespace": "rook-ceph",
+      "name": "rook-ceph-osd-0",
+      "replicas": 1
+    },
+    {
+      "kind": "Deployment",
+      "namespace": "rook-ceph",
+      "name": "rook-ceph-mon-a",
+      "replicas": 1
+    }
+  ]
+}
 ```
 
-**Migration**:
-- Parser ignores lines starting with `#` (comments)
-- Old format (no headers) still works
-- New format adds metadata for future features (rollback, auditing)
+**Notes**:
+- Use `version` for schema evolution.
+- Keep the top-level shape stable; add new optional fields as needed.
 
 **Alternatives considered**:
-- **JSON**: More structured but less human-readable, breaks compatibility
-- **YAML**: Overkill for simple tabular data
+- **TSV**: Simpler, but requires custom parsing/validation and is harder to evolve
+- **YAML**: Human-friendly, but less strict and more error-prone for automation
 - **SQLite**: Too heavy for simple state persistence
 
-**Rationale**: Maintain compatibility, allow gradual enhancement, keep it simple.
+**Rationale**: JSON is structured, has native Go support, and supports schema evolution cleanly.
 
 ### TUI Flow: State Machine Pattern
 
@@ -229,8 +241,7 @@ Deployment	rook-ceph	rook-ceph-mon-a	1
 ### Risk: State file format changes breaking compatibility
 
 **Mitigation**:
-- Version state file format in header
-- Maintain backward compatibility for at least 2 versions
+- Version the state file format (`version` field)
 - Validate state file version before parsing
 
 ## Migration Plan
@@ -239,7 +250,7 @@ Deployment	rook-ceph	rook-ceph-mon-a	1
 1. Initialize Go module
 2. Set up project structure
 3. Implement Kubernetes client wrapper
-4. Implement state persistence (TSV read/write)
+4. Implement state persistence (JSON read/write)
 5. Write unit tests for core components
 
 ### Phase 2: Core Logic (Week 2)

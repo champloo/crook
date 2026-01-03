@@ -51,7 +51,7 @@ The system SHALL support configuration options for all operational parameters.
 
 - **WHEN** config file contains state section
 - **THEN** system reads:
-  - `file-path-template` (default: "./crook-state-{{.Node}}.tsv")
+  - `file-path-template` (default: "./crook-state-{{.Node}}.json")
   - `backup-enabled` (default: true)
   - `backup-directory` (default: "~/.local/state/crook/backups")
 
@@ -86,7 +86,7 @@ The system SHALL support environment variables with CROOK_ prefix.
 
 - **WHEN** environment variable `CROOK_KUBERNETES_ROOK_OPERATOR_NAMESPACE=custom-rook` is set
 - **THEN** system overrides `kubernetes.rook-operator-namespace` with "custom-rook"
-- **WHEN** environment variable `CROOK_STATE_FILE_PATH_TEMPLATE=/tmp/state-{{.Node}}.tsv` is set
+- **WHEN** environment variable `CROOK_STATE_FILE_PATH_TEMPLATE=/tmp/state-{{.Node}}.json` is set
 - **THEN** system overrides `state.file-path-template` with specified value
 
 #### Scenario: Nested configuration via env vars
@@ -182,7 +182,7 @@ kubernetes:
   kubeconfig: ~/.kube/config
 
 state:
-  file-path-template: "./crook-state-{{.Node}}.tsv"
+  file-path-template: "./crook-state-{{.Node}}.json"
   backup-enabled: true
 
 deployment-filters:

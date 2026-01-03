@@ -17,7 +17,7 @@ The system SHALL execute the node down phase by performing these steps in order:
 - **THEN** system discovers all deployments with pods on target node matching configured prefixes
 - **THEN** system scales each discovered deployment to 0 replicas
 - **THEN** system waits for each deployment's readyReplicas to become 0
-- **THEN** system saves deployment state (namespace, name, original replica count) to TSV file
+- **THEN** system saves deployment state (namespace, name, original replica count) to JSON state file
 - **THEN** system displays success message with state file location
 
 #### Scenario: Down phase with no matching deployments

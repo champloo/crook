@@ -46,19 +46,19 @@
 ## 3. State Persistence
 
 - [ ] 3.1 Define state data structure in pkg/state/state.go
-- [ ] 3.2 Implement TSV format writer in pkg/state/format.go:
-  - [ ] Write metadata header (version, node, timestamp)
-  - [ ] Write deployment data lines
+- [ ] 3.2 Implement JSON format writer in pkg/state/format.go:
+  - [ ] Write root object fields: `version`, `node`, `timestamp`, `operatorReplicas`, `resources`
+  - [ ] Pretty-print with 2-space indentation (deterministic output)
+  - [ ] Sort resources deterministically (namespace, then name)
   - [ ] Atomic file write (temp file + rename)
-- [ ] 3.3 Implement TSV format parser:
-  - [ ] Parse metadata header (handle missing header for legacy files)
-  - [ ] Parse deployment data lines
-  - [ ] Validate format and data types
+- [ ] 3.3 Implement JSON format parser:
+  - [ ] Parse file as JSON
+  - [ ] Validate required fields and data types (`version`, `resources`, resource fields)
+  - [ ] Return structured errors for malformed JSON / missing fields
 - [ ] 3.4 Implement state file path resolution with template substitution
 - [ ] 3.5 Implement state file backup functionality
 - [ ] 3.6 Add state file validation functions
 - [ ] 3.7 Write unit tests for state persistence
-- [ ] 3.8 Test backward compatibility with bash script TSV files
 
 ## 4. Configuration Management
 

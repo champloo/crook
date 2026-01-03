@@ -23,7 +23,7 @@ A Go-based TUI application will provide:
 - **Implement live progress tracking** with progress bars for all async operations
 - **Add cluster health dashboard** showing node status, OSD health, deployment states
 - **Kubernetes client integration** using official client-go library
-- **State persistence** with enhanced state file format (keep TSV for now, extensible)
+- **State persistence** with JSON state file format (`resources` array, extensible)
 - **Interactive workflows** for both down and up phases with confirmations
 - **Pre-flight validation** checks before allowing destructive operations
 
@@ -49,7 +49,7 @@ Core functionality matches existing bash script:
   - Update: `devenv.nix` (already has Go configured)
 
 - **Migration impact**:
-  - Existing state files (TSV format) remain compatible
+  - State files are written as JSON (`.json`) with no TSV compatibility
   - Users must compile Go binary or use pre-built releases
   - Breaking change: bash script removed (full replacement)
 

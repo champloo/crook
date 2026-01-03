@@ -40,11 +40,11 @@ state:
   # Template for state file path
   # Available template variables:
   #   {{.Node}} - Node name being maintained
-  # Default: ./crook-state-{{.Node}}.tsv
-  file-path-template: "./crook-state-{{.Node}}.tsv"
+  # Default: ./crook-state-{{.Node}}.json
+  file-path-template: "./crook-state-{{.Node}}.json"
 
   # Enable automatic backup of state file before operations
-  # Backup is created with .bak extension and timestamp
+  # Backup is created as <original>.backup.<RFC3339>.json
   # Default: true
   backup-enabled: true
 
