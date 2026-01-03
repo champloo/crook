@@ -1,0 +1,119 @@
+# crook configuration file
+#
+# This file shows all available configuration options with their default values.
+# Copy this file to one of these locations:
+#   - ./crook.yaml (current directory)
+#   - ~/.config/crook/config.yaml (user config)
+#   - /etc/crook/config.yaml (system config)
+# Or specify a custom location with: --config /path/to/config.yaml
+#
+# Configuration precedence (highest to lowest):
+#   1. CLI flags
+#   2. Environment variables (CROOK_* prefix)
+#   3. Config file
+#   4. Built-in defaults
+
+# Kubernetes cluster configuration
+kubernetes:
+  # Namespace where the Rook operator is deployed
+  # Default: rook-ceph
+  rook-operator-namespace: rook-ceph
+
+  # Namespace where the Rook Ceph cluster resources are deployed
+  # Default: rook-ceph
+  rook-cluster-namespace: rook-ceph
+
+  # Path to kubeconfig file
+  # If not specified, uses standard kubeconfig resolution:
+  #   - KUBECONFIG environment variable
+  #   - ~/.kube/config
+  # Default: (empty, use standard resolution)
+  kubeconfig: ~/.kube/config
+
+  # Kubernetes context to use (from kubeconfig)
+  # If not specified, uses current context
+  # Default: (empty, use current context)
+  # context: my-cluster-context
+
+# State file configuration
+state:
+  # Template for state file path
+  # Available template variables:
+  #   {{.Node}} - Node name being maintained
+  # Default: ./crook-state-{{.Node}}.tsv
+  file-path-template: "./crook-state-{{.Node}}.tsv"
+
+  # Enable automatic backup of state file before operations
+  # Backup is created with .bak extension and timestamp
+  # Default: true
+  backup-enabled: true
+
+  # Directory to store state file backups
+  # Default: ~/.local/state/crook/backups
+  backup-directory: ~/.local/state/crook/backups
+
+# Deployment discovery and filtering
+deployment-filters:
+  # List of deployment name prefixes to target during node maintenance
+  # Only deployments matching these prefixes will be scaled down during
+  # the 'down' phase and restored during the 'up' phase
+  # Default: (shown below)
+  prefixes:
+    - rook-ceph-osd
+    - rook-ceph-mon
+    - rook-ceph-exporter
+    - rook-ceph-crashcollector
+
+# Terminal UI configuration
+ui:
+  # Color theme for TUI
+  # Currently only 'default' is supported
+  # Future: support custom themes
+  # Default: default
+  theme: default
+
+  # Progress bar refresh rate in milliseconds
+  # Lower values = smoother animation but more CPU usage
+  # Default: 100
+  progress-refresh-ms: 100
+
+  # Dashboard refresh rate for node status in milliseconds
+  # How often to poll Kubernetes for node status updates
+  # Default: 2000 (2 seconds)
+  dashboard-refresh-node-ms: 2000
+
+  # Dashboard refresh rate for Ceph health in milliseconds
+  # How often to check Ceph cluster health status
+  # Default: 5000 (5 seconds)
+  dashboard-refresh-ceph-ms: 5000
+
+# Operation timeouts
+timeouts:
+  # Timeout for individual Kubernetes API calls in seconds
+  # Default: 30
+  api-call-timeout-seconds: 30
+
+  # Timeout for waiting on deployment to reach desired state in seconds
+  # Used when waiting for deployments to scale up/down
+  # Default: 300 (5 minutes)
+  wait-deployment-timeout-seconds: 300
+
+  # Timeout for Ceph commands (e.g., setting noout flag) in seconds
+  # Default: 60
+  ceph-command-timeout-seconds: 60
+
+# Logging configuration
+# Note: These can also be set via CLI flags (--log-level, --log-file)
+logging:
+  # Log level: debug, info, warn, error
+  # Default: info
+  level: info
+
+  # Log file path
+  # If not specified, logs only to stderr
+  # Default: (empty, no file logging)
+  # file: ~/.local/state/crook/crook.log
+
+  # Log format: text, json
+  # Default: text
+  format: text
