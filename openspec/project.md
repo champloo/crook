@@ -69,7 +69,7 @@
   - `pkg/` - Public packages (reusable by external tools)
   - `internal/` - Private packages (project-specific utilities)
 - **State Management:**
-  - TSV-based state files for deployment replica tracking (backward compatible)
+  - JSON state files for deployment replica tracking (`resources` array, versioned)
   - In-memory state machines for TUI workflow progression
 - **Dependency Injection:** Pass dependencies explicitly (no global state)
 - **Interface Segregation:** Small, focused interfaces for testability
@@ -94,7 +94,7 @@
 **Integration Tests:**
 - Test against real Kubernetes API (or kind cluster)
 - Validate end-to-end workflows (down/up phases)
-- Test state file backward compatibility
+- Test state file format invariants (JSON v1 parsing/writing)
 - Use build tags: `// +build integration`
 
 **TUI Tests:**
@@ -209,7 +209,7 @@ go test -bench=. ./...           # Benchmarks
   - `kubernetes.rook-operator-namespace` (default: `rook-ceph`)
   - `kubernetes.rook-cluster-namespace` (default: `rook-ceph`)
   - `kubernetes.kubeconfig` (default: standard kubeconfig locations)
-  - `state.file-path-template` (default: `./crook-state-{{.Node}}.tsv`)
+  - `state.file-path-template` (default: `./crook-state-{{.Node}}.json`)
   - `deployment-filters.prefixes` (default: `[rook-ceph-osd, rook-ceph-mon, ...]`)
 
 - **RBAC Permissions Required:**
