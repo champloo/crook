@@ -148,7 +148,7 @@ func TestWith(t *testing.T) {
 		Output: buf,
 	})
 
-	contextLogger := &Logger{Logger: logger.With("component", "test")}
+	contextLogger := logger.With("component", "test")
 	contextLogger.Info("test message")
 
 	output := buf.String()
@@ -159,8 +159,8 @@ func TestWith(t *testing.T) {
 
 func TestPackageLevelFunctions(t *testing.T) {
 	buf := &bytes.Buffer{}
-	original := defaultLogger
-	defer func() { defaultLogger = original }()
+	original := GetDefault()
+	defer func() { SetDefault(original) }()
 
 	SetDefault(New(Config{
 		Level:  LevelDebug,

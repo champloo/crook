@@ -4,6 +4,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"sync/atomic"
 )
 
 // Logger wraps slog.Logger with a simplified API
@@ -37,19 +38,25 @@ const (
 )
 
 // Default logger instance
-var defaultLogger *Logger
+var defaultLogger atomic.Value // stores *Logger
 
 func init() {
-	defaultLogger = New(Config{
+	defaultLogger.Store(New(Config{
 		Level:  LevelInfo,
 		Format: FormatText,
-		Output: os.Stdout,
-	})
+		Output: os.Stderr,
+	}))
 }
 
 // New creates a new logger with the given configuration
 func New(cfg Config) *Logger {
 	var handler slog.Handler
+
+	// Default to stderr if no output specified
+	output := cfg.Output
+	if output == nil {
+		output = os.Stderr
+	}
 
 	// Convert custom level to slog.Level
 	level := levelToSlog(cfg.Level)
@@ -60,9 +67,9 @@ func New(cfg Config) *Logger {
 	}
 
 	if cfg.Format == FormatJSON {
-		handler = slog.NewJSONHandler(cfg.Output, opts)
+		handler = slog.NewJSONHandler(output, opts)
 	} else {
-		handler = slog.NewTextHandler(cfg.Output, opts)
+		handler = slog.NewTextHandler(output, opts)
 	}
 
 	return &Logger{
@@ -86,41 +93,46 @@ func levelToSlog(l Level) slog.Level {
 	}
 }
 
+// With returns a logger with the given attributes
+func (l *Logger) With(args ...any) *Logger {
+	return &Logger{
+		Logger: l.Logger.With(args...),
+	}
+}
+
 // Package-level convenience functions using default logger
 
 // Debug logs a debug message
 func Debug(msg string, args ...any) {
-	defaultLogger.Debug(msg, args...)
+	defaultLogger.Load().(*Logger).Debug(msg, args...)
 }
 
 // Info logs an info message
 func Info(msg string, args ...any) {
-	defaultLogger.Info(msg, args...)
+	defaultLogger.Load().(*Logger).Info(msg, args...)
 }
 
 // Warn logs a warning message
 func Warn(msg string, args ...any) {
-	defaultLogger.Warn(msg, args...)
+	defaultLogger.Load().(*Logger).Warn(msg, args...)
 }
 
 // Error logs an error message
 func Error(msg string, args ...any) {
-	defaultLogger.Error(msg, args...)
+	defaultLogger.Load().(*Logger).Error(msg, args...)
 }
 
 // With returns a logger with the given attributes
 func With(args ...any) *Logger {
-	return &Logger{
-		Logger: defaultLogger.With(args...),
-	}
+	return defaultLogger.Load().(*Logger).With(args...)
 }
 
 // SetDefault sets the default logger
 func SetDefault(l *Logger) {
-	defaultLogger = l
+	defaultLogger.Store(l)
 }
 
 // GetDefault returns the default logger
 func GetDefault() *Logger {
-	return defaultLogger
+	return defaultLogger.Load().(*Logger)
 }
