@@ -7,7 +7,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes"
 )
 
 // NodeStatus holds the status information for a node
@@ -162,11 +161,4 @@ func ListNodes(ctx context.Context) ([]corev1.Node, error) {
 		return nil, err
 	}
 	return client.ListNodes(ctx)
-}
-
-// Helper function to create a clientset from a kubernetes.Interface (for testing)
-func newClientFromInterface(clientset kubernetes.Interface) *Client {
-	return &Client{
-		Clientset: clientset,
-	}
 }

@@ -35,9 +35,18 @@
 - **Error Handling:**
   - Always check errors; use `if err != nil` pattern
   - Wrap errors with context using `fmt.Errorf("operation failed: %w", err)`
-  - Return errors up the stack; log at top level only
+  - Return errors up the stack; log at decision points (not every layer)
   - Use custom error types for domain-specific errors
   - Provide actionable error messages for operators
+
+- **Logging:**
+  - Use `internal/logger` for all logging (structured slog-based)
+  - Debug: Non-fatal errors, diagnostic info (won't show in production by default)
+  - Info: Normal operation milestones
+  - Warn: Unexpected but handled conditions
+  - Error: Operation failures (still return error to caller)
+  - Use structured logging: `logger.Debug("msg", "key", value, "error", err)`
+  - Example: `logger.Debug("failed to traverse ownership", "pod", name, "error", err)`
 
 - **Function Design:**
   - Small, focused functions with single responsibility
@@ -95,9 +104,13 @@
 - Mock background operations
 
 **Test Organization:**
-- Unit tests: co-located with code (`pkg/*/`)
+- Unit tests: co-located with code in `*_test.go` files (same package)
+- Package-level test helpers: unexported functions in `**/*_test.go` files (e.g., `helpers_test.go`)
+  - IMPORTANT: Never put test-only code in production `.go` files
+  - ALL test infrastructure must use `_test.go` suffix to exclude from production builds
+  - Prevents shipping test scaffolding in production binaries
+- Shared test utilities: `test/util/` (cross-package helpers)
 - Integration tests: `test/integration/`
-- Test utilities: `test/util/`
 - Fixtures: `test/fixtures/`
 
 **Test Commands:**

@@ -7,7 +7,6 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 )
 
 // DeploymentStatus holds the status information for a deployment
@@ -226,11 +225,4 @@ func GetDeployment(ctx context.Context, namespace, name string) (*appsv1.Deploym
 		return nil, err
 	}
 	return client.GetDeployment(ctx, namespace, name)
-}
-
-// Helper function to create a clientset from a kubernetes.Interface (for testing)
-func newClientFromClientset(clientset kubernetes.Interface) *Client {
-	return &Client{
-		Clientset: clientset,
-	}
 }

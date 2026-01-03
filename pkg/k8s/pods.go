@@ -8,10 +8,10 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
+
+	"github.com/andri/crook/internal/logger"
 )
 
 // OwnerInfo represents information about a resource owner
@@ -90,9 +90,13 @@ func (c *Client) GetOwnerChain(ctx context.Context, pod *corev1.Pod) (*OwnerChai
 		case "replicaset":
 			chain.ReplicaSet = &ownerInfo
 			// Try to find the deployment that owns this ReplicaSet
+			// This is non-fatal - if we can't traverse to the deployment, we still have the ReplicaSet info
 			if err := c.traverseReplicaSetOwner(ctx, pod.Namespace, ownerRef.Name, chain); err != nil {
-				// Non-fatal: log or ignore
-				_ = err
+				logger.Debug("failed to traverse ReplicaSet ownership chain",
+					"pod", pod.Name,
+					"namespace", pod.Namespace,
+					"replicaset", ownerRef.Name,
+					"error", err)
 			}
 
 		case "statefulset":
@@ -246,12 +250,4 @@ func ListPodsInNamespace(ctx context.Context, namespace string) ([]corev1.Pod, e
 		return nil, err
 	}
 	return client.ListPodsInNamespace(ctx, namespace)
-}
-
-// Helper function for creating a client from interface (for testing)
-func newClientFromInterfaceWithConfig(clientset kubernetes.Interface, config *rest.Config) *Client {
-	return &Client{
-		Clientset: clientset,
-		config:    config,
-	}
 }
