@@ -37,6 +37,14 @@ The system SHALL execute the node down phase by performing these steps in order:
 - **THEN** system exits with error code
 - **THEN** system does NOT create state file if any operation failed
 
+#### Scenario: Down phase with ordered deployment scaling
+
+- **WHEN** multiple Ceph deployments are discovered on node
+- **THEN** system scales deployments in controlled order for Ceph stability
+- **THEN** scaling order is: rook-ceph-osd (first), rook-ceph-mon, rook-ceph-exporter, rook-ceph-crashcollector (last)
+- **THEN** system waits for each deployment to reach 0 replicas before proceeding to next
+- **THEN** system records all deployments in state file
+
 ### Requirement: Up Phase Orchestration
 
 The system SHALL execute the node up phase by performing these steps in order: validate state file exists, restore deployment replicas, scale up Rook operator, unset Ceph noout flag, and uncordon node.
@@ -66,6 +74,15 @@ The system SHALL execute the node up phase by performing these steps in order: v
 - **THEN** system displays error message with parse details
 - **THEN** system exits with error code without modifying cluster
 - **THEN** system suggests manual inspection of state file
+
+#### Scenario: Up phase with ordered deployment scaling
+
+- **WHEN** restoring deployments from state file
+- **THEN** system scales deployments in controlled order for Ceph stability
+- **THEN** scaling order is: rook-ceph-mon (first), rook-ceph-osd, rook-ceph-exporter, rook-ceph-crashcollector (last)
+- **THEN** system waits for each deployment to become ready before proceeding to next
+- **THEN** system ensures monitors establish quorum before scaling OSDs
+- **THEN** order is different from down phase to ensure safe cluster recovery
 
 ### Requirement: Pre-flight Validation
 

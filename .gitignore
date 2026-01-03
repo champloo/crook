@@ -8,3 +8,28 @@ devenv.local.yaml
 
 # pre-commit
 .pre-commit-config.yaml
+
+# Go
+/crook
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+go.work.sum
+
+# Vendor
+vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# State files
+crook-state-*.tsv

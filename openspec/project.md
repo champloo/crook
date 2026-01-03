@@ -11,7 +11,7 @@
 - Enable safe, guided workflows with pre-flight validation and health monitoring
 
 ## Tech Stack
-- **Go 1.21+** - Primary implementation language
+- **Go 1.24+** - Primary implementation language
 - **Bubble Tea** - Terminal user interface framework (`github.com/charmbracelet/bubbletea`)
 - **Kubernetes client-go** - Official Kubernetes Go client library (`k8s.io/client-go`)
 - **Cobra** - CLI framework (`github.com/spf13/cobra`)
