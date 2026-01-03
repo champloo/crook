@@ -42,3 +42,7 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 - NEVER stop before pushing - that leaves work stranded locally
 - NEVER say "ready to push when you are" - YOU must push
 - If push fails, resolve and retry until it succeeds
+
+### Task tracking
+
+Use 'bd' for task tracking
