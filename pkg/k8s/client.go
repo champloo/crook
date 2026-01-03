@@ -14,7 +14,7 @@ import (
 
 // Client wraps Kubernetes clientset with additional functionality
 type Client struct {
-	Clientset *kubernetes.Clientset
+	Clientset kubernetes.Interface
 	config    *rest.Config
 	mu        sync.RWMutex
 }
