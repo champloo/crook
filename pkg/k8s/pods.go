@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -250,4 +251,195 @@ func ListPodsInNamespace(ctx context.Context, namespace string) ([]corev1.Pod, e
 		return nil, err
 	}
 	return client.ListPodsInNamespace(ctx, namespace)
+}
+
+// PodInfoForLS holds pod information for the ls command view
+type PodInfoForLS struct {
+	// Name is the pod name
+	Name string
+
+	// Namespace is the pod namespace
+	Namespace string
+
+	// Status is the pod status (Running/Pending/Failed/etc.)
+	Status string
+
+	// ReadyContainers is the number of ready containers
+	ReadyContainers int
+
+	// TotalContainers is the total number of containers
+	TotalContainers int
+
+	// Restarts is the total number of container restarts
+	Restarts int32
+
+	// NodeName is the node where the pod runs
+	NodeName string
+
+	// Age is the time since the pod was created
+	Age time.Duration
+
+	// Type is the pod type (osd/mon/exporter/crashcollector)
+	Type string
+
+	// IP is the pod IP address
+	IP string
+
+	// OwnerDeployment is the name of the owning deployment (if any)
+	OwnerDeployment string
+}
+
+// ListCephPods returns Ceph pods with detailed info
+func (c *Client) ListCephPods(ctx context.Context, namespace string, prefixes []string, nodeFilter string) ([]PodInfoForLS, error) {
+	// Build list options
+	listOpts := metav1.ListOptions{}
+	if nodeFilter != "" {
+		listOpts.FieldSelector = fmt.Sprintf("spec.nodeName=%s", nodeFilter)
+	}
+
+	// Get pods in namespace
+	podList, err := c.Clientset.CoreV1().Pods(namespace).List(ctx, listOpts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list pods in namespace %s: %w", namespace, err)
+	}
+
+	// Build result
+	result := make([]PodInfoForLS, 0)
+	now := time.Now()
+
+	for _, pod := range podList.Items {
+		// Check if pod matches any of the prefixes
+		if !matchesPodPrefix(pod.Name, prefixes) {
+			continue
+		}
+
+		// Get owner deployment
+		ownerDeployment := ""
+		chain, chainErr := c.GetOwnerChain(ctx, &pod)
+		if chainErr == nil && chain.Deployment != nil {
+			ownerDeployment = chain.Deployment.Name
+		}
+
+		// Calculate ready containers and restarts
+		readyContainers, totalContainers, restarts := getPodContainerStats(&pod)
+
+		info := PodInfoForLS{
+			Name:            pod.Name,
+			Namespace:       pod.Namespace,
+			Status:          getPodStatus(&pod),
+			ReadyContainers: readyContainers,
+			TotalContainers: totalContainers,
+			Restarts:        restarts,
+			NodeName:        pod.Spec.NodeName,
+			Age:             now.Sub(pod.CreationTimestamp.Time),
+			Type:            extractPodType(pod.Name),
+			IP:              pod.Status.PodIP,
+			OwnerDeployment: ownerDeployment,
+		}
+		result = append(result, info)
+	}
+
+	return result, nil
+}
+
+// ListCephPods is a package-level function that uses the global client
+func ListCephPods(ctx context.Context, namespace string, prefixes []string, nodeFilter string) ([]PodInfoForLS, error) {
+	client, err := GetClient(ctx, ClientConfig{})
+	if err != nil {
+		return nil, err
+	}
+	return client.ListCephPods(ctx, namespace, prefixes, nodeFilter)
+}
+
+// matchesPodPrefix checks if a pod name matches any of the given prefixes
+func matchesPodPrefix(name string, prefixes []string) bool {
+	if len(prefixes) == 0 {
+		return true
+	}
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(name, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+// getPodStatus returns a human-readable status for a pod
+func getPodStatus(pod *corev1.Pod) string {
+	// Check for terminating
+	if pod.DeletionTimestamp != nil {
+		return "Terminating"
+	}
+
+	// Check container statuses for more specific states
+	for _, cs := range pod.Status.ContainerStatuses {
+		if cs.State.Waiting != nil {
+			reason := cs.State.Waiting.Reason
+			if reason != "" {
+				return reason // e.g., CrashLoopBackOff, ImagePullBackOff
+			}
+		}
+		if cs.State.Terminated != nil {
+			reason := cs.State.Terminated.Reason
+			if reason != "" {
+				return reason // e.g., Error, Completed
+			}
+		}
+	}
+
+	// Check init container statuses
+	for _, cs := range pod.Status.InitContainerStatuses {
+		if cs.State.Waiting != nil {
+			reason := cs.State.Waiting.Reason
+			if reason != "" {
+				return "Init:" + reason
+			}
+		}
+		if cs.State.Terminated != nil && cs.State.Terminated.ExitCode != 0 {
+			return "Init:Error"
+		}
+	}
+
+	// Default to phase
+	return string(pod.Status.Phase)
+}
+
+// getPodContainerStats returns ready containers count, total containers count, and total restarts
+func getPodContainerStats(pod *corev1.Pod) (ready int, total int, restarts int32) {
+	total = len(pod.Spec.Containers)
+	for _, cs := range pod.Status.ContainerStatuses {
+		if cs.Ready {
+			ready++
+		}
+		restarts += cs.RestartCount
+	}
+	return ready, total, restarts
+}
+
+// extractPodType extracts the pod type from the name
+func extractPodType(name string) string {
+	typeMap := map[string]string{
+		"rook-ceph-osd":            "osd",
+		"rook-ceph-mon":            "mon",
+		"rook-ceph-mgr":            "mgr",
+		"rook-ceph-mds":            "mds",
+		"rook-ceph-rgw":            "rgw",
+		"rook-ceph-exporter":       "exporter",
+		"rook-ceph-crashcollector": "crashcollector",
+		"csi-cephfsplugin":         "csi",
+		"csi-rbdplugin":            "csi",
+		"rook-ceph-tools":          "tools",
+		"rook-ceph-operator":       "operator",
+		"rook-ceph-osd-prepare":    "prepare",
+		"rook-ceph-cleanup":        "cleanup",
+	}
+
+	// Check for prefix matches
+	for prefix, typ := range typeMap {
+		if strings.HasPrefix(name, prefix) {
+			return typ
+		}
+	}
+
+	return "other"
 }

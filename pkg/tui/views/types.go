@@ -109,6 +109,12 @@ type PodInfo struct {
 	// Ready indicates if the pod is ready
 	Ready bool
 
+	// ReadyContainers is the number of ready containers
+	ReadyContainers int
+
+	// TotalContainers is the total number of containers
+	TotalContainers int
+
 	// Restarts is the number of container restarts
 	Restarts int32
 
@@ -123,4 +129,7 @@ type PodInfo struct {
 
 	// IP is the pod IP address
 	IP string
+
+	// OwnerDeployment is the name of the owning deployment (if any)
+	OwnerDeployment string
 }

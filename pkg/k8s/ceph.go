@@ -562,3 +562,104 @@ func ParseOSDTree(output string) (*CephOSDTree, error) {
 	}
 	return &tree, nil
 }
+
+// MonitorStatus represents the Ceph monitor quorum status
+type MonitorStatus struct {
+	// TotalCount is the total number of monitors in the cluster
+	TotalCount int `json:"total_count"`
+
+	// InQuorum is the number of monitors currently in quorum
+	InQuorum int `json:"in_quorum"`
+
+	// QuorumNames is the list of monitor names in quorum
+	QuorumNames []string `json:"quorum_names"`
+
+	// OutOfQuorum is the list of monitor names not in quorum
+	OutOfQuorum []string `json:"out_of_quorum"`
+
+	// Leader is the name of the current quorum leader
+	Leader string `json:"leader"`
+
+	// ElectionEpoch is the current election epoch
+	ElectionEpoch int `json:"election_epoch"`
+}
+
+// cephQuorumStatus represents the parsed output of 'ceph quorum_status --format json'
+type cephQuorumStatus struct {
+	ElectionEpoch    int      `json:"election_epoch"`
+	Quorum           []int    `json:"quorum"`
+	QuorumNames      []string `json:"quorum_names"`
+	QuorumLeaderName string   `json:"quorum_leader_name"`
+	QuorumAge        int64    `json:"quorum_age"`
+	Monmap           struct {
+		Epoch   int `json:"epoch"`
+		NumMons int `json:"num_mons"`
+		Mons    []struct {
+			Rank int    `json:"rank"`
+			Name string `json:"name"`
+			Addr string `json:"addr"`
+		} `json:"mons"`
+	} `json:"monmap"`
+}
+
+// GetMonitorStatus gets the Ceph monitor quorum status
+func (c *Client) GetMonitorStatus(ctx context.Context, namespace string) (*MonitorStatus, error) {
+	output, err := c.ExecuteCephCommand(ctx, namespace, []string{"ceph", "quorum_status", "--format", "json"})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ceph quorum status: %w", err)
+	}
+
+	return parseMonitorStatus(output)
+}
+
+// GetMonitorStatus is a package-level function that uses the global client
+func GetMonitorStatus(ctx context.Context, namespace string) (*MonitorStatus, error) {
+	client, err := GetClient(ctx, ClientConfig{})
+	if err != nil {
+		return nil, err
+	}
+	return client.GetMonitorStatus(ctx, namespace)
+}
+
+// parseMonitorStatus parses the output of 'ceph quorum_status --format json'
+func parseMonitorStatus(output string) (*MonitorStatus, error) {
+	var qs cephQuorumStatus
+	if err := json.Unmarshal([]byte(output), &qs); err != nil {
+		return nil, fmt.Errorf("failed to parse ceph quorum status JSON: %w", err)
+	}
+
+	status := &MonitorStatus{
+		TotalCount:    qs.Monmap.NumMons,
+		InQuorum:      len(qs.QuorumNames),
+		QuorumNames:   qs.QuorumNames,
+		Leader:        qs.QuorumLeaderName,
+		ElectionEpoch: qs.ElectionEpoch,
+	}
+
+	// Determine which monitors are out of quorum
+	quorumSet := make(map[string]bool, len(qs.QuorumNames))
+	for _, name := range qs.QuorumNames {
+		quorumSet[name] = true
+	}
+
+	for _, mon := range qs.Monmap.Mons {
+		if !quorumSet[mon.Name] {
+			status.OutOfQuorum = append(status.OutOfQuorum, mon.Name)
+		}
+	}
+
+	return status, nil
+}
+
+// IsHealthy returns true if all monitors are in quorum
+func (m *MonitorStatus) IsHealthy() bool {
+	return m.InQuorum == m.TotalCount && m.TotalCount > 0
+}
+
+// HasQuorum returns true if the cluster has quorum (majority of monitors)
+func (m *MonitorStatus) HasQuorum() bool {
+	if m.TotalCount == 0 {
+		return false
+	}
+	return m.InQuorum > m.TotalCount/2
+}

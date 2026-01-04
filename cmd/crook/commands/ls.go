@@ -158,6 +158,17 @@ func runLs(opts *LsOptions) error {
 		return fmt.Errorf("failed to create kubernetes client: %w", err)
 	}
 
+	// Validate node filter if provided
+	if opts.NodeFilter != "" {
+		exists, checkErr := client.NodeExists(ctx, opts.NodeFilter)
+		if checkErr != nil {
+			return fmt.Errorf("failed to verify node: %w", checkErr)
+		}
+		if !exists {
+			return fmt.Errorf("node %q not found in cluster", opts.NodeFilter)
+		}
+	}
+
 	// Parse --show flag into LsTab slice
 	var showTabs []models.LsTab
 	if opts.Show != "" {

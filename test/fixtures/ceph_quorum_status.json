@@ -1,0 +1,61 @@
+{
+  "election_epoch": 12,
+  "quorum": [0, 1, 2],
+  "quorum_names": ["a", "b", "c"],
+  "quorum_leader_name": "a",
+  "quorum_age": 123456,
+  "features": {
+    "quorum_con": "4540138292840890367",
+    "quorum_mon": ["kraken", "luminous", "mimic", "osdmap-prune", "nautilus", "octopus", "pacific", "elector-pinging"]
+  },
+  "monmap": {
+    "epoch": 3,
+    "fsid": "12345678-1234-1234-1234-123456789012",
+    "modified": "2024-01-01T00:00:00.000000+0000",
+    "created": "2024-01-01T00:00:00.000000+0000",
+    "min_mon_release": 16,
+    "min_mon_release_name": "pacific",
+    "election_strategy": 1,
+    "disallowed_leaders": "",
+    "stretch_mode": false,
+    "num_mons": 3,
+    "mons": [
+      {
+        "rank": 0,
+        "name": "a",
+        "public_addrs": {
+          "addrvec": [{"type": "v2", "addr": "10.0.0.1:3300"}, {"type": "v1", "addr": "10.0.0.1:6789"}]
+        },
+        "addr": "10.0.0.1:6789/0",
+        "public_addr": "10.0.0.1:6789/0",
+        "priority": 0,
+        "weight": 0,
+        "crush_location": "{}"
+      },
+      {
+        "rank": 1,
+        "name": "b",
+        "public_addrs": {
+          "addrvec": [{"type": "v2", "addr": "10.0.0.2:3300"}, {"type": "v1", "addr": "10.0.0.2:6789"}]
+        },
+        "addr": "10.0.0.2:6789/0",
+        "public_addr": "10.0.0.2:6789/0",
+        "priority": 0,
+        "weight": 0,
+        "crush_location": "{}"
+      },
+      {
+        "rank": 2,
+        "name": "c",
+        "public_addrs": {
+          "addrvec": [{"type": "v2", "addr": "10.0.0.3:3300"}, {"type": "v1", "addr": "10.0.0.3:6789"}]
+        },
+        "addr": "10.0.0.3:6789/0",
+        "public_addr": "10.0.0.3:6789/0",
+        "priority": 0,
+        "weight": 0,
+        "crush_location": "{}"
+      }
+    ]
+  }
+}

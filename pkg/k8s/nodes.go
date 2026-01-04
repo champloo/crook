@@ -284,3 +284,25 @@ func matchesAnyPrefix(s string, prefixes []string) bool {
 	}
 	return false
 }
+
+// NodeExists checks if a node exists in the cluster
+func (c *Client) NodeExists(ctx context.Context, nodeName string) (bool, error) {
+	_, err := c.Clientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
+	if err != nil {
+		// Check if it's a not found error
+		if strings.Contains(err.Error(), "not found") {
+			return false, nil
+		}
+		return false, fmt.Errorf("failed to check node %s: %w", nodeName, err)
+	}
+	return true, nil
+}
+
+// NodeExists is a package-level function that uses the global client
+func NodeExists(ctx context.Context, nodeName string) (bool, error) {
+	client, err := GetClient(ctx, ClientConfig{})
+	if err != nil {
+		return false, err
+	}
+	return client.NodeExists(ctx, nodeName)
+}

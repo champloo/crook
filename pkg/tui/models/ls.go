@@ -84,14 +84,21 @@ type LsModel struct {
 	osdCount        int
 	podCount        int
 
+	// Total counts (unfiltered, for displaying filtered/total format)
+	nodeTotalCount       int
+	deploymentTotalCount int
+	osdTotalCount        int
+	podTotalCount        int
+
 	// Error state
 	lastError error //nolint:unused // Reserved for future error handling in child views
 }
 
 // LsDataUpdateMsg is sent when data is updated
 type LsDataUpdateMsg struct {
-	Tab   LsTab
-	Count int
+	Tab        LsTab
+	Count      int
+	TotalCount int // TotalCount is the unfiltered count (for displaying X/Y format)
 }
 
 // LsFilterMsg is sent when the filter changes
@@ -172,7 +179,7 @@ func (m *LsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.cursor = 0 // Reset cursor on tab switch
 
 	case LsDataUpdateMsg:
-		m.updateDataCount(msg.Tab, msg.Count)
+		m.updateDataCount(msg)
 
 	case LsFilterMsg:
 		m.filter = msg.Query
@@ -294,20 +301,31 @@ func (m *LsModel) updateActiveTab(index int) {
 }
 
 // updateDataCount updates the count for a specific tab
-func (m *LsModel) updateDataCount(tab LsTab, count int) {
-	switch tab {
+func (m *LsModel) updateDataCount(msg LsDataUpdateMsg) {
+	badge := fmt.Sprintf("%d", msg.Count)
+
+	// Show filtered/total format if filtering and counts differ
+	if msg.TotalCount > 0 && msg.Count != msg.TotalCount {
+		badge = fmt.Sprintf("%d/%d", msg.Count, msg.TotalCount)
+	}
+
+	switch msg.Tab {
 	case LsTabNodes:
-		m.nodeCount = count
-		m.tabBar.SetBadge(0, fmt.Sprintf("%d", count))
+		m.nodeCount = msg.Count
+		m.nodeTotalCount = msg.TotalCount
+		m.tabBar.SetBadge(0, badge)
 	case LsTabDeployments:
-		m.deploymentCount = count
-		m.tabBar.SetBadge(1, fmt.Sprintf("%d", count))
+		m.deploymentCount = msg.Count
+		m.deploymentTotalCount = msg.TotalCount
+		m.tabBar.SetBadge(1, badge)
 	case LsTabOSDs:
-		m.osdCount = count
-		m.tabBar.SetBadge(2, fmt.Sprintf("%d", count))
+		m.osdCount = msg.Count
+		m.osdTotalCount = msg.TotalCount
+		m.tabBar.SetBadge(2, badge)
 	case LsTabPods:
-		m.podCount = count
-		m.tabBar.SetBadge(3, fmt.Sprintf("%d", count))
+		m.podCount = msg.Count
+		m.podTotalCount = msg.TotalCount
+		m.tabBar.SetBadge(3, badge)
 	}
 }
 
@@ -480,4 +498,14 @@ func (m *LsModel) IsFilterActive() bool {
 // IsHelpVisible returns whether help overlay is visible
 func (m *LsModel) IsHelpVisible() bool {
 	return m.helpVisible
+}
+
+// GetNodeFilter returns the current node filter
+func (m *LsModel) GetNodeFilter() string {
+	return m.config.NodeFilter
+}
+
+// HasNodeFilter returns true if a node filter is active
+func (m *LsModel) HasNodeFilter() bool {
+	return m.config.NodeFilter != ""
 }
