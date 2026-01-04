@@ -33,6 +33,7 @@ We're building a Go application with TUI to provide:
 - Replace bash script with feature-equivalent Go application
 - Add TUI with real-time progress tracking
 - Add cluster health dashboard view
+- Add resource listing command (`crook ls`) for cluster inspection
 - Implement proper error handling and validation
 - Support configuration via file + CLI flags
 - Maintain a stable, versioned state file format
@@ -75,10 +76,13 @@ pkg/
       dashboard.go    # Health dashboard model
       down.go         # Down phase model
       up.go           # Up phase model
+      ls.go           # Resource list model (ls command)
     components/
       progress.go     # Progress bar component
       status.go       # Status display component
       confirm.go      # Confirmation prompt
+      table.go        # Resource table component
+      tabs.go         # Tab navigation component
     styles/
       theme.go        # Color scheme and styles
   config/            # Configuration management

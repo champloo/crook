@@ -196,3 +196,89 @@ The system SHALL aggregate individual statuses into overall health assessment.
 - **THEN** system displays overall status "Critical" in red
 - **THEN** system shows error icon
 - **THEN** system strongly warns against proceeding with maintenance
+
+### Requirement: Resource Listing for ls Command
+
+The system SHALL provide comprehensive resource queries to support the `crook ls` command.
+
+#### Scenario: List all cluster nodes
+
+- **WHEN** system lists nodes for ls view
+- **THEN** system queries all nodes via Kubernetes API
+- **THEN** system returns for each node:
+  - Name
+  - Ready condition status
+  - Roles (from labels `node-role.kubernetes.io/*`)
+  - Schedulable status (from `.spec.unschedulable`)
+  - Creation timestamp
+  - Kubelet version
+- **THEN** system annotates each node with count of Ceph pods running on it
+
+#### Scenario: List Ceph deployments across namespaces
+
+- **WHEN** system lists deployments for ls view
+- **THEN** system queries deployments in configured rook-cluster-namespace
+- **THEN** system filters by configured prefix patterns
+- **THEN** system returns for each deployment:
+  - Name and namespace
+  - Replica counts (desired, current, ready, available)
+  - Creation timestamp
+  - Deployment conditions (Available, Progressing)
+  - Labels (especially `ceph-osd-id` for OSD deployments)
+- **THEN** system maps each deployment to its host node via pod spec
+
+#### Scenario: List all OSDs with detailed status
+
+- **WHEN** system lists OSDs for ls view
+- **THEN** system executes `ceph osd tree --format json` via rook-ceph-tools
+- **THEN** system parses JSON to extract OSD information
+- **THEN** system returns for each OSD:
+  - OSD ID (numeric and osd.N format)
+  - Host/node name (from tree hierarchy)
+  - Status (up/down)
+  - In/Out state
+  - Weight and reweight values
+  - Device class (hdd, ssd, nvme)
+  - Crush location (root, datacenter, rack, host)
+- **THEN** system cross-references with Kubernetes deployments to map OSD ID to deployment name
+
+#### Scenario: Query Ceph flags status
+
+- **WHEN** system queries Ceph cluster flags
+- **THEN** system executes `ceph osd dump --format json` via rook-ceph-tools
+- **THEN** system extracts active flags (noout, noin, nodown, noup, etc.)
+- **THEN** system returns list of currently set flags
+- **THEN** system highlights maintenance-relevant flags (noout, norebalance)
+
+#### Scenario: List pods by node
+
+- **WHEN** system lists pods for a specific node
+- **THEN** system queries pods with field selector `spec.nodeName=<node>`
+- **THEN** system filters to Ceph-related pods (matching deployment prefixes)
+- **THEN** system returns for each pod:
+  - Name and namespace
+  - Phase (Running, Pending, Succeeded, Failed)
+  - Ready containers count
+  - Restart count
+  - Age
+  - Owner deployment name (via ownership chain traversal)
+
+#### Scenario: Aggregate storage usage
+
+- **WHEN** system queries storage usage for ls view
+- **THEN** system executes `ceph df --format json` via rook-ceph-tools
+- **THEN** system extracts:
+  - Total cluster capacity
+  - Used storage (raw and percentage)
+  - Available storage
+  - Per-pool usage summary (optional, for detail view)
+
+#### Scenario: Query monitor quorum status
+
+- **WHEN** system queries monitor status for ls view
+- **THEN** system executes `ceph mon stat --format json` via rook-ceph-tools
+- **THEN** system extracts:
+  - Total monitor count
+  - Monitors in quorum (count and names)
+  - Monitors out of quorum (if any)
+  - Leader monitor name

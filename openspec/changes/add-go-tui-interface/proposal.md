@@ -22,6 +22,7 @@ A Go-based TUI application will provide:
 - **Add configuration system** with YAML/TOML config files and CLI flag overrides
 - **Implement live progress tracking** with progress bars for all async operations
 - **Add cluster health dashboard** showing node status, OSD health, deployment states
+- **Add resource listing command** (`crook ls`) for interactive cluster inspection with tabbed views
 - **Kubernetes client integration** using official client-go library
 - **State persistence** with JSON state file format (`resources` array, extensible)
 - **Interactive workflows** for both down and up phases with confirmations
@@ -30,6 +31,12 @@ A Go-based TUI application will provide:
 Core functionality matches existing bash script:
 - Down phase: cordon → noout → scale operator → scale deployments → save state
 - Up phase: restore deployments → scale operator → unset noout → uncordon
+
+New functionality beyond bash script:
+- `crook ls` command for viewing Ceph cluster resources (nodes, deployments, OSDs, pods)
+- Tabbed navigation between resource types with filtering and search
+- Real-time cluster health summary header
+- Multiple output formats (TUI, table, JSON, YAML) for scripting integration
 
 ## Impact
 

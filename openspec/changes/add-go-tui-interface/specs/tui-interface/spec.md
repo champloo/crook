@@ -146,6 +146,107 @@ The system SHALL support intuitive keyboard controls for navigation and actions.
 - **WHEN** operation is in progress
 - **THEN** system accepts only 'Ctrl+C' to cancel (gracefully if possible)
 
+### Requirement: Resource List View (ls command)
+
+The system SHALL provide a `crook ls` command to display Ceph-related Kubernetes resources in an interactive TUI view.
+
+#### Scenario: Launch ls command
+
+- **WHEN** user runs `crook ls`
+- **THEN** system displays interactive TUI showing Ceph resources
+- **THEN** system shows resources grouped by type: Nodes, Deployments, Pods, OSDs
+- **THEN** system highlights resources in the configured rook-cluster-namespace
+- **THEN** system allows keyboard navigation between resource types
+
+#### Scenario: Node list view
+
+- **WHEN** user views nodes in ls mode
+- **THEN** system displays all cluster nodes with columns:
+  - Name
+  - Status (Ready/NotReady)
+  - Roles (control-plane, worker)
+  - Scheduling status (Schedulable/Cordoned)
+  - Ceph pod count (pods matching deployment-filter prefixes)
+  - Age
+- **THEN** system highlights nodes with Ceph workloads
+- **THEN** system shows cordoned nodes with distinct visual indicator
+
+#### Scenario: Deployment list view
+
+- **WHEN** user views deployments in ls mode
+- **THEN** system displays deployments matching configured prefixes with columns:
+  - Name
+  - Namespace
+  - Ready replicas (current/desired)
+  - Node (where pods are scheduled)
+  - Age
+  - Status indicator (Ready, Scaling, Unavailable)
+- **THEN** system groups deployments by type (osd, mon, exporter, crashcollector)
+- **THEN** system shows scaled-down deployments (0 replicas) with warning indicator
+
+#### Scenario: OSD list view
+
+- **WHEN** user views OSDs in ls mode
+- **THEN** system executes `ceph osd tree --format json` via rook-ceph-tools
+- **THEN** system displays OSDs with columns:
+  - OSD ID (e.g., osd.0)
+  - Node hostname
+  - Status (up/down)
+  - In/Out state
+  - Weight
+  - Associated deployment name
+  - PGs (primary PG count if available)
+- **THEN** system shows OSDs marked "out" or "down" with warning indicator
+- **THEN** system displays noout flag status in header if set
+
+#### Scenario: Ceph cluster summary header
+
+- **WHEN** ls TUI is displayed
+- **THEN** system shows cluster summary header containing:
+  - Cluster health status (HEALTH_OK/WARN/ERR)
+  - Total OSDs (up/total, in/total)
+  - Monitors in quorum (X/Y)
+  - noout flag status (set/unset)
+  - Storage usage (used/total)
+- **THEN** system refreshes summary every 5 seconds
+
+#### Scenario: Keyboard navigation in ls mode
+
+- **WHEN** user presses keys in ls TUI
+- **THEN** system responds to:
+  - `Tab` or `1-4` → Switch between resource views (Nodes, Deployments, OSDs, Pods)
+  - `↑` / `↓` or `j` / `k` → Navigate within current list
+  - `Enter` → Show detailed view of selected resource
+  - `r` → Refresh data immediately
+  - `/` → Filter/search within current view
+  - `q` or `Esc` → Exit ls mode
+  - `?` → Show help overlay
+
+#### Scenario: Resource detail view
+
+- **WHEN** user presses Enter on a selected resource
+- **THEN** system displays detail panel showing:
+  - Full resource metadata (name, namespace, labels, annotations)
+  - Resource-specific details (node conditions, deployment status, OSD stats)
+  - Related resources (pods on node, deployment's pods, etc.)
+- **THEN** user can press `Esc` or `q` to return to list view
+
+#### Scenario: Filter resources
+
+- **WHEN** user presses `/` and types filter text
+- **THEN** system filters current view to show only matching resources
+- **THEN** filter matches against resource name (case-insensitive)
+- **THEN** user can press `Esc` to clear filter
+- **THEN** filter indicator shows "Filtered: <query>" in status bar
+
+#### Scenario: ls with node argument
+
+- **WHEN** user runs `crook ls <node-name>`
+- **THEN** system pre-filters all views to show only resources related to specified node
+- **THEN** system shows deployments with pods on that node
+- **THEN** system shows OSDs hosted on that node
+- **THEN** system displays node-specific header with node status
+
 ### Requirement: Terminal Compatibility
 
 The system SHALL render correctly across common terminal emulators and multiplexers.
