@@ -140,17 +140,26 @@ func (m *AppModel) Init() tea.Cmd {
 
 // initializeSubModels creates the sub-models based on the current route
 func (m *AppModel) initializeSubModels() tea.Msg {
-	// For now, we create placeholder models
-	// These will be replaced with real implementations when their respective issues are completed
-	// (crook-oro for dashboard, crook-i4e for down, crook-egi for up)
-
 	switch m.route {
 	case RouteDashboard:
+		// Dashboard is not yet implemented
 		m.dashboardModel = newPlaceholderModel("Dashboard", "Cluster health dashboard coming soon...")
 	case RouteDown:
-		m.downModel = newPlaceholderModel("Down Phase", fmt.Sprintf("Down phase for node %s", m.config.NodeName))
+		m.downModel = NewDownModel(DownModelConfig{
+			NodeName:      m.config.NodeName,
+			StateFilePath: m.config.StateFilePath,
+			Config:        m.config.Config,
+			Client:        m.config.Client,
+			Context:       m.config.Context,
+		})
 	case RouteUp:
-		m.upModel = newPlaceholderModel("Up Phase", fmt.Sprintf("Up phase for node %s", m.config.NodeName))
+		m.upModel = NewUpModel(UpModelConfig{
+			NodeName:      m.config.NodeName,
+			StateFilePath: m.config.StateFilePath,
+			Config:        m.config.Config,
+			Client:        m.config.Client,
+			Context:       m.config.Context,
+		})
 	}
 
 	m.initialized = true
@@ -178,6 +187,14 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Initialization complete, propagate size if we have it
 		if m.width > 0 && m.height > 0 {
 			m.propagateSizeToSubModels()
+		}
+		// Call the sub-model's Init() to start its operations
+		subModel := m.currentSubModel()
+		if subModel != nil {
+			cmd := subModel.Init()
+			if cmd != nil {
+				cmds = append(cmds, cmd)
+			}
 		}
 
 	case InitErrorMsg:
