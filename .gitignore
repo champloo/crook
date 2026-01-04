@@ -20,6 +20,7 @@ devenv.local.yaml
 *.out
 go.work
 go.work.sum
+bin/
 
 # Vendor
 vendor/
