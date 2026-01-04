@@ -4,12 +4,14 @@ package commands
 import (
 	"context"
 	"fmt"
+	"os"
 	"slices"
 	"strings"
 
 	"github.com/andri/crook/pkg/config"
 	"github.com/andri/crook/pkg/k8s"
 	"github.com/andri/crook/pkg/tui/models"
+	"github.com/andri/crook/pkg/tui/output"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 )
@@ -137,11 +139,6 @@ func validateLsOptions(opts *LsOptions) error {
 
 // runLs executes the ls command
 func runLs(opts *LsOptions) error {
-	// For non-TUI output formats, defer to crook-3qm.11
-	if opts.Output != "tui" {
-		return fmt.Errorf("output format %q not yet implemented (see crook-3qm.11)", opts.Output)
-	}
-
 	// Initialize context
 	ctx := context.Background()
 
@@ -169,6 +166,11 @@ func runLs(opts *LsOptions) error {
 		}
 	}
 
+	// Handle non-TUI output formats
+	if opts.Output != "tui" {
+		return runLsNonTUI(ctx, opts, cfg, client)
+	}
+
 	// Parse --show flag into LsTab slice
 	var showTabs []models.LsTab
 	if opts.Show != "" {
@@ -188,6 +190,36 @@ func runLs(opts *LsOptions) error {
 	p := tea.NewProgram(model, tea.WithAltScreen())
 	if _, runErr := p.Run(); runErr != nil {
 		return fmt.Errorf("TUI error: %w", runErr)
+	}
+
+	return nil
+}
+
+// runLsNonTUI handles non-TUI output formats (table, json, yaml)
+func runLsNonTUI(ctx context.Context, opts *LsOptions, cfg config.Config, client *k8s.Client) error {
+	// Parse output format
+	format, err := output.ParseFormat(opts.Output)
+	if err != nil {
+		return err
+	}
+
+	// Parse resource types to display
+	resourceTypes := output.ParseResourceTypes(opts.Show)
+
+	// Fetch data
+	data, fetchErr := output.FetchData(ctx, output.FetchOptions{
+		Client:        client,
+		Config:        cfg,
+		ResourceTypes: resourceTypes,
+		NodeFilter:    opts.NodeFilter,
+	})
+	if fetchErr != nil {
+		return fmt.Errorf("failed to fetch data: %w", fetchErr)
+	}
+
+	// Render output
+	if renderErr := output.Render(os.Stdout, data, format); renderErr != nil {
+		return fmt.Errorf("failed to render output: %w", renderErr)
 	}
 
 	return nil
