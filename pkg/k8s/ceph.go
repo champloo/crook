@@ -628,8 +628,14 @@ func parseMonitorStatus(output string) (*MonitorStatus, error) {
 		return nil, fmt.Errorf("failed to parse ceph quorum status JSON: %w", err)
 	}
 
+	// Use len(Mons) as total count since num_mons may not be present in all Ceph versions
+	totalCount := len(qs.Monmap.Mons)
+	if qs.Monmap.NumMons > 0 {
+		totalCount = qs.Monmap.NumMons
+	}
+
 	status := &MonitorStatus{
-		TotalCount:    qs.Monmap.NumMons,
+		TotalCount:    totalCount,
 		InQuorum:      len(qs.QuorumNames),
 		QuorumNames:   qs.QuorumNames,
 		Leader:        qs.QuorumLeaderName,
