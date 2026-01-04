@@ -92,6 +92,7 @@ Key features:
 	// Add subcommands
 	rootCmd.AddCommand(newVersionCmd())
 	rootCmd.AddCommand(newDownCmd())
+	rootCmd.AddCommand(newUpCmd())
 
 	return rootCmd
 }
