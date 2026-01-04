@@ -8,6 +8,7 @@ import (
 	"github.com/andri/crook/pkg/config"
 	"github.com/andri/crook/pkg/k8s"
 	"github.com/andri/crook/pkg/tui/styles"
+	"github.com/andri/crook/pkg/tui/terminal"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -83,17 +84,24 @@ type AppModel struct {
 	upModel        SubModel
 
 	// Global state
-	showHelp    bool
-	initError   error
-	quitting    bool
-	initialized bool
+	showHelp       bool
+	showLogs       bool
+	sizeWarning    string
+	initError      error
+	quitting       bool
+	initialized    bool
+	termCapability terminal.Capability
 }
 
 // NewAppModel creates a new app model with the given configuration
 func NewAppModel(cfg AppConfig) *AppModel {
+	cap := terminal.DetectCapabilities()
+	terminal.ConfigureLipgloss(cap)
+
 	return &AppModel{
-		config: cfg,
-		route:  cfg.Route,
+		config:         cfg,
+		route:          cfg.Route,
+		termCapability: cap,
 	}
 }
 
@@ -163,6 +171,7 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		m.sizeWarning = terminal.SizeWarning(msg.Width, msg.Height)
 		m.propagateSizeToSubModels()
 
 	case InitCompleteMsg:
@@ -214,10 +223,22 @@ func (m *AppModel) handleGlobalKeys(msg tea.KeyMsg) tea.Cmd {
 		m.showHelp = !m.showHelp
 		return nil
 
+	case "l":
+		// Toggle log view (only when not showing help)
+		if !m.showHelp {
+			m.showLogs = !m.showLogs
+		}
+		return nil
+
 	case "esc":
 		if m.showHelp {
 			// Close help if open
 			m.showHelp = false
+			return nil
+		}
+		if m.showLogs {
+			// Close logs if open
+			m.showLogs = false
 			return nil
 		}
 		// Otherwise let the sub-model handle it
@@ -226,11 +247,16 @@ func (m *AppModel) handleGlobalKeys(msg tea.KeyMsg) tea.Cmd {
 	case "q":
 		// Quit if not in an active operation
 		// Sub-models can prevent this by handling 'q' themselves
-		if !m.showHelp {
+		if !m.showHelp && !m.showLogs {
 			m.quitting = true
 			return tea.Quit
 		}
-		m.showHelp = false
+		if m.showHelp {
+			m.showHelp = false
+		}
+		if m.showLogs {
+			m.showLogs = false
+		}
 		return nil
 	}
 
@@ -253,18 +279,33 @@ func (m *AppModel) View() string {
 		return m.renderHelp()
 	}
 
+	// Show logs overlay if active
+	if m.showLogs {
+		return m.renderLogs()
+	}
+
 	// Show loading state during initialization
 	if !m.initialized {
 		return m.renderLoading()
 	}
 
+	// Build main view
+	var view string
+
+	// Add size warning if terminal is too small
+	if m.sizeWarning != "" {
+		view = styles.StyleWarning.Render(fmt.Sprintf("%s %s", styles.IconWarning, m.sizeWarning)) + "\n\n"
+	}
+
 	// Render current sub-model
 	subModel := m.currentSubModel()
 	if subModel != nil {
-		return subModel.View()
+		view += subModel.View()
+	} else {
+		view += "No view available"
 	}
 
-	return "No view available"
+	return view
 }
 
 // renderError displays initialization or fatal errors
@@ -309,6 +350,23 @@ Press any key to close this help.`,
 		Render(helpContent)
 
 	return helpBox
+}
+
+// renderLogs displays the log view overlay
+func (m *AppModel) renderLogs() string {
+	logsContent := fmt.Sprintf(`%s Log View
+
+%s
+
+Press Esc or 'l' to close this view.`,
+		styles.StyleHeading.Render("Logs"),
+		styles.StyleSubtle.Render("No logs available yet. Logs will appear here during operations."))
+
+	logsBox := styles.StyleBoxInfo.
+		Width(min(70, m.width-4)).
+		Render(logsContent)
+
+	return logsBox
 }
 
 // renderLoading displays a loading indicator during initialization

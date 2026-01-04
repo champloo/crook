@@ -108,6 +108,100 @@ func TestAppModel_Update_GlobalKeys_Quit(t *testing.T) {
 	}
 }
 
+func TestAppModel_Update_GlobalKeys_Logs(t *testing.T) {
+	model := NewAppModel(AppConfig{
+		Route:   RouteDashboard,
+		Context: context.Background(),
+	})
+
+	// Test 'l' to toggle logs
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}}
+	updatedModel, _ := model.Update(msg)
+	m, _ := updatedModel.(*AppModel)
+
+	if !m.showLogs {
+		t.Error("'l' should toggle showLogs to true")
+	}
+
+	// Toggle off
+	updatedModel, _ = m.Update(msg)
+	m, _ = updatedModel.(*AppModel)
+
+	if m.showLogs {
+		t.Error("'l' again should toggle showLogs to false")
+	}
+}
+
+func TestAppModel_Update_GlobalKeys_LogsNotWhileHelp(t *testing.T) {
+	model := NewAppModel(AppConfig{
+		Route:   RouteDashboard,
+		Context: context.Background(),
+	})
+	model.showHelp = true
+
+	// 'l' should not toggle logs when help is showing
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}}
+	updatedModel, _ := model.Update(msg)
+	m, _ := updatedModel.(*AppModel)
+
+	if m.showLogs {
+		t.Error("'l' should not toggle logs when help is showing")
+	}
+}
+
+func TestAppModel_Update_EscapeClosesLogs(t *testing.T) {
+	model := NewAppModel(AppConfig{
+		Route:   RouteDashboard,
+		Context: context.Background(),
+	})
+	model.showLogs = true
+
+	// Test esc to close logs
+	msg := tea.KeyMsg{Type: tea.KeyEsc}
+	updatedModel, _ := model.Update(msg)
+	m, _ := updatedModel.(*AppModel)
+
+	if m.showLogs {
+		t.Error("esc should close logs overlay")
+	}
+}
+
+func TestAppModel_View_Logs(t *testing.T) {
+	model := NewAppModel(AppConfig{
+		Route:   RouteDashboard,
+		Context: context.Background(),
+	})
+	model.showLogs = true
+	model.width = 80
+	model.height = 24
+
+	view := model.View()
+
+	if !contains(view, "Log View") {
+		t.Errorf("Logs view should contain 'Log View', got %q", view)
+	}
+}
+
+func TestAppModel_View_SizeWarning(t *testing.T) {
+	model := NewAppModel(AppConfig{
+		Route:   RouteDashboard,
+		Context: context.Background(),
+	})
+	model.initialized = true
+	model.width = 60 // Below 80
+	model.height = 24
+	model.sizeWarning = "Terminal too narrow"
+
+	// Add a placeholder to make View() work
+	model.dashboardModel = newPlaceholderModel("Test", "desc")
+
+	view := model.View()
+
+	if !contains(view, "narrow") {
+		t.Errorf("View should show size warning, got %q", view)
+	}
+}
+
 func TestAppModel_Update_GlobalKeys_Help(t *testing.T) {
 	model := NewAppModel(AppConfig{
 		Route:   RouteDashboard,
