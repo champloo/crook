@@ -94,6 +94,7 @@ Key features:
 	rootCmd.AddCommand(newCompletionCmd())
 	rootCmd.AddCommand(newDownCmd())
 	rootCmd.AddCommand(newUpCmd())
+	rootCmd.AddCommand(newStateCmd())
 
 	return rootCmd
 }
