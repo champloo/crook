@@ -96,6 +96,7 @@ Key features:
 	rootCmd.AddCommand(newDownCmd())
 	rootCmd.AddCommand(newUpCmd())
 	rootCmd.AddCommand(newStateCmd())
+	rootCmd.AddCommand(newLsCmd())
 
 	return rootCmd
 }
