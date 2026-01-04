@@ -427,28 +427,28 @@ func (m *UpModel) startExecution() {
 // initStatusList creates the status list for tracking progress
 func (m *UpModel) initStatusList() {
 	m.statusList = components.NewStatusList()
+	m.statusList.AddStatus("Uncordon node", components.StatusTypePending)
 	m.statusList.AddStatus("Restore deployments", components.StatusTypePending)
 	m.statusList.AddStatus("Scale operator", components.StatusTypePending)
 	m.statusList.AddStatus("Unset noout flag", components.StatusTypePending)
-	m.statusList.AddStatus("Uncordon node", components.StatusTypePending)
 }
 
 // updateStateFromProgress updates the model state based on progress messages
 func (m *UpModel) updateStateFromProgress(msg UpPhaseProgressMsg) {
 	switch msg.Stage {
-	case "scale-up":
-		m.state = UpStateRestoringDeployments
-		m.updateStatusItem(0, components.StatusTypeRunning)
-	case "operator":
-		m.state = UpStateScalingOperator
-		m.updateStatusItem(0, components.StatusTypeSuccess)
-		m.updateStatusItem(1, components.StatusTypeRunning)
-	case "unset-noout":
-		m.state = UpStateUnsettingNoOut
-		m.updateStatusItem(1, components.StatusTypeSuccess)
-		m.updateStatusItem(2, components.StatusTypeRunning)
 	case "uncordon":
 		m.state = UpStateUncordoning
+		m.updateStatusItem(0, components.StatusTypeRunning)
+	case "scale-up":
+		m.state = UpStateRestoringDeployments
+		m.updateStatusItem(0, components.StatusTypeSuccess)
+		m.updateStatusItem(1, components.StatusTypeRunning)
+	case "operator":
+		m.state = UpStateScalingOperator
+		m.updateStatusItem(1, components.StatusTypeSuccess)
+		m.updateStatusItem(2, components.StatusTypeRunning)
+	case "unset-noout":
+		m.state = UpStateUnsettingNoOut
 		m.updateStatusItem(2, components.StatusTypeSuccess)
 		m.updateStatusItem(3, components.StatusTypeRunning)
 	case "complete":
@@ -567,14 +567,14 @@ func (m *UpModel) renderConfirmation() string {
 	// What will happen
 	b.WriteString("\n")
 	b.WriteString(styles.StyleStatus.Render("This will:\n"))
-	b.WriteString(fmt.Sprintf("  1. Scale up %d deployment(s) to original replicas\n", len(m.restorePlan)-len(m.missingDeploys)))
+	b.WriteString("  1. Uncordon the node to allow pod scheduling\n")
+	b.WriteString(fmt.Sprintf("  2. Scale up %d deployment(s) to original replicas\n", len(m.restorePlan)-len(m.missingDeploys)))
 	if m.loadedState != nil {
-		b.WriteString(fmt.Sprintf("  2. Scale up rook-ceph-operator to %d\n", m.loadedState.OperatorReplicas))
+		b.WriteString(fmt.Sprintf("  3. Scale up rook-ceph-operator to %d\n", m.loadedState.OperatorReplicas))
 	} else {
-		b.WriteString("  2. Scale up rook-ceph-operator\n")
+		b.WriteString("  3. Scale up rook-ceph-operator\n")
 	}
-	b.WriteString("  3. Unset Ceph noout flag\n")
-	b.WriteString("  4. Uncordon the node\n")
+	b.WriteString("  4. Unset Ceph noout flag to allow rebalancing\n")
 
 	b.WriteString("\n")
 	b.WriteString(m.confirmPrompt.View())

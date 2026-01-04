@@ -34,7 +34,7 @@ type UpPhaseOptions struct {
 }
 
 // ExecuteUpPhase orchestrates the complete node up phase workflow
-// Steps: load state → validate → restore deployments → scale operator → unset noout → uncordon
+// Steps: load state → validate → uncordon → restore deployments → scale operator → unset noout
 func ExecuteUpPhase(
 	ctx context.Context,
 	client *k8s.Client,
@@ -65,18 +65,24 @@ func ExecuteUpPhase(
 		return err
 	}
 
-	// Step 4: Restore deployments in order
+	// Step 4: Uncordon node FIRST so pods can schedule when deployments scale up
+	sendUpProgress(opts.ProgressCallback, "uncordon", fmt.Sprintf("Uncordoning node %s", nodeName), "")
+	if uncordonErr := client.UncordonNode(ctx, nodeName); uncordonErr != nil {
+		return fmt.Errorf("failed to uncordon node %s: %w", nodeName, uncordonErr)
+	}
+
+	// Step 5: Restore deployments in order (pods can now schedule to uncordoned node)
 	if restoreErr := restoreDeployments(ctx, client, maintenanceState, missingDeployments, opts); restoreErr != nil {
 		return restoreErr
 	}
 
-	// Step 5: Scale up rook-ceph-operator
+	// Step 6: Scale up rook-ceph-operator
 	if scaleErr := scaleOperator(ctx, client, cfg, maintenanceState, opts); scaleErr != nil {
 		return scaleErr
 	}
 
-	// Step 6: Finalize - unset noout flag and uncordon node
-	if finalizeErr := finalizeUpPhase(ctx, client, cfg, nodeName, opts); finalizeErr != nil {
+	// Step 7: Finalize - unset noout flag to allow normal Ceph rebalancing
+	if finalizeErr := finalizeUpPhase(ctx, client, cfg, opts); finalizeErr != nil {
 		return finalizeErr
 	}
 
@@ -184,18 +190,12 @@ func scaleOperator(ctx context.Context, client *k8s.Client, cfg config.Config, m
 	return nil
 }
 
-// finalizeUpPhase unsets the noout flag and uncordons the node
-func finalizeUpPhase(ctx context.Context, client *k8s.Client, cfg config.Config, nodeName string, opts UpPhaseOptions) error {
+// finalizeUpPhase unsets the noout flag to allow normal Ceph rebalancing
+func finalizeUpPhase(ctx context.Context, client *k8s.Client, cfg config.Config, opts UpPhaseOptions) error {
 	sendUpProgress(opts.ProgressCallback, "unset-noout", "Unsetting Ceph noout flag", "")
 
 	if err := client.UnsetNoOut(ctx, cfg.Kubernetes.RookClusterNamespace); err != nil {
 		return fmt.Errorf("failed to unset noout flag: %w", err)
-	}
-
-	sendUpProgress(opts.ProgressCallback, "uncordon", fmt.Sprintf("Uncordoning node %s", nodeName), "")
-
-	if err := client.UncordonNode(ctx, nodeName); err != nil {
-		return fmt.Errorf("failed to uncordon node %s: %w", nodeName, err)
 	}
 
 	return nil
