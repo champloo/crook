@@ -8,6 +8,7 @@
     git
     just
     openssl
+    golangci-lint
   ];
 
   languages.go = {
