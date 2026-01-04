@@ -10,6 +10,8 @@
     openssl
     golangci-lint
     minikube
+    kubectl
+    docker-machine-kvm2
   ];
 
   languages.go = {
