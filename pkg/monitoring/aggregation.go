@@ -61,9 +61,10 @@ func (hs *HealthSummary) StatusColor() string {
 		return "yellow"
 	case HealthStatusCritical:
 		return "red"
-	default:
+	case HealthStatusUnknown:
 		return "yellow"
 	}
+	return "yellow"
 }
 
 // AggregateHealth combines node, Ceph, and deployment health to produce an overall status
@@ -174,18 +175,18 @@ func evaluateCephHealth(cephHealth *CephHealth, osdStatus *OSDTreeStatus, summar
 		}
 		osdsHealthy = osdsUp == osdsTotal
 		if !osdsHealthy {
-			reason := fmt.Sprintf("%d of %d OSDs are down or out on this node", osdsTotal-osdsUp, osdsTotal)
-			summary.Reasons = append(summary.Reasons, reason)
+			osdReason := fmt.Sprintf("%d of %d OSDs are down or out on this node", osdsTotal-osdsUp, osdsTotal)
+			summary.Reasons = append(summary.Reasons, osdReason)
 		}
 	} else if !osdsHealthy {
 		// Use cluster-wide OSD stats
 		if cephHealth.OSDsUp < cephHealth.OSDCount {
-			reason := fmt.Sprintf("%d of %d OSDs are down", cephHealth.OSDCount-cephHealth.OSDsUp, cephHealth.OSDCount)
-			summary.Reasons = append(summary.Reasons, reason)
+			downReason := fmt.Sprintf("%d of %d OSDs are down", cephHealth.OSDCount-cephHealth.OSDsUp, cephHealth.OSDCount)
+			summary.Reasons = append(summary.Reasons, downReason)
 		}
 		if cephHealth.OSDsIn < cephHealth.OSDCount {
-			reason := fmt.Sprintf("%d of %d OSDs are out", cephHealth.OSDCount-cephHealth.OSDsIn, cephHealth.OSDCount)
-			summary.Reasons = append(summary.Reasons, reason)
+			outReason := fmt.Sprintf("%d of %d OSDs are out", cephHealth.OSDCount-cephHealth.OSDsIn, cephHealth.OSDCount)
+			summary.Reasons = append(summary.Reasons, outReason)
 		}
 	}
 
@@ -224,12 +225,16 @@ func evaluateDeploymentsHealth(deploymentsStatus *DeploymentsStatus, summary *He
 			healthyCount++
 		case DeploymentUnavailable:
 			unavailableCount++
+		case DeploymentScaling, DeploymentProgressing:
+			// Not counted as healthy or unavailable
 		}
 	}
 
 	totalCount := len(deploymentsStatus.Deployments)
 
 	switch deploymentsStatus.OverallStatus {
+	case DeploymentHealthy:
+		// All good, no reason needed
 	case DeploymentUnavailable:
 		reason = fmt.Sprintf("%d of %d deployments unavailable", unavailableCount, totalCount)
 		summary.Reasons = append(summary.Reasons, reason)

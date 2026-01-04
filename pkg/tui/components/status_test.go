@@ -164,7 +164,10 @@ func TestStatusIndicator_Update_Tick(t *testing.T) {
 
 	// Send tick
 	newModel, cmd := s.Update(StatusTickMsg{})
-	updated := newModel.(*StatusIndicator)
+	updated, ok := newModel.(*StatusIndicator)
+	if !ok {
+		t.Fatal("expected *StatusIndicator type")
+	}
 
 	if updated.spinnerFrame == initialFrame {
 		t.Error("Spinner frame should advance")

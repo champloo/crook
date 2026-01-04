@@ -13,7 +13,7 @@ func TestBackupFileCreatesBackup(t *testing.T) {
 
 	dir := t.TempDir()
 	path := filepath.Join(dir, "state.json")
-	if err := os.WriteFile(path, []byte("data"), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte("data"), 0o600); err != nil { //nolint:gosec // test file
 		t.Fatalf("write state: %v", err)
 	}
 
@@ -31,9 +31,9 @@ func TestBackupFileCreatesBackup(t *testing.T) {
 		t.Fatalf("expected backup path")
 	}
 
-	data, err := os.ReadFile(backup)
-	if err != nil {
-		t.Fatalf("read backup: %v", err)
+	data, readErr := os.ReadFile(backup) //nolint:gosec // reading test backup file
+	if readErr != nil {
+		t.Fatalf("read backup: %v", readErr)
 	}
 	if string(data) != "data" {
 		t.Fatalf("unexpected backup contents: %s", string(data))
@@ -45,7 +45,7 @@ func TestBackupFileDisabled(t *testing.T) {
 
 	dir := t.TempDir()
 	path := filepath.Join(dir, "state.json")
-	if err := os.WriteFile(path, []byte("data"), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte("data"), 0o600); err != nil { //nolint:gosec // test file
 		t.Fatalf("write state: %v", err)
 	}
 
@@ -63,7 +63,7 @@ func TestBackupFileDirectory(t *testing.T) {
 
 	dir := t.TempDir()
 	path := filepath.Join(dir, "state.json")
-	if err := os.WriteFile(path, []byte("data"), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte("data"), 0o600); err != nil { //nolint:gosec // test file
 		t.Fatalf("write state: %v", err)
 	}
 

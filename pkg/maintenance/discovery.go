@@ -41,8 +41,8 @@ func DiscoverDeployments(
 		}
 
 		// Get ownership chain
-		chain, err := client.GetOwnerChain(ctx, &pod)
-		if err != nil {
+		chain, chainErr := client.GetOwnerChain(ctx, &pod)
+		if chainErr != nil {
 			// Log but don't fail - some pods may not have owners
 			continue
 		}
@@ -71,9 +71,9 @@ func DiscoverDeployments(
 	// Fetch full deployment objects for each unique deployment
 	deployments := make([]appsv1.Deployment, 0, len(uniqueDeployments))
 	for _, info := range uniqueDeployments {
-		deployment, err := client.GetDeployment(ctx, info.Namespace, info.Name)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get deployment %s/%s: %w", info.Namespace, info.Name, err)
+		deployment, getErr := client.GetDeployment(ctx, info.Namespace, info.Name)
+		if getErr != nil {
+			return nil, fmt.Errorf("failed to get deployment %s/%s: %w", info.Namespace, info.Name, getErr)
 		}
 		deployments = append(deployments, *deployment)
 	}

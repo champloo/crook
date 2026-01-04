@@ -132,7 +132,7 @@ func (c *ConfirmPrompt) View() string {
 		result = fmt.Sprintf("%s %s",
 			styles.StyleSubtle.Render("○"),
 			styles.StyleSubtle.Render(question))
-	default:
+	case ConfirmPending:
 		result = fmt.Sprintf("%s %s",
 			styles.StyleStatus.Render("?"),
 			question)
@@ -222,7 +222,7 @@ func (d *ConfirmDialog) Init() tea.Cmd {
 // Update implements tea.Model
 func (d *ConfirmDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	newPrompt, cmd := d.prompt.Update(msg)
-	d.prompt = newPrompt.(*ConfirmPrompt)
+	d.prompt, _ = newPrompt.(*ConfirmPrompt)
 	return d, cmd
 }
 

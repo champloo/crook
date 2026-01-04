@@ -26,7 +26,7 @@ func TestValidateDownPhase_AllChecksPassed(t *testing.T) {
 	)
 
 	// Add RBAC check support
-	client.Clientset.(*fake.Clientset).PrependReactor("create", "selfsubjectaccessreviews", func(action ktest.Action) (bool, runtime.Object, error) {
+	client.Clientset.(*fake.Clientset).PrependReactor("create", "selfsubjectaccessreviews", func(_ ktest.Action) (bool, runtime.Object, error) { //nolint:errcheck // test helper
 		return true, &authv1.SelfSubjectAccessReview{
 			Status: authv1.SubjectAccessReviewStatus{
 				Allowed: true,
@@ -247,7 +247,7 @@ func TestCheckPermission_Allowed(t *testing.T) {
 	ctx := context.Background()
 
 	client := createTestClient()
-	client.Clientset.(*fake.Clientset).PrependReactor("create", "selfsubjectaccessreviews", func(action ktest.Action) (bool, runtime.Object, error) {
+	client.Clientset.(*fake.Clientset).PrependReactor("create", "selfsubjectaccessreviews", func(_ ktest.Action) (bool, runtime.Object, error) { //nolint:errcheck // test helper
 		return true, &authv1.SelfSubjectAccessReview{
 			Status: authv1.SubjectAccessReviewStatus{
 				Allowed: true,
@@ -269,7 +269,7 @@ func TestCheckPermission_Denied(t *testing.T) {
 	ctx := context.Background()
 
 	client := createTestClient()
-	client.Clientset.(*fake.Clientset).PrependReactor("create", "selfsubjectaccessreviews", func(action ktest.Action) (bool, runtime.Object, error) {
+	client.Clientset.(*fake.Clientset).PrependReactor("create", "selfsubjectaccessreviews", func(_ ktest.Action) (bool, runtime.Object, error) { //nolint:errcheck // test helper
 		return true, &authv1.SelfSubjectAccessReview{
 			Status: authv1.SubjectAccessReviewStatus{
 				Allowed: false,
@@ -297,6 +297,7 @@ func createTestClient(objects ...runtime.Object) *k8s.Client {
 	}
 }
 
+//nolint:unparam // test helper designed for flexibility
 func createNode(name string) *corev1.Node {
 	return &corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{
@@ -313,6 +314,7 @@ func createNode(name string) *corev1.Node {
 	}
 }
 
+//nolint:unparam // test helper designed for flexibility
 func createNamespace(name string) *corev1.Namespace {
 	return &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{

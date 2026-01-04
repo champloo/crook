@@ -21,8 +21,10 @@ linters:
     - nilnil # checks that there is no simultaneous return of nil error and an invalid value
     - sloglint # ensure consistent code style when using log/slog
     - staticcheck # It's the set of rules from staticcheck.
-    - testpackage # makes you use a separate _test package
+    # testpackage disabled: many tests access unexported members for white-box testing
+    # - testpackage # makes you use a separate _test package
     - unconvert # Remove unnecessary type conversions.
+    - unparam # reports unused function parameters
     - unused # hecks Go code for unused constants, variables, functions and types.
 
   settings:

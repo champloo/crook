@@ -32,8 +32,8 @@ func LoadConfig(opts LoadOptions) (LoadResult, error) {
 	configureEnv(v)
 
 	if opts.Flags != nil {
-		if err := BindFlags(v, opts.Flags); err != nil {
-			return LoadResult{}, fmt.Errorf("bind flags: %w", err)
+		if bindErr := BindFlags(v, opts.Flags); bindErr != nil {
+			return LoadResult{}, fmt.Errorf("bind flags: %w", bindErr)
 		}
 	}
 
@@ -43,14 +43,14 @@ func LoadConfig(opts LoadOptions) (LoadResult, error) {
 	}
 	if configPath != "" {
 		v.SetConfigFile(configPath)
-		if err := v.ReadInConfig(); err != nil {
-			return LoadResult{}, fmt.Errorf("read config: %w", err)
+		if readErr := v.ReadInConfig(); readErr != nil {
+			return LoadResult{}, fmt.Errorf("read config: %w", readErr)
 		}
 	}
 
 	var cfg Config
-	if err := v.Unmarshal(&cfg); err != nil {
-		return LoadResult{}, fmt.Errorf("unmarshal config: %w", err)
+	if unmarshalErr := v.Unmarshal(&cfg); unmarshalErr != nil {
+		return LoadResult{}, fmt.Errorf("unmarshal config: %w", unmarshalErr)
 	}
 	applyNamespaceOverride(v, &cfg)
 

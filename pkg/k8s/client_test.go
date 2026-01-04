@@ -97,7 +97,7 @@ func TestNewClient_WithValidKubeconfig(t *testing.T) {
 	}
 
 	kubeconfigPath := filepath.Join(home, ".kube", "config")
-	if _, err := os.Stat(kubeconfigPath); os.IsNotExist(err) {
+	if _, statErr := os.Stat(kubeconfigPath); os.IsNotExist(statErr) {
 		t.Skip("no kubeconfig found, skipping integration test")
 	}
 

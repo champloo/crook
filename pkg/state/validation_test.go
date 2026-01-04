@@ -60,7 +60,7 @@ func TestValidateFileParsesAndValidates(t *testing.T) {
   ]
 }`
 
-	if err := os.WriteFile(path, []byte(payload), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(payload), 0o600); err != nil { //nolint:gosec // test file
 		t.Fatalf("write state: %v", err)
 	}
 

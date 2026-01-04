@@ -254,7 +254,9 @@ func (l *StatusList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 	for i, item := range l.items {
 		newItem, cmd := item.Update(msg)
-		l.items[i] = newItem.(*StatusIndicator)
+		if si, ok := newItem.(*StatusIndicator); ok {
+			l.items[i] = si
+		}
 		if cmd != nil {
 			cmds = append(cmds, cmd)
 		}

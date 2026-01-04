@@ -44,9 +44,9 @@ func NewClient(ctx context.Context, cfg ClientConfig) (*Client, error) {
 		return nil, fmt.Errorf("failed to build kubernetes config: %w", err)
 	}
 
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create kubernetes clientset: %w", err)
+	clientset, clientErr := kubernetes.NewForConfig(config)
+	if clientErr != nil {
+		return nil, fmt.Errorf("failed to create kubernetes clientset: %w", clientErr)
 	}
 
 	client := &Client{
@@ -55,8 +55,8 @@ func NewClient(ctx context.Context, cfg ClientConfig) (*Client, error) {
 	}
 
 	// Validate connectivity by checking the /version endpoint
-	if err := client.validateConnectivity(ctx); err != nil {
-		return nil, fmt.Errorf("failed to validate kubernetes connectivity: %w", err)
+	if validateErr := client.validateConnectivity(ctx); validateErr != nil {
+		return nil, fmt.Errorf("failed to validate kubernetes connectivity: %w", validateErr)
 	}
 
 	return client, nil
@@ -141,7 +141,7 @@ func buildConfig(cfg ClientConfig) (*rest.Config, error) {
 }
 
 // validateConnectivity validates that the client can communicate with the Kubernetes API
-func (c *Client) validateConnectivity(ctx context.Context) error {
+func (c *Client) validateConnectivity(_ context.Context) error {
 	_, err := c.Clientset.Discovery().ServerVersion()
 	if err != nil {
 		return fmt.Errorf("failed to connect to kubernetes API server: %w", err)

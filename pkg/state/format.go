@@ -36,7 +36,7 @@ func Parse(data []byte) (*State, error) {
 
 // ParseFile parses a JSON state file from disk.
 func ParseFile(path string) (*State, error) {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) // #nosec G304 -- path is user-provided and validated
 	if err != nil {
 		return nil, fmt.Errorf("read state file %s: %w", path, err)
 	}
@@ -177,7 +177,7 @@ func parseState(data []byte, path string) (*State, error) {
 func writeFileAtomic(path string, payload []byte) error {
 	dir := filepath.Dir(path)
 	if dir != "." && dir != "" {
-		if err := os.MkdirAll(dir, 0o755); err != nil {
+		if err := os.MkdirAll(dir, 0o750); err != nil {
 			return fmt.Errorf("create state directory %s: %w", dir, err)
 		}
 	}
@@ -188,27 +188,27 @@ func writeFileAtomic(path string, payload []byte) error {
 	}
 	tmpName := tmpFile.Name()
 
-	if _, err := tmpFile.Write(payload); err != nil {
+	if _, writeErr := tmpFile.Write(payload); writeErr != nil {
 		_ = tmpFile.Close()
-		logger.Error("failed to write state file", "path", path, "temp_path", tmpName, "error", err)
-		return fmt.Errorf("write state file %s: %w", path, err)
+		logger.Error("failed to write state file", "path", path, "temp_path", tmpName, "error", writeErr)
+		return fmt.Errorf("write state file %s: %w", path, writeErr)
 	}
-	if err := tmpFile.Sync(); err != nil {
+	if syncErr := tmpFile.Sync(); syncErr != nil {
 		_ = tmpFile.Close()
-		logger.Error("failed to sync state file", "path", path, "temp_path", tmpName, "error", err)
-		return fmt.Errorf("sync state file %s: %w", path, err)
+		logger.Error("failed to sync state file", "path", path, "temp_path", tmpName, "error", syncErr)
+		return fmt.Errorf("sync state file %s: %w", path, syncErr)
 	}
-	if err := tmpFile.Close(); err != nil {
-		logger.Error("failed to close state temp file", "path", path, "temp_path", tmpName, "error", err)
-		return fmt.Errorf("close state temp file %s: %w", path, err)
+	if closeErr := tmpFile.Close(); closeErr != nil {
+		logger.Error("failed to close state temp file", "path", path, "temp_path", tmpName, "error", closeErr)
+		return fmt.Errorf("close state temp file %s: %w", path, closeErr)
 	}
-	if err := os.Chmod(tmpName, 0o644); err != nil {
-		logger.Error("failed to set state file permissions", "path", path, "temp_path", tmpName, "error", err)
-		return fmt.Errorf("chmod state file %s: %w", path, err)
+	if chmodErr := os.Chmod(tmpName, 0o600); chmodErr != nil {
+		logger.Error("failed to set state file permissions", "path", path, "temp_path", tmpName, "error", chmodErr)
+		return fmt.Errorf("chmod state file %s: %w", path, chmodErr)
 	}
-	if err := os.Rename(tmpName, path); err != nil {
-		logger.Error("failed to replace state file", "path", path, "temp_path", tmpName, "error", err)
-		return fmt.Errorf("replace state file %s: %w", path, err)
+	if renameErr := os.Rename(tmpName, path); renameErr != nil {
+		logger.Error("failed to replace state file", "path", path, "temp_path", tmpName, "error", renameErr)
+		return fmt.Errorf("replace state file %s: %w", path, renameErr)
 	}
 
 	return nil

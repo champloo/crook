@@ -224,7 +224,7 @@ func (t *Table) calculateWidths() []int {
 }
 
 // renderRow renders a single row with the given widths
-func (t *Table) renderRow(cells []string, widths []int, style lipgloss.Style, highlighted bool) string {
+func (t *Table) renderRow(cells []string, widths []int, style lipgloss.Style, _ bool) string {
 	paddedCells := make([]string, len(t.Columns))
 
 	for i := range t.Columns {
@@ -247,14 +247,16 @@ func (t *Table) renderRow(cells []string, widths []int, style lipgloss.Style, hi
 		padding := width - len(cell)
 		align := t.Columns[i].Align
 
-		switch align {
+		// lipgloss.Position: Left=0.0, Top=0.0, Center=0.5, Right=1.0, Bottom=1.0
+		switch align { //nolint:exhaustive // only 3 meaningful alignment values (Left, Center, Right) - Top/Bottom are identical to Left/Right
 		case lipgloss.Right:
 			cell = strings.Repeat(" ", padding) + cell
 		case lipgloss.Center:
 			leftPad := padding / 2
 			rightPad := padding - leftPad
 			cell = strings.Repeat(" ", leftPad) + cell + strings.Repeat(" ", rightPad)
-		default: // Left
+		default:
+			// Left (0.0) alignment - also covers Top which has same value
 			cell = cell + strings.Repeat(" ", padding)
 		}
 
@@ -435,9 +437,10 @@ func (kv *KeyValueTable) getValueStyle(statusType StatusType) lipgloss.Style {
 		return styles.StyleWarning
 	case StatusTypeError:
 		return styles.StyleError
-	default:
+	case StatusTypeInfo, StatusTypePending, StatusTypeRunning:
 		return styles.StyleNormal
 	}
+	return styles.StyleNormal
 }
 
 // SetWidth sets the table width

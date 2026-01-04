@@ -1,29 +1,31 @@
-package logger
+package logger_test
 
 import (
 	"bytes"
 	"strings"
 	"testing"
+
+	"github.com/andri/crook/internal/logger"
 )
 
 func TestNew(t *testing.T) {
 	tests := []struct {
 		name   string
-		config Config
+		config logger.Config
 	}{
 		{
 			name: "text format",
-			config: Config{
-				Level:  LevelInfo,
-				Format: FormatText,
+			config: logger.Config{
+				Level:  logger.LevelInfo,
+				Format: logger.FormatText,
 				Output: &bytes.Buffer{},
 			},
 		},
 		{
 			name: "json format",
-			config: Config{
-				Level:  LevelDebug,
-				Format: FormatJSON,
+			config: logger.Config{
+				Level:  logger.LevelDebug,
+				Format: logger.FormatJSON,
 				Output: &bytes.Buffer{},
 			},
 		},
@@ -31,8 +33,8 @@ func TestNew(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			logger := New(tt.config)
-			if logger == nil {
+			l := logger.New(tt.config)
+			if l == nil {
 				t.Fatal("expected logger to be non-nil")
 			}
 		})
@@ -42,38 +44,38 @@ func TestNew(t *testing.T) {
 func TestLogLevels(t *testing.T) {
 	tests := []struct {
 		name         string
-		level        Level
-		logFunc      func(*Logger, string)
+		level        logger.Level
+		logFunc      func(*logger.Logger, string)
 		shouldAppear bool
 	}{
 		{
 			name:         "debug level logs debug",
-			level:        LevelDebug,
-			logFunc:      func(l *Logger, msg string) { l.Debug(msg) },
+			level:        logger.LevelDebug,
+			logFunc:      func(l *logger.Logger, msg string) { l.Debug(msg) },
 			shouldAppear: true,
 		},
 		{
 			name:         "info level filters debug",
-			level:        LevelInfo,
-			logFunc:      func(l *Logger, msg string) { l.Debug(msg) },
+			level:        logger.LevelInfo,
+			logFunc:      func(l *logger.Logger, msg string) { l.Debug(msg) },
 			shouldAppear: false,
 		},
 		{
 			name:         "info level logs info",
-			level:        LevelInfo,
-			logFunc:      func(l *Logger, msg string) { l.Info(msg) },
+			level:        logger.LevelInfo,
+			logFunc:      func(l *logger.Logger, msg string) { l.Info(msg) },
 			shouldAppear: true,
 		},
 		{
 			name:         "warn level filters info",
-			level:        LevelWarn,
-			logFunc:      func(l *Logger, msg string) { l.Info(msg) },
+			level:        logger.LevelWarn,
+			logFunc:      func(l *logger.Logger, msg string) { l.Info(msg) },
 			shouldAppear: false,
 		},
 		{
 			name:         "error level logs error",
-			level:        LevelError,
-			logFunc:      func(l *Logger, msg string) { l.Error(msg) },
+			level:        logger.LevelError,
+			logFunc:      func(l *logger.Logger, msg string) { l.Error(msg) },
 			shouldAppear: true,
 		},
 	}
@@ -81,14 +83,14 @@ func TestLogLevels(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			buf := &bytes.Buffer{}
-			logger := New(Config{
+			l := logger.New(logger.Config{
 				Level:  tt.level,
-				Format: FormatText,
+				Format: logger.FormatText,
 				Output: buf,
 			})
 
 			testMsg := "test message"
-			tt.logFunc(logger, testMsg)
+			tt.logFunc(l, testMsg)
 
 			output := buf.String()
 			if tt.shouldAppear && !strings.Contains(output, testMsg) {
@@ -103,13 +105,13 @@ func TestLogLevels(t *testing.T) {
 
 func TestJSONFormat(t *testing.T) {
 	buf := &bytes.Buffer{}
-	logger := New(Config{
-		Level:  LevelInfo,
-		Format: FormatJSON,
+	l := logger.New(logger.Config{
+		Level:  logger.LevelInfo,
+		Format: logger.FormatJSON,
 		Output: buf,
 	})
 
-	logger.Info("test message", "key", "value")
+	l.Info("test message", "key", "value")
 	output := buf.String()
 
 	// JSON output should contain the message and key-value pair
@@ -123,13 +125,13 @@ func TestJSONFormat(t *testing.T) {
 
 func TestTextFormat(t *testing.T) {
 	buf := &bytes.Buffer{}
-	logger := New(Config{
-		Level:  LevelInfo,
-		Format: FormatText,
+	l := logger.New(logger.Config{
+		Level:  logger.LevelInfo,
+		Format: logger.FormatText,
 		Output: buf,
 	})
 
-	logger.Info("test message", "key", "value")
+	l.Info("test message", "key", "value")
 	output := buf.String()
 
 	if !strings.Contains(output, "test message") {
@@ -142,13 +144,13 @@ func TestTextFormat(t *testing.T) {
 
 func TestWith(t *testing.T) {
 	buf := &bytes.Buffer{}
-	logger := New(Config{
-		Level:  LevelInfo,
-		Format: FormatText,
+	l := logger.New(logger.Config{
+		Level:  logger.LevelInfo,
+		Format: logger.FormatText,
 		Output: buf,
 	})
 
-	contextLogger := logger.With("component", "test")
+	contextLogger := l.With("component", "test")
 	contextLogger.Info("test message")
 
 	output := buf.String()
@@ -159,19 +161,19 @@ func TestWith(t *testing.T) {
 
 func TestPackageLevelFunctions(t *testing.T) {
 	buf := &bytes.Buffer{}
-	original := GetDefault()
-	defer func() { SetDefault(original) }()
+	original := logger.GetDefault()
+	defer func() { logger.SetDefault(original) }()
 
-	SetDefault(New(Config{
-		Level:  LevelDebug,
-		Format: FormatText,
+	logger.SetDefault(logger.New(logger.Config{
+		Level:  logger.LevelDebug,
+		Format: logger.FormatText,
 		Output: buf,
 	}))
 
-	Debug("debug msg")
-	Info("info msg")
-	Warn("warn msg")
-	Error("error msg")
+	logger.Debug("debug msg")
+	logger.Info("info msg")
+	logger.Warn("warn msg")
+	logger.Error("error msg")
 
 	output := buf.String()
 	messages := []string{"debug msg", "info msg", "warn msg", "error msg"}

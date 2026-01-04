@@ -25,8 +25,8 @@ func ResolvePath(templatePath, node string) (string, error) {
 	}
 
 	var rendered bytes.Buffer
-	if err := tmpl.Execute(&rendered, struct{ Node string }{Node: node}); err != nil {
-		return "", fmt.Errorf("invalid state file template: %w", err)
+	if execErr := tmpl.Execute(&rendered, struct{ Node string }{Node: node}); execErr != nil {
+		return "", fmt.Errorf("invalid state file template: %w", execErr)
 	}
 
 	resolved, err := expandHome(rendered.String())
@@ -34,8 +34,8 @@ func ResolvePath(templatePath, node string) (string, error) {
 		return "", err
 	}
 
-	if err := ensureParentDir(resolved); err != nil {
-		return "", err
+	if ensureErr := ensureParentDir(resolved); ensureErr != nil {
+		return "", ensureErr
 	}
 
 	return resolved, nil
@@ -48,8 +48,8 @@ func ResolvePathWithOverride(explicitPath, templatePath, node string) (string, e
 		if err != nil {
 			return "", err
 		}
-		if err := ensureParentDir(resolved); err != nil {
-			return "", err
+		if ensureErr := ensureParentDir(resolved); ensureErr != nil {
+			return "", ensureErr
 		}
 		return resolved, nil
 	}
@@ -82,7 +82,7 @@ func ensureParentDir(path string) error {
 	if dir == "." || dir == "" {
 		return nil
 	}
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return fmt.Errorf("create state file directory %s: %w", dir, err)
 	}
 	return nil

@@ -165,7 +165,7 @@ func (p *ProgressBar) renderDeterminate() string {
 			labelStyle = styles.StyleSuccess
 		case ProgressStateError:
 			labelStyle = styles.StyleError
-		default:
+		case ProgressStateInProgress:
 			labelStyle = styles.StyleNormal
 		}
 		result = labelStyle.Render(p.Label) + "\n" + result
@@ -186,7 +186,7 @@ func (p *ProgressBar) renderIndeterminate() string {
 	case ProgressStateError:
 		spinner = styles.IconCross
 		style = styles.StyleError
-	default:
+	case ProgressStateInProgress:
 		spinner = spinnerFrames[p.spinnerFrame]
 		style = styles.StyleStatus
 	}
@@ -204,9 +204,10 @@ func (p *ProgressBar) getBarStyle() lipgloss.Style {
 		return styles.StyleProgressBarComplete
 	case ProgressStateError:
 		return styles.StyleProgressBarError
-	default:
+	case ProgressStateInProgress:
 		return styles.StyleProgressBar
 	}
+	return styles.StyleProgressBar
 }
 
 // SetProgress updates the progress value (0.0 to 1.0)
@@ -289,7 +290,9 @@ func (m *MultiProgress) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 	for i, bar := range m.bars {
 		newBar, cmd := bar.Update(msg)
-		m.bars[i] = newBar.(*ProgressBar)
+		if pb, ok := newBar.(*ProgressBar); ok {
+			m.bars[i] = pb
+		}
 		if cmd != nil {
 			cmds = append(cmds, cmd)
 		}

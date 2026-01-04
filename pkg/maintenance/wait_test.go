@@ -37,7 +37,7 @@ func TestWaitForDeploymentScaleDown_EventuallyScalesDown(t *testing.T) {
 
 	// Set up reactor to simulate scale down after some time
 	callCount := 0
-	client.Clientset.(*fake.Clientset).PrependReactor("get", "deployments", func(action ktest.Action) (bool, runtime.Object, error) {
+	client.Clientset.(*fake.Clientset).PrependReactor("get", "deployments", func(_ ktest.Action) (bool, runtime.Object, error) { //nolint:errcheck // test helper
 		callCount++
 		if callCount <= 2 {
 			// First two calls return deployment with ready replicas
@@ -119,7 +119,7 @@ func TestWaitForDeploymentScaleDown_ProgressCallback(t *testing.T) {
 
 	// Set up reactor to simulate gradual scale down
 	callCount := 0
-	client.Clientset.(*fake.Clientset).PrependReactor("get", "deployments", func(action ktest.Action) (bool, runtime.Object, error) {
+	client.Clientset.(*fake.Clientset).PrependReactor("get", "deployments", func(_ ktest.Action) (bool, runtime.Object, error) { //nolint:errcheck // test helper
 		callCount++
 		switch callCount {
 		case 1:
@@ -183,7 +183,7 @@ func TestWaitForDeploymentScaleUp_EventuallyScalesUp(t *testing.T) {
 
 	// Set up reactor to simulate scale up after some time
 	callCount := 0
-	client.Clientset.(*fake.Clientset).PrependReactor("get", "deployments", func(action ktest.Action) (bool, runtime.Object, error) {
+	client.Clientset.(*fake.Clientset).PrependReactor("get", "deployments", func(_ ktest.Action) (bool, runtime.Object, error) { //nolint:errcheck // test helper
 		callCount++
 		if callCount <= 2 {
 			// First two calls return scaled down deployment
@@ -308,6 +308,7 @@ func TestDefaultWaitOptions(t *testing.T) {
 
 // Helper functions
 
+//nolint:unparam // test helper designed for flexibility
 func createScaledDownDeployment(namespace, name string) *appsv1.Deployment {
 	replicas := int32(0)
 	return &appsv1.Deployment{
@@ -327,6 +328,7 @@ func createScaledDownDeployment(namespace, name string) *appsv1.Deployment {
 	}
 }
 
+//nolint:unparam // test helper designed for flexibility
 func createDeploymentWithReplicas(namespace, name string, specReplicas, readyReplicas int32) *appsv1.Deployment {
 	return &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{

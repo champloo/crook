@@ -104,27 +104,32 @@ func (l *Logger) With(args ...any) *Logger {
 
 // Debug logs a debug message
 func Debug(msg string, args ...any) {
-	defaultLogger.Load().(*Logger).Debug(msg, args...)
+	l, _ := defaultLogger.Load().(*Logger)
+	l.Debug(msg, args...)
 }
 
 // Info logs an info message
 func Info(msg string, args ...any) {
-	defaultLogger.Load().(*Logger).Info(msg, args...)
+	l, _ := defaultLogger.Load().(*Logger)
+	l.Info(msg, args...)
 }
 
 // Warn logs a warning message
 func Warn(msg string, args ...any) {
-	defaultLogger.Load().(*Logger).Warn(msg, args...)
+	l, _ := defaultLogger.Load().(*Logger)
+	l.Warn(msg, args...)
 }
 
 // Error logs an error message
 func Error(msg string, args ...any) {
-	defaultLogger.Load().(*Logger).Error(msg, args...)
+	l, _ := defaultLogger.Load().(*Logger)
+	l.Error(msg, args...)
 }
 
 // With returns a logger with the given attributes
 func With(args ...any) *Logger {
-	return defaultLogger.Load().(*Logger).With(args...)
+	l, _ := defaultLogger.Load().(*Logger)
+	return l.With(args...)
 }
 
 // SetDefault sets the default logger
@@ -134,5 +139,6 @@ func SetDefault(l *Logger) {
 
 // GetDefault returns the default logger
 func GetDefault() *Logger {
-	return defaultLogger.Load().(*Logger)
+	l, _ := defaultLogger.Load().(*Logger)
+	return l
 }

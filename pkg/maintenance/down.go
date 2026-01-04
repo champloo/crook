@@ -40,9 +40,7 @@ func ExecuteDownPhase(
 	opts DownPhaseOptions,
 ) error {
 	// Step 1: Pre-flight validation
-	if err := updateProgress(opts.ProgressCallback, "pre-flight", "Running pre-flight validation checks", ""); err != nil {
-		return err
-	}
+	updateProgress(opts.ProgressCallback, "pre-flight", "Running pre-flight validation checks", "")
 
 	validationResults, err := ValidateDownPhase(ctx, client, cfg, nodeName)
 	if err != nil {
@@ -53,27 +51,21 @@ func ExecuteDownPhase(
 	}
 
 	// Step 2: Cordon node
-	if err := updateProgress(opts.ProgressCallback, "cordon", fmt.Sprintf("Cordoning node %s", nodeName), ""); err != nil {
-		return err
-	}
+	updateProgress(opts.ProgressCallback, "cordon", fmt.Sprintf("Cordoning node %s", nodeName), "")
 
-	if err := client.CordonNode(ctx, nodeName); err != nil {
-		return fmt.Errorf("failed to cordon node %s: %w", nodeName, err)
+	if cordonErr := client.CordonNode(ctx, nodeName); cordonErr != nil {
+		return fmt.Errorf("failed to cordon node %s: %w", nodeName, cordonErr)
 	}
 
 	// Step 3: Set Ceph noout flag
-	if err := updateProgress(opts.ProgressCallback, "noout", "Setting Ceph noout flag", ""); err != nil {
-		return err
-	}
+	updateProgress(opts.ProgressCallback, "noout", "Setting Ceph noout flag", "")
 
-	if err := client.SetNoOut(ctx, cfg.Kubernetes.RookClusterNamespace); err != nil {
-		return fmt.Errorf("failed to set noout flag: %w", err)
+	if nooutErr := client.SetNoOut(ctx, cfg.Kubernetes.RookClusterNamespace); nooutErr != nil {
+		return fmt.Errorf("failed to set noout flag: %w", nooutErr)
 	}
 
 	// Step 4: Scale down rook-ceph-operator
-	if err := updateProgress(opts.ProgressCallback, "operator", "Scaling down rook-ceph-operator to 0", ""); err != nil {
-		return err
-	}
+	updateProgress(opts.ProgressCallback, "operator", "Scaling down rook-ceph-operator to 0", "")
 
 	operatorName := "rook-ceph-operator"
 	operatorNamespace := cfg.Kubernetes.RookOperatorNamespace
@@ -84,18 +76,16 @@ func ExecuteDownPhase(
 		return fmt.Errorf("failed to get operator status: %w", err)
 	}
 
-	if err := client.ScaleDeployment(ctx, operatorNamespace, operatorName, 0); err != nil {
-		return fmt.Errorf("failed to scale operator to 0: %w", err)
+	if scaleErr := client.ScaleDeployment(ctx, operatorNamespace, operatorName, 0); scaleErr != nil {
+		return fmt.Errorf("failed to scale operator to 0: %w", scaleErr)
 	}
 
-	if err := WaitForDeploymentScaleDown(ctx, client, operatorNamespace, operatorName, opts.WaitOptions); err != nil {
-		return fmt.Errorf("failed waiting for operator to scale down: %w", err)
+	if waitErr := WaitForDeploymentScaleDown(ctx, client, operatorNamespace, operatorName, opts.WaitOptions); waitErr != nil {
+		return fmt.Errorf("failed waiting for operator to scale down: %w", waitErr)
 	}
 
 	// Step 5: Discover deployments on node
-	if err := updateProgress(opts.ProgressCallback, "discover", fmt.Sprintf("Discovering deployments on node %s", nodeName), ""); err != nil {
-		return err
-	}
+	updateProgress(opts.ProgressCallback, "discover", fmt.Sprintf("Discovering deployments on node %s", nodeName), "")
 
 	deployments, err := DiscoverDeployments(
 		ctx,
@@ -110,18 +100,16 @@ func ExecuteDownPhase(
 
 	if len(deployments) == 0 {
 		// No deployments found - create empty state file for consistency
-		if err := updateProgress(opts.ProgressCallback, "complete", "No deployments found - creating empty state file", ""); err != nil {
-			return err
-		}
+		updateProgress(opts.ProgressCallback, "complete", "No deployments found - creating empty state file", "")
 
 		emptyState := state.NewState(nodeName, int(operatorStatus.Replicas), []state.Resource{})
-		statePath, err := resolveStatePath(cfg, opts.StateFilePath, nodeName)
-		if err != nil {
-			return fmt.Errorf("failed to resolve state file path: %w", err)
+		statePath, resolveErr := resolveStatePath(cfg, opts.StateFilePath, nodeName)
+		if resolveErr != nil {
+			return fmt.Errorf("failed to resolve state file path: %w", resolveErr)
 		}
 
-		if err := state.WriteFile(statePath, emptyState); err != nil {
-			return fmt.Errorf("failed to save empty state file: %w", err)
+		if writeErr := state.WriteFile(statePath, emptyState); writeErr != nil {
+			return fmt.Errorf("failed to save empty state file: %w", writeErr)
 		}
 
 		return nil
@@ -134,23 +122,19 @@ func ExecuteDownPhase(
 	for _, deployment := range orderedDeployments {
 		deploymentName := fmt.Sprintf("%s/%s", deployment.Namespace, deployment.Name)
 
-		if err := updateProgress(opts.ProgressCallback, "scale-down", fmt.Sprintf("Scaling down %s to 0", deploymentName), deploymentName); err != nil {
-			return err
+		updateProgress(opts.ProgressCallback, "scale-down", fmt.Sprintf("Scaling down %s to 0", deploymentName), deploymentName)
+
+		if scaleErr := client.ScaleDeployment(ctx, deployment.Namespace, deployment.Name, 0); scaleErr != nil {
+			return fmt.Errorf("failed to scale deployment %s to 0: %w", deploymentName, scaleErr)
 		}
 
-		if err := client.ScaleDeployment(ctx, deployment.Namespace, deployment.Name, 0); err != nil {
-			return fmt.Errorf("failed to scale deployment %s to 0: %w", deploymentName, err)
-		}
-
-		if err := WaitForDeploymentScaleDown(ctx, client, deployment.Namespace, deployment.Name, opts.WaitOptions); err != nil {
-			return fmt.Errorf("failed waiting for deployment %s to scale down: %w", deploymentName, err)
+		if waitErr := WaitForDeploymentScaleDown(ctx, client, deployment.Namespace, deployment.Name, opts.WaitOptions); waitErr != nil {
+			return fmt.Errorf("failed waiting for deployment %s to scale down: %w", deploymentName, waitErr)
 		}
 	}
 
 	// Step 8: Save state file (only after all operations succeed)
-	if err := updateProgress(opts.ProgressCallback, "save-state", "Saving maintenance state file", ""); err != nil {
-		return err
-	}
+	updateProgress(opts.ProgressCallback, "save-state", "Saving maintenance state file", "")
 
 	resources := make([]state.Resource, 0, len(deployments))
 	for _, deployment := range deployments {
@@ -174,14 +158,12 @@ func ExecuteDownPhase(
 		return fmt.Errorf("failed to resolve state file path: %w", err)
 	}
 
-	if err := state.WriteFile(statePath, maintenanceState); err != nil {
-		return fmt.Errorf("failed to save state file: %w", err)
+	if writeErr := state.WriteFile(statePath, maintenanceState); writeErr != nil {
+		return fmt.Errorf("failed to save state file: %w", writeErr)
 	}
 
 	// Step 9: Complete
-	if err := updateProgress(opts.ProgressCallback, "complete", fmt.Sprintf("Down phase completed successfully - state saved to %s", statePath), ""); err != nil {
-		return err
-	}
+	updateProgress(opts.ProgressCallback, "complete", fmt.Sprintf("Down phase completed successfully - state saved to %s", statePath), "")
 
 	return nil
 }
@@ -217,7 +199,7 @@ func resolveStatePath(cfg config.Config, overridePath, nodeName string) (string,
 }
 
 // updateProgress safely calls the progress callback if it's not nil
-func updateProgress(callback func(DownPhaseProgress), stage, description, deployment string) error {
+func updateProgress(callback func(DownPhaseProgress), stage, description, deployment string) {
 	if callback != nil {
 		callback(DownPhaseProgress{
 			Stage:       stage,
@@ -225,5 +207,4 @@ func updateProgress(callback func(DownPhaseProgress), stage, description, deploy
 			Deployment:  deployment,
 		})
 	}
-	return nil
 }

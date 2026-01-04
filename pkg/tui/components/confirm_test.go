@@ -40,7 +40,7 @@ func TestConfirmPrompt_Update_Yes(t *testing.T) {
 
 	// Test 'y'
 	newModel, cmd := p.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
-	updated := newModel.(*ConfirmPrompt)
+	updated, _ := newModel.(*ConfirmPrompt)
 
 	if updated.Result != ConfirmYes {
 		t.Errorf("Result = %v, want ConfirmYes", updated.Result)
@@ -55,7 +55,7 @@ func TestConfirmPrompt_Update_No(t *testing.T) {
 	p := NewConfirmPrompt("Continue?")
 
 	newModel, cmd := p.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
-	updated := newModel.(*ConfirmPrompt)
+	updated, _ := newModel.(*ConfirmPrompt)
 
 	if updated.Result != ConfirmNo {
 		t.Errorf("Result = %v, want ConfirmNo", updated.Result)
@@ -71,7 +71,7 @@ func TestConfirmPrompt_Update_Enter_DefaultNo(t *testing.T) {
 	p.DefaultYes = false
 
 	newModel, _ := p.Update(tea.KeyMsg{Type: tea.KeyEnter})
-	updated := newModel.(*ConfirmPrompt)
+	updated, _ := newModel.(*ConfirmPrompt)
 
 	if updated.Result != ConfirmNo {
 		t.Errorf("Result = %v, want ConfirmNo (default)", updated.Result)
@@ -83,7 +83,7 @@ func TestConfirmPrompt_Update_Enter_DefaultYes(t *testing.T) {
 	p.DefaultYes = true
 
 	newModel, _ := p.Update(tea.KeyMsg{Type: tea.KeyEnter})
-	updated := newModel.(*ConfirmPrompt)
+	updated, _ := newModel.(*ConfirmPrompt)
 
 	if updated.Result != ConfirmYes {
 		t.Errorf("Result = %v, want ConfirmYes (default)", updated.Result)
@@ -94,7 +94,7 @@ func TestConfirmPrompt_Update_Escape(t *testing.T) {
 	p := NewConfirmPrompt("Continue?")
 
 	newModel, _ := p.Update(tea.KeyMsg{Type: tea.KeyEsc})
-	updated := newModel.(*ConfirmPrompt)
+	updated, _ := newModel.(*ConfirmPrompt)
 
 	if updated.Result != ConfirmCancelled {
 		t.Errorf("Result = %v, want ConfirmCancelled", updated.Result)
@@ -105,7 +105,7 @@ func TestConfirmPrompt_Update_CtrlC(t *testing.T) {
 	p := NewConfirmPrompt("Continue?")
 
 	newModel, _ := p.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
-	updated := newModel.(*ConfirmPrompt)
+	updated, _ := newModel.(*ConfirmPrompt)
 
 	if updated.Result != ConfirmCancelled {
 		t.Errorf("Result = %v, want ConfirmCancelled", updated.Result)
@@ -118,7 +118,10 @@ func TestConfirmPrompt_Update_AlreadyAnswered(t *testing.T) {
 
 	// Should ignore further input
 	newModel, cmd := p.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
-	updated := newModel.(*ConfirmPrompt)
+	updated, ok := newModel.(*ConfirmPrompt)
+	if !ok {
+		t.Fatal("expected *ConfirmPrompt type")
+	}
 
 	if updated.Result != ConfirmYes {
 		t.Error("Result should not change after already answered")
@@ -281,7 +284,10 @@ func TestConfirmDialog_Update(t *testing.T) {
 
 	// Update with 'y'
 	newModel, cmd := d.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
-	updated := newModel.(*ConfirmDialog)
+	updated, ok := newModel.(*ConfirmDialog)
+	if !ok {
+		t.Fatal("expected *ConfirmDialog type")
+	}
 
 	if !updated.IsConfirmed() {
 		t.Error("Dialog should be confirmed")

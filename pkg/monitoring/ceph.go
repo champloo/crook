@@ -87,8 +87,8 @@ func MonitorCephHealth(ctx context.Context, client *k8s.Client, namespace string
 
 	// Parse the JSON output
 	var status cephStatusJSON
-	if err := json.Unmarshal([]byte(output), &status); err != nil {
-		return nil, fmt.Errorf("failed to parse ceph status JSON: %w", err)
+	if unmarshalErr := json.Unmarshal([]byte(output), &status); unmarshalErr != nil {
+		return nil, fmt.Errorf("failed to parse ceph status JSON: %w", unmarshalErr)
 	}
 
 	// Extract health messages
@@ -207,8 +207,8 @@ func MonitorOSDStatus(ctx context.Context, client *k8s.Client, namespace, nodeNa
 
 	// Parse the JSON output
 	var tree cephOSDTreeJSON
-	if err := json.Unmarshal([]byte(output), &tree); err != nil {
-		return nil, fmt.Errorf("failed to parse ceph osd tree JSON: %w", err)
+	if unmarshalErr := json.Unmarshal([]byte(output), &tree); unmarshalErr != nil {
+		return nil, fmt.Errorf("failed to parse ceph osd tree JSON: %w", unmarshalErr)
 	}
 
 	// Check if noout is set
@@ -284,8 +284,8 @@ func checkNoOutFlag(ctx context.Context, client *k8s.Client, namespace string) (
 	var dump struct {
 		Flags string `json:"flags"`
 	}
-	if err := json.Unmarshal([]byte(output), &dump); err != nil {
-		return false, fmt.Errorf("failed to parse ceph osd dump JSON: %w", err)
+	if unmarshalErr := json.Unmarshal([]byte(output), &dump); unmarshalErr != nil {
+		return false, fmt.Errorf("failed to parse ceph osd dump JSON: %w", unmarshalErr)
 	}
 
 	// Check if "noout" is in the flags string

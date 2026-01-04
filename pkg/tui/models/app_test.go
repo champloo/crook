@@ -77,7 +77,7 @@ func TestAppModel_Update_WindowSize(t *testing.T) {
 	// Simulate window size message
 	msg := tea.WindowSizeMsg{Width: 120, Height: 40}
 	updatedModel, _ := model.Update(msg)
-	m := updatedModel.(*AppModel)
+	m, _ := updatedModel.(*AppModel)
 
 	if m.width != 120 {
 		t.Errorf("width = %d, want 120", m.width)
@@ -97,7 +97,7 @@ func TestAppModel_Update_GlobalKeys_Quit(t *testing.T) {
 	// Test ctrl+c
 	msg := tea.KeyMsg{Type: tea.KeyCtrlC}
 	updatedModel, cmd := model.Update(msg)
-	m := updatedModel.(*AppModel)
+	m, _ := updatedModel.(*AppModel)
 
 	if !m.quitting {
 		t.Error("ctrl+c should set quitting to true")
@@ -117,7 +117,7 @@ func TestAppModel_Update_GlobalKeys_Help(t *testing.T) {
 	// Test ? to toggle help
 	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}}
 	updatedModel, _ := model.Update(msg)
-	m := updatedModel.(*AppModel)
+	m, _ := updatedModel.(*AppModel)
 
 	if !m.showHelp {
 		t.Error("? should toggle showHelp to true")
@@ -125,7 +125,7 @@ func TestAppModel_Update_GlobalKeys_Help(t *testing.T) {
 
 	// Toggle off
 	updatedModel, _ = m.Update(msg)
-	m = updatedModel.(*AppModel)
+	m, _ = updatedModel.(*AppModel)
 
 	if m.showHelp {
 		t.Error("? again should toggle showHelp to false")
@@ -144,7 +144,7 @@ func TestAppModel_Update_GlobalKeys_Escape(t *testing.T) {
 	// Test esc to close help
 	msg := tea.KeyMsg{Type: tea.KeyEsc}
 	updatedModel, _ := model.Update(msg)
-	m := updatedModel.(*AppModel)
+	m, _ := updatedModel.(*AppModel)
 
 	if m.showHelp {
 		t.Error("esc should close help overlay")
@@ -160,7 +160,10 @@ func TestAppModel_Update_RouteChange(t *testing.T) {
 	// Change route
 	msg := RouteChangeMsg{Route: RouteDown}
 	updatedModel, _ := model.Update(msg)
-	m := updatedModel.(*AppModel)
+	m, ok := updatedModel.(*AppModel)
+	if !ok {
+		t.Fatal("expected *AppModel type")
+	}
 
 	if m.route != RouteDown {
 		t.Errorf("route = %v, want %v", m.route, RouteDown)
@@ -176,7 +179,10 @@ func TestAppModel_Update_InitError(t *testing.T) {
 	// Simulate init error
 	testErr := tea.Msg(InitErrorMsg{Err: context.DeadlineExceeded})
 	updatedModel, _ := model.Update(testErr)
-	m := updatedModel.(*AppModel)
+	m, ok := updatedModel.(*AppModel)
+	if !ok {
+		t.Fatal("expected *AppModel type")
+	}
 
 	if m.initError == nil {
 		t.Error("initError should be set")

@@ -1,4 +1,4 @@
-package config
+package config_test
 
 import (
 	"os"
@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/andri/crook/pkg/config"
 	"github.com/spf13/pflag"
 )
 
@@ -16,17 +17,17 @@ func TestLoadConfigDefaults(t *testing.T) {
 		t.Fatalf("write config file: %v", err)
 	}
 
-	result, err := LoadConfig(LoadOptions{ConfigFile: configPath})
+	result, err := config.LoadConfig(config.LoadOptions{ConfigFile: configPath})
 	if err != nil {
 		t.Fatalf("load config: %v", err)
 	}
 
 	cfg := result.Config
-	if cfg.Kubernetes.RookOperatorNamespace != DefaultRookNamespace {
-		t.Fatalf("expected rook operator namespace default %q, got %q", DefaultRookNamespace, cfg.Kubernetes.RookOperatorNamespace)
+	if cfg.Kubernetes.RookOperatorNamespace != config.DefaultRookNamespace {
+		t.Fatalf("expected rook operator namespace default %q, got %q", config.DefaultRookNamespace, cfg.Kubernetes.RookOperatorNamespace)
 	}
-	if cfg.State.FilePathTemplate != DefaultStateFileTemplate {
-		t.Fatalf("expected state file template default %q, got %q", DefaultStateFileTemplate, cfg.State.FilePathTemplate)
+	if cfg.State.FilePathTemplate != config.DefaultStateFileTemplate {
+		t.Fatalf("expected state file template default %q, got %q", config.DefaultStateFileTemplate, cfg.State.FilePathTemplate)
 	}
 	if !cfg.State.BackupEnabled {
 		t.Fatalf("expected backup enabled by default")
@@ -34,8 +35,8 @@ func TestLoadConfigDefaults(t *testing.T) {
 	if len(cfg.DeploymentFilters.Prefixes) == 0 {
 		t.Fatalf("expected default deployment prefixes")
 	}
-	if cfg.Timeouts.APICallTimeoutSeconds != DefaultAPICallTimeoutSeconds {
-		t.Fatalf("expected api timeout default %d, got %d", DefaultAPICallTimeoutSeconds, cfg.Timeouts.APICallTimeoutSeconds)
+	if cfg.Timeouts.APICallTimeoutSeconds != config.DefaultAPICallTimeoutSeconds {
+		t.Fatalf("expected api timeout default %d, got %d", config.DefaultAPICallTimeoutSeconds, cfg.Timeouts.APICallTimeoutSeconds)
 	}
 	if result.Validation.HasErrors() {
 		t.Fatalf("unexpected validation errors: %v", result.Validation.Errors)
@@ -67,7 +68,7 @@ state:
 	t.Setenv("CROOK_KUBERNETES_ROOK_OPERATOR_NAMESPACE", "env-op")
 	t.Setenv("CROOK_STATE_FILE_PATH_TEMPLATE", "./env-{{.Node}}.json")
 
-	result, err := LoadConfig(LoadOptions{ConfigFile: configPath, Flags: flags})
+	result, err := config.LoadConfig(config.LoadOptions{ConfigFile: configPath, Flags: flags})
 	if err != nil {
 		t.Fatalf("load config: %v", err)
 	}
@@ -98,7 +99,7 @@ func TestLoadConfigNamespaceOverride(t *testing.T) {
 		t.Fatalf("set flag: %v", err)
 	}
 
-	result, err := LoadConfig(LoadOptions{ConfigFile: configPath, Flags: flags})
+	result, err := config.LoadConfig(config.LoadOptions{ConfigFile: configPath, Flags: flags})
 	if err != nil {
 		t.Fatalf("load config: %v", err)
 	}
@@ -113,14 +114,14 @@ func TestLoadConfigNamespaceOverride(t *testing.T) {
 }
 
 func TestLoadConfigMissingExplicitFile(t *testing.T) {
-	_, err := LoadConfig(LoadOptions{ConfigFile: filepath.Join(t.TempDir(), "missing.yaml")})
+	_, err := config.LoadConfig(config.LoadOptions{ConfigFile: filepath.Join(t.TempDir(), "missing.yaml")})
 	if err == nil {
 		t.Fatalf("expected error for missing config file")
 	}
 }
 
 func TestLoadConfigFromFileFixture(t *testing.T) {
-	result, err := LoadConfig(LoadOptions{ConfigFile: testdataPath(t, "full.yaml")})
+	result, err := config.LoadConfig(config.LoadOptions{ConfigFile: testdataPath(t, "full.yaml")})
 	if err != nil {
 		t.Fatalf("load config: %v", err)
 	}
@@ -156,7 +157,7 @@ func TestLoadConfigFromFileFixture(t *testing.T) {
 }
 
 func TestLoadConfigPartialUsesDefaults(t *testing.T) {
-	result, err := LoadConfig(LoadOptions{ConfigFile: testdataPath(t, "partial.yaml")})
+	result, err := config.LoadConfig(config.LoadOptions{ConfigFile: testdataPath(t, "partial.yaml")})
 	if err != nil {
 		t.Fatalf("load config: %v", err)
 	}
@@ -165,22 +166,22 @@ func TestLoadConfigPartialUsesDefaults(t *testing.T) {
 	if cfg.Kubernetes.RookOperatorNamespace != "partial-operator" {
 		t.Fatalf("expected operator namespace from file, got %q", cfg.Kubernetes.RookOperatorNamespace)
 	}
-	if cfg.Kubernetes.RookClusterNamespace != DefaultRookNamespace {
+	if cfg.Kubernetes.RookClusterNamespace != config.DefaultRookNamespace {
 		t.Fatalf("expected default cluster namespace, got %q", cfg.Kubernetes.RookClusterNamespace)
 	}
-	if cfg.State.FilePathTemplate != DefaultStateFileTemplate {
+	if cfg.State.FilePathTemplate != config.DefaultStateFileTemplate {
 		t.Fatalf("expected default state file template, got %q", cfg.State.FilePathTemplate)
 	}
 	if cfg.State.BackupEnabled {
 		t.Fatalf("expected backup disabled from file")
 	}
-	if cfg.UI.ProgressRefreshMS != DefaultProgressRefreshMS {
+	if cfg.UI.ProgressRefreshMS != config.DefaultProgressRefreshMS {
 		t.Fatalf("expected default progress refresh, got %d", cfg.UI.ProgressRefreshMS)
 	}
 	if !strings.EqualFold(cfg.UI.Theme, "minimal") {
 		t.Fatalf("expected ui theme from file, got %q", cfg.UI.Theme)
 	}
-	if len(cfg.DeploymentFilters.Prefixes) != len(DefaultDeploymentPrefixes) {
+	if len(cfg.DeploymentFilters.Prefixes) != len(config.DefaultDeploymentPrefixes) {
 		t.Fatalf("expected default deployment prefixes, got %v", cfg.DeploymentFilters.Prefixes)
 	}
 }
@@ -189,7 +190,7 @@ func TestLoadConfigEnvOverridesFile(t *testing.T) {
 	t.Setenv("CROOK_KUBERNETES_ROOK_OPERATOR_NAMESPACE", "env-operator")
 	t.Setenv("CROOK_UI_PROGRESS_REFRESH_MS", "220")
 
-	result, err := LoadConfig(LoadOptions{ConfigFile: testdataPath(t, "full.yaml")})
+	result, err := config.LoadConfig(config.LoadOptions{ConfigFile: testdataPath(t, "full.yaml")})
 	if err != nil {
 		t.Fatalf("load config: %v", err)
 	}
@@ -218,7 +219,7 @@ func TestLoadConfigConfigFileDiscovery(t *testing.T) {
 		t.Fatalf("write second config: %v", err)
 	}
 
-	result, err := LoadConfig(LoadOptions{ConfigFiles: []string{missing, first, second}})
+	result, err := config.LoadConfig(config.LoadOptions{ConfigFiles: []string{missing, first, second}})
 	if err != nil {
 		t.Fatalf("load config: %v", err)
 	}
@@ -232,7 +233,7 @@ func TestLoadConfigConfigFileDiscovery(t *testing.T) {
 
 func TestLoadConfigNoConfigFileFound(t *testing.T) {
 	tempDir := t.TempDir()
-	result, err := LoadConfig(LoadOptions{ConfigFiles: []string{filepath.Join(tempDir, "missing.yaml")}})
+	result, err := config.LoadConfig(config.LoadOptions{ConfigFiles: []string{filepath.Join(tempDir, "missing.yaml")}})
 	if err != nil {
 		t.Fatalf("load config: %v", err)
 	}
@@ -248,7 +249,7 @@ func TestLoadConfigInvalidYAML(t *testing.T) {
 		t.Fatalf("write config file: %v", err)
 	}
 
-	_, err := LoadConfig(LoadOptions{ConfigFile: configPath})
+	_, err := config.LoadConfig(config.LoadOptions{ConfigFile: configPath})
 	if err == nil {
 		t.Fatalf("expected error for invalid YAML")
 	}

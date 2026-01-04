@@ -314,6 +314,7 @@ func createReplicaSet(namespace, name, deploymentName string) *appsv1.ReplicaSet
 	}
 }
 
+//nolint:unparam // test helper designed for flexibility
 func createPodWithOwner(namespace, name, nodeName, ownerKind, ownerName string) *corev1.Pod {
 	controller := true
 	return &corev1.Pod{

@@ -28,17 +28,17 @@ func TestWriteFileDeterministic(t *testing.T) {
 	if err := WriteFile(path, state); err != nil {
 		t.Fatalf("write state: %v", err)
 	}
-	first, err := os.ReadFile(path)
+	first, err := os.ReadFile(path) //nolint:gosec // reading test state file
 	if err != nil {
 		t.Fatalf("read state: %v", err)
 	}
 
-	if err := WriteFile(path, state); err != nil {
-		t.Fatalf("write state again: %v", err)
+	if writeErr := WriteFile(path, state); writeErr != nil {
+		t.Fatalf("write state again: %v", writeErr)
 	}
-	second, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("read state again: %v", err)
+	second, readErr := os.ReadFile(path) //nolint:gosec // reading test state file
+	if readErr != nil {
+		t.Fatalf("read state again: %v", readErr)
 	}
 
 	if string(first) != string(second) {

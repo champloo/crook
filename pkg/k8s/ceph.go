@@ -160,8 +160,8 @@ func (c *Client) GetCephStatus(ctx context.Context, namespace string) (*CephStat
 	}
 
 	var status CephStatus
-	if err := json.Unmarshal([]byte(output), &status); err != nil {
-		return nil, fmt.Errorf("failed to parse ceph status JSON: %w", err)
+	if unmarshalErr := json.Unmarshal([]byte(output), &status); unmarshalErr != nil {
+		return nil, fmt.Errorf("failed to parse ceph status JSON: %w", unmarshalErr)
 	}
 
 	return &status, nil
@@ -184,8 +184,8 @@ func (c *Client) GetOSDTree(ctx context.Context, namespace string) (*CephOSDTree
 	}
 
 	var tree CephOSDTree
-	if err := json.Unmarshal([]byte(output), &tree); err != nil {
-		return nil, fmt.Errorf("failed to parse ceph osd tree JSON: %w", err)
+	if unmarshalErr := json.Unmarshal([]byte(output), &tree); unmarshalErr != nil {
+		return nil, fmt.Errorf("failed to parse ceph osd tree JSON: %w", unmarshalErr)
 	}
 
 	return &tree, nil

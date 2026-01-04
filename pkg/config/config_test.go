@@ -1,12 +1,14 @@
-package config
+package config_test
 
 import (
 	"strings"
 	"testing"
+
+	"github.com/andri/crook/pkg/config"
 )
 
 func TestConfigStringIncludesSections(t *testing.T) {
-	cfg := DefaultConfig()
+	cfg := config.DefaultConfig()
 	output := cfg.String()
 
 	for _, section := range []string{"kubernetes:", "state:", "deployment-filters:", "ui:", "timeouts:", "logging:"} {

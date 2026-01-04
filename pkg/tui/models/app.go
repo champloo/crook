@@ -189,7 +189,9 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		subModel := m.currentSubModel()
 		if subModel != nil {
 			newModel, cmd := subModel.Update(msg)
-			m.setCurrentSubModel(newModel.(SubModel))
+			if sm, ok := newModel.(SubModel); ok {
+				m.setCurrentSubModel(sm)
+			}
 			if cmd != nil {
 				cmds = append(cmds, cmd)
 			}

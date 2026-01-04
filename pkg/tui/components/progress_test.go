@@ -178,7 +178,10 @@ func TestProgressBar_Update_SpinnerTick(t *testing.T) {
 
 	// Send tick message
 	newModel, cmd := p.Update(SpinnerTickMsg{})
-	updated := newModel.(*ProgressBar)
+	updated, ok := newModel.(*ProgressBar)
+	if !ok {
+		t.Fatal("expected *ProgressBar type")
+	}
 
 	if updated.spinnerFrame == initialFrame {
 		t.Error("Spinner frame should advance on tick")

@@ -151,6 +151,8 @@ func MonitorDeployments(ctx context.Context, client *k8s.Client, namespace strin
 			hasUnavailable = true
 		case DeploymentScaling, DeploymentProgressing:
 			hasScaling = true
+		case DeploymentHealthy:
+			// No action needed
 		}
 	}
 
