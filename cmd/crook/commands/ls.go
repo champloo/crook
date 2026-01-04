@@ -2,10 +2,15 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 	"slices"
 	"strings"
 
+	"github.com/andri/crook/pkg/config"
+	"github.com/andri/crook/pkg/k8s"
+	"github.com/andri/crook/pkg/tui/models"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 )
 
@@ -132,8 +137,69 @@ func validateLsOptions(opts *LsOptions) error {
 
 // runLs executes the ls command
 func runLs(opts *LsOptions) error {
-	// TODO: Implementation will be added in crook-3qm.2 (TUI model)
-	// and crook-3qm.11 (alternative output formats)
-	_ = opts
-	return fmt.Errorf("ls command not yet implemented")
+	// For non-TUI output formats, defer to crook-3qm.11
+	if opts.Output != "tui" {
+		return fmt.Errorf("output format %q not yet implemented (see crook-3qm.11)", opts.Output)
+	}
+
+	// Initialize context
+	ctx := context.Background()
+
+	// Load configuration
+	result, err := config.LoadConfig(config.LoadOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to load configuration: %w", err)
+	}
+	cfg := result.Config
+
+	// Initialize Kubernetes client
+	client, err := k8s.GetClient(ctx, k8s.ClientConfig{})
+	if err != nil {
+		return fmt.Errorf("failed to create kubernetes client: %w", err)
+	}
+
+	// Parse --show flag into LsTab slice
+	var showTabs []models.LsTab
+	if opts.Show != "" {
+		showTabs = parseShowTabs(opts.Show)
+	}
+
+	// Create the ls model
+	model := models.NewLsModel(models.LsModelConfig{
+		NodeFilter: opts.NodeFilter,
+		Config:     cfg,
+		Client:     client,
+		Context:    ctx,
+		ShowTabs:   showTabs,
+	})
+
+	// Run the TUI
+	p := tea.NewProgram(model, tea.WithAltScreen())
+	if _, runErr := p.Run(); runErr != nil {
+		return fmt.Errorf("TUI error: %w", runErr)
+	}
+
+	return nil
+}
+
+// parseShowTabs converts the --show string to a slice of LsTab
+func parseShowTabs(show string) []models.LsTab {
+	var tabs []models.LsTab
+	values := strings.Split(show, ",")
+
+	for _, v := range values {
+		v = strings.TrimSpace(strings.ToLower(v))
+		switch v {
+		case "nodes":
+			tabs = append(tabs, models.LsTabNodes)
+		case "deployments":
+			tabs = append(tabs, models.LsTabDeployments)
+		case "osds":
+			tabs = append(tabs, models.LsTabOSDs)
+		case "pods":
+			tabs = append(tabs, models.LsTabPods)
+		}
+	}
+
+	return tabs
 }
