@@ -49,7 +49,7 @@ The system SHALL provide an interactive TUI for the up phase with state transiti
 - **THEN** system loads and validates state file
 - **THEN** system displays restore plan showing deployments and target replica counts
 - **THEN** system prompts for confirmation
-- **THEN** system transitions through states: RestoringDeployments → ScalingOperator → UnsettingNoOut → Uncordoning → Complete
+- **THEN** system transitions through states: Uncordoning → RestoringDeployments → ScalingOperator → UnsettingNoOut → Complete
 - **THEN** system displays progress for each operation
 - **THEN** system shows final success summary on completion
 

@@ -47,18 +47,18 @@ The system SHALL execute the node down phase by performing these steps in order:
 
 ### Requirement: Up Phase Orchestration
 
-The system SHALL execute the node up phase by performing these steps in order: validate state file exists, restore deployment replicas, scale up Rook operator, unset Ceph noout flag, and uncordon node.
+The system SHALL execute the node up phase by performing these steps in order: validate state file exists, uncordon node, restore deployment replicas, scale up Rook operator and unset Ceph noout flag.
 
 #### Scenario: Successful up phase
 
 - **WHEN** user initiates up phase for node "worker-01"
 - **THEN** system validates state file exists at expected path
 - **THEN** system parses state file and validates format
+- **THEN** system uncordons the node
 - **THEN** system scales each deployment listed in state file back to original replica count
 - **THEN** system waits for each deployment's replicas to reach desired count
 - **THEN** system scales rook-ceph-operator back to 1 replica
 - **THEN** system unsets Ceph `noout` flag
-- **THEN** system uncordons the node
 - **THEN** system displays success message confirming node is operational
 
 #### Scenario: Up phase with missing state file

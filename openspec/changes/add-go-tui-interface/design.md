@@ -205,10 +205,10 @@ ui:
 **Up Phase States**:
 1. `Init` - Load state file, validate
 2. `Confirm` - Show restore plan
-3. `RestoringDeployments` - Scale deployments back up
-4. `ScalingOperator` - Restore operator
-5. `UnsettingNoOut` - Unset Ceph flag
-6. `Uncordoning` - Uncordon node
+3. `Uncordoning` - Uncordon node
+4. `RestoringDeployments` - Scale deployments back up
+5. `ScalingOperator` - Restore operator
+6. `UnsettingNoOut` - Unset Ceph flag
 7. `Complete` - Show summary
 
 **Progress Tracking**:

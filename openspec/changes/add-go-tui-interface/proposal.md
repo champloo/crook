@@ -30,8 +30,7 @@ A Go-based TUI application will provide:
 
 Core functionality matches existing bash script:
 - Down phase: cordon → noout → scale operator → scale deployments → save state
-- Up phase: restore deployments → scale operator → unset noout → uncordon
-
+- Up phase: uncordon → restore deployments → scale operator → unset noout  
 New functionality beyond bash script:
 - `crook ls` command for viewing Ceph cluster resources (nodes, deployments, OSDs, pods)
 - Tabbed navigation between resource types with filtering and search

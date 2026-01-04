@@ -186,7 +186,7 @@ go test -bench=. ./...           # Benchmarks
 ### Maintenance Workflow
 1. **Down Phase:** Cordon node → Set noout flag → Scale operator to 0 → Scale node deployments to 0 → Save state
 2. **Maintenance:** Node can be safely rebooted/maintained
-3. **Up Phase:** Restore deployment replicas → Scale operator to 1 → Unset noout flag → Uncordon node
+3. **Up Phase:** Uncordon node → Restore deployment replicas → Scale operator to 1 → Unset noout flag 
 
 ### Critical Ceph Concepts
 - **noout flag:** Prevents Ceph from rebalancing data when OSDs go offline temporarily

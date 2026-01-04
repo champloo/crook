@@ -87,10 +87,10 @@
   - [ ] Save state file
 - [ ] 5.2 Implement up phase orchestration in pkg/maintenance/up.go:
   - [ ] Load and validate state file
+  - [ ] Uncordon node
   - [ ] Restore deployment replicas with waiting
   - [ ] Scale up operator
   - [ ] Unset Ceph noout flag
-  - [ ] Uncordon node
 - [ ] 5.3 Implement deployment discovery in pkg/maintenance/discovery.go:
   - [ ] Find pods on target node
   - [ ] Trace ownership chain
