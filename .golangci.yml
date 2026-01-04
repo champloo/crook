@@ -8,12 +8,84 @@ run:
 
 linters:
   enable:
-    - errcheck
-    - govet
-    - staticcheck
-    - ineffassign
-    - unconvert
-    - unused
+
+    - cyclop # checks function and package cyclomatic complexity
+    - errcheck # Errcheck is a program for checking for unchecked errors in Go code. These unchecked errors can be critical bugs in some cases.
+    - exhaustive # checks exhaustiveness of enum switch statements
+    - gochecksumtype # checks exhaustiveness on Go "sum types"
+    - gosec # inspects source code for security problems
+    - govet # Vet examines Go source code and reports suspicious constructs. It is roughly the same as 'go vet' and uses its passes.
+    - ineffassign # Detects when assignments to existing variables are not used.
+    - nilerr # finds the code that returns nil even if it checks that the error is not nil
+    - nilnesserr # reports that it checks for err != nil, but it returns a different nil value error (powered by nilness and nilerr)
+    - nilnil # checks that there is no simultaneous return of nil error and an invalid value
+    - sloglint # ensure consistent code style when using log/slog
+    - staticcheck # It's the set of rules from staticcheck.
+    - testpackage # makes you use a separate _test package
+    - unconvert # Remove unnecessary type conversions.
+    - unused # hecks Go code for unused constants, variables, functions and types.
+
+  settings:
+    cyclop:
+      # The maximal code complexity to report.
+      # Default: 10
+      max-complexity: 30
+      # The maximal average package complexity.
+      # If it's higher than 0.0 (float) the check is enabled.
+      # Default: 0.0
+      package-average: 10.0
+
+    errcheck:
+      # Report about not checking of errors in type assertions: `a := b.(MyStruct)`.
+      # Such cases aren't reported by default.
+      # Default: false
+      check-type-assertions: true
+
+    exhaustive:
+      # Program elements to check for exhaustiveness.
+      # Default: [ switch ]
+      check:
+        - switch
+        - map
+
+    gochecksumtype:
+      # Presence of `default` case in switch statements satisfies exhaustiveness, if all members are not listed.
+      # Default: true
+      default-signifies-exhaustive: false
+
+    govet:
+      # Enable all analyzers.
+      # Default: false
+      enable-all: true
+      # Disable analyzers by name.
+      # Run `GL_DEBUG=govet golangci-lint run --enable=govet` to see default, all available analyzers, and enabled analyzers.
+      # Default: []
+      disable:
+        - fieldalignment # too strict
+      # Settings per analyzer.
+      settings:
+        shadow:
+          # Whether to be strict about shadowing; can be noisy.
+          # Default: false
+          strict: true
+
+    sloglint:
+      # Enforce not using global loggers.
+      # Values:
+      # - "": disabled
+      # - "all": report all global loggers
+      # - "default": report only the default slog logger
+      # https://github.com/go-simpler/sloglint?tab=readme-ov-file#no-global
+      # Default: ""
+      no-global: all
+      # Enforce using methods that accept a context.
+      # Values:
+      # - "": disabled
+      # - "all": report all contextless calls
+      # - "scope": report only if a context exists in the scope of the outermost function
+      # https://github.com/go-simpler/sloglint?tab=readme-ov-file#context-only
+      # Default: ""
+      context: scope
 
 formatters:
   enable:
