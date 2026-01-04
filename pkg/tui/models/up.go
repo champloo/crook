@@ -26,14 +26,14 @@ const (
 	UpStateLoadingState
 	// UpStateConfirm waits for user confirmation of restore plan
 	UpStateConfirm
+	// UpStateUncordoning uncordons the node
+	UpStateUncordoning
 	// UpStateRestoringDeployments scales up deployments to saved replicas
 	UpStateRestoringDeployments
 	// UpStateScalingOperator scales up the rook-ceph-operator
 	UpStateScalingOperator
 	// UpStateUnsettingNoOut unsets the Ceph noout flag
 	UpStateUnsettingNoOut
-	// UpStateUncordoning uncordons the node
-	UpStateUncordoning
 	// UpStateComplete indicates successful completion
 	UpStateComplete
 	// UpStateError indicates an error occurred
@@ -49,14 +49,14 @@ func (s UpPhaseState) String() string {
 		return "Loading State"
 	case UpStateConfirm:
 		return "Awaiting Confirmation"
+	case UpStateUncordoning:
+		return "Uncordoning Node"
 	case UpStateRestoringDeployments:
 		return "Restoring Deployments"
 	case UpStateScalingOperator:
 		return "Scaling Operator"
 	case UpStateUnsettingNoOut:
 		return "Unsetting NoOut Flag"
-	case UpStateUncordoning:
-		return "Uncordoning Node"
 	case UpStateComplete:
 		return "Complete"
 	case UpStateError:
@@ -75,14 +75,14 @@ func (s UpPhaseState) Description() string {
 		return "Loading and validating state file..."
 	case UpStateConfirm:
 		return "Review the restore plan and confirm to proceed"
+	case UpStateUncordoning:
+		return "Uncordoning node to allow pod scheduling"
 	case UpStateRestoringDeployments:
 		return "Scaling deployments to original replica counts"
 	case UpStateScalingOperator:
 		return "Scaling up rook-ceph-operator to resume management"
 	case UpStateUnsettingNoOut:
 		return "Unsetting Ceph noout flag to allow rebalancing"
-	case UpStateUncordoning:
-		return "Uncordoning node to allow pod scheduling"
 	case UpStateComplete:
 		return "All operations completed successfully"
 	case UpStateError:

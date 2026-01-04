@@ -20,10 +20,10 @@ func TestUpPhaseState_String(t *testing.T) {
 		{UpStateInit, "Initializing"},
 		{UpStateLoadingState, "Loading State"},
 		{UpStateConfirm, "Awaiting Confirmation"},
+		{UpStateUncordoning, "Uncordoning Node"},
 		{UpStateRestoringDeployments, "Restoring Deployments"},
 		{UpStateScalingOperator, "Scaling Operator"},
 		{UpStateUnsettingNoOut, "Unsetting NoOut Flag"},
-		{UpStateUncordoning, "Uncordoning Node"},
 		{UpStateComplete, "Complete"},
 		{UpStateError, "Error"},
 		{UpPhaseState(99), "Unknown"},
@@ -47,9 +47,9 @@ func TestUpPhaseState_Description(t *testing.T) {
 		{UpStateLoadingState, true},
 		{UpStateConfirm, true},
 		{UpStateRestoringDeployments, true},
+		{UpStateUncordoning, true},
 		{UpStateScalingOperator, true},
 		{UpStateUnsettingNoOut, true},
-		{UpStateUncordoning, true},
 		{UpStateComplete, true},
 		{UpStateError, true},
 		{UpPhaseState(99), false},
@@ -456,10 +456,10 @@ func TestUpModel_updateStateFromProgress(t *testing.T) {
 		stage    string
 		expected UpPhaseState
 	}{
+		{"uncordon", UpStateUncordoning},
 		{"scale-up", UpStateRestoringDeployments},
 		{"operator", UpStateScalingOperator},
 		{"unset-noout", UpStateUnsettingNoOut},
-		{"uncordon", UpStateUncordoning},
 	}
 
 	for _, tt := range tests {

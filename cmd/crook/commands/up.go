@@ -45,10 +45,10 @@ func newUpCmd() *cobra.Command {
 This command performs the following steps:
   1. Validates pre-flight conditions (node exists, state file valid, etc.)
   2. Loads the state file created during the down phase
-  3. Restores Rook-Ceph deployments to their original replica counts
-  4. Scales up the rook-ceph-operator
-  5. Unsets the Ceph 'noout' flag
-  6. Uncordons the node (marks it schedulable again)
+  3. Uncordons the node (marks it schedulable again)
+  4. Restores Rook-Ceph deployments to their original replica counts
+  5. Scales up the rook-ceph-operator
+  6. Unsets the Ceph 'noout' flag
 
 This command should be run after 'crook down <node>' and after node maintenance
 is complete. It requires the state file that was created during the down phase.`,
@@ -168,10 +168,10 @@ func runUpNonInteractive(ctx context.Context, client *k8s.Client, nodeName strin
 	if !opts.Yes {
 		printLine(out, "This will:")
 		printLine(out, "  1. Load state from the down phase state file")
-		printLine(out, "  2. Restore Rook-Ceph deployments to original replicas")
-		printLine(out, "  3. Scale up rook-ceph-operator")
-		printLine(out, "  4. Unset Ceph noout flag")
-		printLine(out, "  5. Uncordon the node (mark schedulable)\n")
+		printLine(out, "  2. Uncordon the node (mark schedulable)\n")
+		printLine(out, "  3. Restore Rook-Ceph deployments to original replicas")
+		printLine(out, "  4. Scale up rook-ceph-operator")
+		printLine(out, "  5. Unset Ceph noout flag")
 		printLine(out, "Continue? [y/N] ")
 
 		var response string
