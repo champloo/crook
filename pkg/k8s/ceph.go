@@ -31,12 +31,14 @@ type CephOSDTree struct {
 
 // CephOSDNode represents a node in the OSD tree
 type CephOSDNode struct {
-	ID       int     `json:"id"`
-	Name     string  `json:"name"`
-	Type     string  `json:"type"`
-	Status   string  `json:"status"`
-	Reweight float64 `json:"reweight"`
-	Children []int   `json:"children,omitempty"`
+	ID          int     `json:"id"`
+	Name        string  `json:"name"`
+	Type        string  `json:"type"`
+	Status      string  `json:"status"`
+	Reweight    float64 `json:"reweight"`
+	CrushWeight float64 `json:"crush_weight"`
+	DeviceClass string  `json:"device_class"`
+	Children    []int   `json:"children,omitempty"`
 }
 
 // ExecuteCephCommand executes a Ceph command via the rook-ceph-tools pod
@@ -452,4 +454,111 @@ func (s *StorageUsage) GetPoolByName(name string) *PoolUsage {
 		}
 	}
 	return nil
+}
+
+// OSDInfoForLS holds OSD information for the ls command view
+type OSDInfoForLS struct {
+	// ID is the numeric OSD ID
+	ID int
+
+	// Name is the OSD name ('osd.0' format)
+	Name string
+
+	// Hostname is the node hostname from CRUSH tree
+	Hostname string
+
+	// Status is the OSD status ('up' or 'down')
+	Status string
+
+	// InOut indicates if OSD is 'in' or 'out' of the cluster
+	InOut string
+
+	// Weight is the CRUSH weight
+	Weight float64
+
+	// Reweight is the OSD reweight value
+	Reweight float64
+
+	// DeviceClass is the device class (hdd/ssd/nvme)
+	DeviceClass string
+
+	// DeploymentName is the mapped K8s deployment name
+	DeploymentName string
+
+	// PGCount is the number of primary PGs (if available)
+	PGCount int
+}
+
+// GetOSDInfoList returns a list of OSD info with hostname mappings from the CRUSH tree
+func (c *Client) GetOSDInfoList(ctx context.Context, namespace string) ([]OSDInfoForLS, error) {
+	// Get the OSD tree
+	tree, err := c.GetOSDTree(ctx, namespace)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get osd tree: %w", err)
+	}
+
+	// Build hostname map (osd id -> hostname)
+	hostMap := buildHostnameMap(tree)
+
+	// Extract OSDs
+	result := make([]OSDInfoForLS, 0)
+	for _, node := range tree.Nodes {
+		if node.Type != "osd" {
+			continue
+		}
+
+		inOut := "in"
+		if node.Reweight == 0 {
+			inOut = "out"
+		}
+
+		info := OSDInfoForLS{
+			ID:             node.ID,
+			Name:           node.Name,
+			Hostname:       hostMap[node.ID],
+			Status:         node.Status,
+			InOut:          inOut,
+			Weight:         node.CrushWeight,
+			Reweight:       node.Reweight,
+			DeviceClass:    node.DeviceClass,
+			DeploymentName: fmt.Sprintf("rook-ceph-osd-%d", node.ID),
+		}
+		result = append(result, info)
+	}
+
+	return result, nil
+}
+
+// GetOSDInfoList is a package-level function that uses the global client
+func GetOSDInfoList(ctx context.Context, namespace string) ([]OSDInfoForLS, error) {
+	client, err := GetClient(ctx, ClientConfig{})
+	if err != nil {
+		return nil, err
+	}
+	return client.GetOSDInfoList(ctx, namespace)
+}
+
+// buildHostnameMap builds a map of OSD ID to hostname from the CRUSH tree
+func buildHostnameMap(tree *CephOSDTree) map[int]string {
+	hostMap := make(map[int]string)
+
+	// First pass: find all host nodes and their children
+	for _, node := range tree.Nodes {
+		if node.Type == "host" {
+			for _, childID := range node.Children {
+				hostMap[childID] = node.Name
+			}
+		}
+	}
+
+	return hostMap
+}
+
+// ParseOSDTree parses the JSON output of 'ceph osd tree --format json'
+func ParseOSDTree(output string) (*CephOSDTree, error) {
+	var tree CephOSDTree
+	if err := json.Unmarshal([]byte(output), &tree); err != nil {
+		return nil, fmt.Errorf("failed to parse ceph osd tree JSON: %w", err)
+	}
+	return &tree, nil
 }

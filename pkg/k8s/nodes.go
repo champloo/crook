@@ -3,6 +3,8 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -161,4 +163,124 @@ func ListNodes(ctx context.Context) ([]corev1.Node, error) {
 		return nil, err
 	}
 	return client.ListNodes(ctx)
+}
+
+// NodeInfoForLS holds node information for the ls command view
+type NodeInfoForLS struct {
+	// Name is the node name
+	Name string
+
+	// Status is the node status (Ready/NotReady/Unknown)
+	Status string
+
+	// Roles are the node roles (control-plane, worker, etc.)
+	Roles []string
+
+	// Schedulable indicates if the node accepts new pods
+	Schedulable bool
+
+	// Cordoned indicates if the node is cordoned (unschedulable)
+	Cordoned bool
+
+	// CephPodCount is the number of Ceph pods on this node
+	CephPodCount int
+
+	// Age is the time since the node was created
+	Age time.Duration
+
+	// KubeletVersion is the kubelet version
+	KubeletVersion string
+}
+
+// ListNodesWithCephPods returns all nodes with Ceph pod counts
+func (c *Client) ListNodesWithCephPods(ctx context.Context, namespace string, prefixes []string) ([]NodeInfoForLS, error) {
+	// Get all nodes
+	nodes, err := c.ListNodes(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list nodes: %w", err)
+	}
+
+	// Get all pods in the namespace to count per-node Ceph pods
+	podList, err := c.Clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list pods in namespace %s: %w", namespace, err)
+	}
+
+	// Build a map of node -> Ceph pod count
+	nodePodCounts := make(map[string]int)
+	for _, pod := range podList.Items {
+		// Check if pod matches any of the prefixes
+		if matchesAnyPrefix(pod.Name, prefixes) {
+			nodePodCounts[pod.Spec.NodeName]++
+		}
+	}
+
+	// Build result
+	result := make([]NodeInfoForLS, 0, len(nodes))
+	now := time.Now()
+
+	for _, node := range nodes {
+		info := NodeInfoForLS{
+			Name:           node.Name,
+			Status:         getNodeStatus(&node),
+			Roles:          extractNodeRoles(&node),
+			Schedulable:    !node.Spec.Unschedulable,
+			Cordoned:       node.Spec.Unschedulable,
+			CephPodCount:   nodePodCounts[node.Name],
+			Age:            now.Sub(node.CreationTimestamp.Time),
+			KubeletVersion: node.Status.NodeInfo.KubeletVersion,
+		}
+		result = append(result, info)
+	}
+
+	return result, nil
+}
+
+// ListNodesWithCephPods is a package-level function that uses the global client
+func ListNodesWithCephPods(ctx context.Context, namespace string, prefixes []string) ([]NodeInfoForLS, error) {
+	client, err := GetClient(ctx, ClientConfig{})
+	if err != nil {
+		return nil, err
+	}
+	return client.ListNodesWithCephPods(ctx, namespace, prefixes)
+}
+
+// getNodeStatus extracts the status string from a node
+func getNodeStatus(node *corev1.Node) string {
+	for _, condition := range node.Status.Conditions {
+		if condition.Type == corev1.NodeReady {
+			if condition.Status == corev1.ConditionTrue {
+				return "Ready"
+			}
+			return "NotReady"
+		}
+	}
+	return "Unknown"
+}
+
+// extractNodeRoles extracts roles from node labels
+func extractNodeRoles(node *corev1.Node) []string {
+	roles := make([]string, 0)
+	const rolePrefix = "node-role.kubernetes.io/"
+
+	for label := range node.Labels {
+		if strings.HasPrefix(label, rolePrefix) {
+			role := strings.TrimPrefix(label, rolePrefix)
+			if role != "" {
+				roles = append(roles, role)
+			}
+		}
+	}
+
+	return roles
+}
+
+// matchesAnyPrefix checks if a string starts with any of the given prefixes
+func matchesAnyPrefix(s string, prefixes []string) bool {
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(s, prefix) {
+			return true
+		}
+	}
+	return false
 }
