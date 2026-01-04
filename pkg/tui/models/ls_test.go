@@ -2,10 +2,12 @@ package models
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/andri/crook/pkg/config"
 	"github.com/andri/crook/pkg/tui/components"
+	"github.com/andri/crook/pkg/tui/views"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -274,47 +276,54 @@ func TestLsModel_handleKeyPress_Navigation(t *testing.T) {
 	model := NewLsModel(LsModelConfig{
 		Context: context.Background(),
 	})
-	model.nodeCount = 10 // Set max for G command
 
-	// Test j/down
+	// Set up nodes view with test data so cursor navigation works
+	testNodes := make([]views.NodeInfo, 10)
+	for i := 0; i < 10; i++ {
+		testNodes[i] = views.NodeInfo{Name: fmt.Sprintf("node-%d", i)}
+	}
+	model.nodesView.SetNodes(testNodes)
+	model.nodeCount = 10
+
+	// Test j/down (cursor at 0 initially)
 	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
-	if model.cursor != 1 {
-		t.Errorf("cursor after j = %d, want 1", model.cursor)
+	if model.nodesView.GetCursor() != 1 {
+		t.Errorf("cursor after j = %d, want 1", model.nodesView.GetCursor())
 	}
 
 	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyDown})
-	if model.cursor != 2 {
-		t.Errorf("cursor after down = %d, want 2", model.cursor)
+	if model.nodesView.GetCursor() != 2 {
+		t.Errorf("cursor after down = %d, want 2", model.nodesView.GetCursor())
 	}
 
 	// Test k/up
 	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("k")})
-	if model.cursor != 1 {
-		t.Errorf("cursor after k = %d, want 1", model.cursor)
+	if model.nodesView.GetCursor() != 1 {
+		t.Errorf("cursor after k = %d, want 1", model.nodesView.GetCursor())
 	}
 
 	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyUp})
-	if model.cursor != 0 {
-		t.Errorf("cursor after up = %d, want 0", model.cursor)
+	if model.nodesView.GetCursor() != 0 {
+		t.Errorf("cursor after up = %d, want 0", model.nodesView.GetCursor())
 	}
 
 	// Test k at top (should stay at 0)
 	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("k")})
-	if model.cursor != 0 {
-		t.Errorf("cursor should stay at 0, got %d", model.cursor)
+	if model.nodesView.GetCursor() != 0 {
+		t.Errorf("cursor should stay at 0, got %d", model.nodesView.GetCursor())
 	}
 
 	// Test g (go to top)
-	model.cursor = 5
+	model.nodesView.SetCursor(5)
 	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("g")})
-	if model.cursor != 0 {
-		t.Errorf("cursor after g = %d, want 0", model.cursor)
+	if model.nodesView.GetCursor() != 0 {
+		t.Errorf("cursor after g = %d, want 0", model.nodesView.GetCursor())
 	}
 
 	// Test G (go to bottom)
 	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("G")})
-	if model.cursor != 9 {
-		t.Errorf("cursor after G = %d, want 9", model.cursor)
+	if model.nodesView.GetCursor() != 9 {
+		t.Errorf("cursor after G = %d, want 9", model.nodesView.GetCursor())
 	}
 }
 

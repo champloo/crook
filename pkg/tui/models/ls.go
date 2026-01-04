@@ -5,11 +5,13 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/andri/crook/pkg/config"
 	"github.com/andri/crook/pkg/k8s"
 	"github.com/andri/crook/pkg/tui/components"
 	"github.com/andri/crook/pkg/tui/styles"
+	"github.com/andri/crook/pkg/tui/views"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -78,7 +80,14 @@ type LsModel struct {
 	width  int
 	height int
 
-	// Data (placeholders for child views to populate)
+	// Views
+	header          *components.ClusterHeader
+	nodesView       *views.NodesView
+	deploymentsView *views.DeploymentsView
+	osdsView        *views.OSDsView
+	podsView        *views.PodsView
+
+	// Data counts (for tab badges)
 	nodeCount       int
 	deploymentCount int
 	osdCount        int
@@ -90,8 +99,11 @@ type LsModel struct {
 	osdTotalCount        int
 	podTotalCount        int
 
+	// Cluster state (for OSD view noout flag)
+	nooutSet bool
+
 	// Error state
-	lastError error //nolint:unused // Reserved for future error handling in child views
+	lastError error
 }
 
 // LsDataUpdateMsg is sent when data is updated
@@ -128,27 +140,187 @@ func NewLsModel(cfg LsModelConfig) *LsModel {
 		}
 	}
 
+	// Create views
+	nodesView := views.NewNodesView()
+	deploymentsView := views.NewDeploymentsView()
+	osdsView := views.NewOSDsView()
+	podsView := views.NewPodsView()
+
+	// Apply node filter to pods view if specified
+	if cfg.NodeFilter != "" {
+		podsView.SetNodeFilter(cfg.NodeFilter)
+	}
+
 	return &LsModel{
-		config:    cfg,
-		activeTab: showTabs[0],
-		tabBar:    components.NewTabBar(tabs),
-		cursor:    0,
+		config:          cfg,
+		activeTab:       showTabs[0],
+		tabBar:          components.NewTabBar(tabs),
+		cursor:          0,
+		header:          components.NewClusterHeader(),
+		nodesView:       nodesView,
+		deploymentsView: deploymentsView,
+		osdsView:        osdsView,
+		podsView:        podsView,
 	}
 }
 
 // Init implements tea.Model
 func (m *LsModel) Init() tea.Cmd {
 	return tea.Batch(
-		m.fetchInitialDataCmd(),
+		m.fetchAllDataCmd(),
 	)
 }
 
-// fetchInitialDataCmd fetches initial data for all tabs
-func (m *LsModel) fetchInitialDataCmd() tea.Cmd {
+// fetchAllDataCmd fetches all data for the TUI
+func (m *LsModel) fetchAllDataCmd() tea.Cmd {
 	return func() tea.Msg {
-		// Placeholder: actual data fetching will be implemented in child views
-		// For now, return a refresh message to trigger the active tab
-		return LsRefreshMsg{Tab: m.activeTab}
+		return LsRefreshMsg{Tab: LsTabNodes} // Start by triggering a refresh
+	}
+}
+
+// LsDataLoadedMsg is sent when all data has been loaded
+type LsDataLoadedMsg struct {
+	Nodes       []views.NodeInfo
+	Deployments []views.DeploymentInfo
+	OSDs        []views.OSDInfo
+	Pods        []views.PodInfo
+	Header      *components.ClusterHeaderData
+	Error       error
+}
+
+// fetchDataCmd fetches data from Kubernetes
+func (m *LsModel) fetchDataCmd() tea.Cmd {
+	return func() tea.Msg {
+		ctx := m.config.Context
+		client := m.config.Client
+		cfg := m.config.Config
+
+		namespace := cfg.Kubernetes.RookClusterNamespace
+		prefixes := cfg.DeploymentFilters.Prefixes
+
+		var result LsDataLoadedMsg
+
+		// Fetch cluster health for header
+		status, err := client.GetCephStatus(ctx, namespace)
+		if err == nil {
+			headerData := &components.ClusterHeaderData{
+				Health:     status.Health.Status,
+				OSDs:       status.OSDMap.NumOSDs,
+				OSDsUp:     status.OSDMap.NumUpOSDs,
+				OSDsIn:     status.OSDMap.NumInOSDs,
+				LastUpdate: time.Now(),
+			}
+
+			// Fetch monitor status
+			monStatus, monErr := client.GetMonitorStatus(ctx, namespace)
+			if monErr == nil {
+				headerData.MonsTotal = monStatus.TotalCount
+				headerData.MonsInQuorum = monStatus.InQuorum
+			}
+
+			// Fetch flags
+			flags, flagsErr := client.GetCephFlags(ctx, namespace)
+			if flagsErr == nil {
+				headerData.NooutSet = flags.NoOut
+			}
+
+			// Fetch storage usage
+			storage, storageErr := client.GetStorageUsage(ctx, namespace)
+			if storageErr == nil {
+				headerData.UsedBytes = storage.UsedBytes
+				headerData.TotalBytes = storage.TotalBytes
+			}
+
+			result.Header = headerData
+		}
+
+		// Fetch nodes
+		nodes, err := client.ListNodesWithCephPods(ctx, namespace, prefixes)
+		if err == nil {
+			result.Nodes = make([]views.NodeInfo, len(nodes))
+			for i, n := range nodes {
+				result.Nodes[i] = views.NodeInfo{
+					Name:           n.Name,
+					Status:         n.Status,
+					Roles:          n.Roles,
+					Schedulable:    n.Schedulable,
+					Cordoned:       n.Cordoned,
+					CephPodCount:   n.CephPodCount,
+					Age:            n.Age,
+					KubeletVersion: n.KubeletVersion,
+				}
+			}
+		}
+
+		// Fetch deployments
+		deployments, err := client.ListCephDeployments(ctx, namespace, prefixes)
+		if err == nil {
+			result.Deployments = make([]views.DeploymentInfo, 0)
+			for _, d := range deployments {
+				// Apply node filter if specified
+				if m.config.NodeFilter != "" && d.NodeName != m.config.NodeFilter {
+					continue
+				}
+				result.Deployments = append(result.Deployments, views.DeploymentInfo{
+					Name:            d.Name,
+					Namespace:       d.Namespace,
+					ReadyReplicas:   d.ReadyReplicas,
+					DesiredReplicas: d.DesiredReplicas,
+					NodeName:        d.NodeName,
+					Age:             d.Age,
+					Status:          d.Status,
+					Type:            d.Type,
+					OsdID:           d.OsdID,
+				})
+			}
+		}
+
+		// Fetch OSDs
+		osds, err := client.GetOSDInfoList(ctx, namespace)
+		if err == nil {
+			result.OSDs = make([]views.OSDInfo, 0)
+			for _, o := range osds {
+				// Apply node filter if specified
+				if m.config.NodeFilter != "" && o.Hostname != m.config.NodeFilter {
+					continue
+				}
+				result.OSDs = append(result.OSDs, views.OSDInfo{
+					ID:             o.ID,
+					Name:           o.Name,
+					Hostname:       o.Hostname,
+					Status:         o.Status,
+					InOut:          o.InOut,
+					Weight:         o.Weight,
+					Reweight:       o.Reweight,
+					DeviceClass:    o.DeviceClass,
+					DeploymentName: o.DeploymentName,
+				})
+			}
+		}
+
+		// Fetch pods
+		pods, err := client.ListCephPods(ctx, namespace, prefixes, m.config.NodeFilter)
+		if err == nil {
+			result.Pods = make([]views.PodInfo, len(pods))
+			for i, p := range pods {
+				result.Pods[i] = views.PodInfo{
+					Name:            p.Name,
+					Namespace:       p.Namespace,
+					Status:          p.Status,
+					Ready:           p.ReadyContainers == p.TotalContainers && p.TotalContainers > 0,
+					ReadyContainers: p.ReadyContainers,
+					TotalContainers: p.TotalContainers,
+					Restarts:        p.Restarts,
+					NodeName:        p.NodeName,
+					Age:             p.Age,
+					Type:            p.Type,
+					IP:              p.IP,
+					OwnerDeployment: p.OwnerDeployment,
+				}
+			}
+		}
+
+		return result
 	}
 }
 
@@ -167,6 +339,13 @@ func (m *LsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.tabBar.SetWidth(msg.Width)
+		m.header.SetWidth(msg.Width)
+		// Update view sizes (subtract space for header, tabs, status bar)
+		viewHeight := msg.Height - 10 // Approximate header + tabs + status
+		m.nodesView.SetSize(msg.Width, viewHeight)
+		m.deploymentsView.SetSize(msg.Width, viewHeight)
+		m.osdsView.SetSize(msg.Width, viewHeight)
+		m.podsView.SetSize(msg.Width, viewHeight)
 
 	case components.TabSwitchMsg:
 		// Update tab bar
@@ -178,19 +357,91 @@ func (m *LsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.updateActiveTab(msg.Index)
 		m.cursor = 0 // Reset cursor on tab switch
 
+	case LsDataLoadedMsg:
+		m.handleDataLoaded(msg)
+
 	case LsDataUpdateMsg:
 		m.updateDataCount(msg)
 
 	case LsFilterMsg:
 		m.filter = msg.Query
 		m.cursor = 0 // Reset cursor on filter change
+		// Apply filter to all views
+		m.nodesView.SetFilter(msg.Query)
+		m.deploymentsView.SetFilter(msg.Query)
+		m.osdsView.SetFilter(msg.Query)
+		m.podsView.SetFilter(msg.Query)
+		// Update counts after filtering
+		m.updateAllCounts()
 
 	case LsRefreshMsg:
-		// Placeholder: refresh will trigger data fetching in child views
-		// For now, just acknowledge
+		// Trigger data fetch
+		cmds = append(cmds, m.fetchDataCmd())
 	}
 
 	return m, tea.Batch(cmds...)
+}
+
+// handleDataLoaded processes the loaded data
+func (m *LsModel) handleDataLoaded(msg LsDataLoadedMsg) {
+	// Update header
+	if msg.Header != nil {
+		m.header.SetData(msg.Header)
+		m.nooutSet = msg.Header.NooutSet
+		m.osdsView.SetNooutFlag(msg.Header.NooutSet)
+	}
+
+	// Update views with data
+	if msg.Nodes != nil {
+		m.nodesView.SetNodes(msg.Nodes)
+	}
+	if msg.Deployments != nil {
+		m.deploymentsView.SetDeployments(msg.Deployments)
+	}
+	if msg.OSDs != nil {
+		m.osdsView.SetOSDs(msg.OSDs)
+	}
+	if msg.Pods != nil {
+		m.podsView.SetPods(msg.Pods)
+	}
+
+	// Update counts and badges
+	m.updateAllCounts()
+
+	// Store any error
+	m.lastError = msg.Error
+}
+
+// updateAllCounts updates all tab counts and badges
+func (m *LsModel) updateAllCounts() {
+	// Nodes
+	m.nodeCount = m.nodesView.Count()
+	m.nodeTotalCount = m.nodesView.TotalCount()
+	m.updateBadge(0, m.nodeCount, m.nodeTotalCount)
+
+	// Deployments
+	m.deploymentCount = m.deploymentsView.Count()
+	m.deploymentTotalCount = m.deploymentsView.TotalCount()
+	m.updateBadge(1, m.deploymentCount, m.deploymentTotalCount)
+
+	// OSDs
+	m.osdCount = m.osdsView.Count()
+	m.osdTotalCount = m.osdsView.TotalCount()
+	m.updateBadge(2, m.osdCount, m.osdTotalCount)
+
+	// Pods
+	m.podCount = m.podsView.Count()
+	m.podTotalCount = m.podsView.TotalCount()
+	m.updateBadge(3, m.podCount, m.podTotalCount)
+}
+
+// updateBadge updates a tab badge with count information
+func (m *LsModel) updateBadge(tabIndex, count, totalCount int) {
+	badge := fmt.Sprintf("%d", count)
+	if totalCount > 0 && count != totalCount {
+		badge = fmt.Sprintf("%d/%d", count, totalCount)
+	}
+	m.tabBar.SetBadge(tabIndex, badge)
 }
 
 // handleKeyPress processes keyboard input
@@ -226,22 +477,20 @@ func (m *LsModel) handleKeyPress(msg tea.KeyMsg) tea.Cmd {
 		return cmd
 
 	case "j", "down":
-		m.cursor++
+		m.updateActiveViewCursor(1)
 		return nil
 
 	case "k", "up":
-		if m.cursor > 0 {
-			m.cursor--
-		}
+		m.updateActiveViewCursor(-1)
 		return nil
 
 	case "g":
-		m.cursor = 0
+		m.setActiveViewCursor(0)
 		return nil
 
 	case "G":
 		// Go to end - actual max will depend on current view
-		m.cursor = m.getMaxCursor()
+		m.setActiveViewCursor(m.getMaxCursor())
 		return nil
 
 	case "r":
@@ -344,6 +593,46 @@ func (m *LsModel) getMaxCursor() int {
 	return 0
 }
 
+// updateActiveViewCursor moves the cursor in the active view by delta
+func (m *LsModel) updateActiveViewCursor(delta int) {
+	switch m.activeTab {
+	case LsTabNodes:
+		newCursor := m.nodesView.GetCursor() + delta
+		if newCursor >= 0 && newCursor < m.nodesView.Count() {
+			m.nodesView.SetCursor(newCursor)
+		}
+	case LsTabDeployments:
+		newCursor := m.deploymentsView.GetCursor() + delta
+		if newCursor >= 0 && newCursor < m.deploymentsView.Count() {
+			m.deploymentsView.SetCursor(newCursor)
+		}
+	case LsTabOSDs:
+		newCursor := m.osdsView.GetCursor() + delta
+		if newCursor >= 0 && newCursor < m.osdsView.Count() {
+			m.osdsView.SetCursor(newCursor)
+		}
+	case LsTabPods:
+		newCursor := m.podsView.GetCursor() + delta
+		if newCursor >= 0 && newCursor < m.podsView.Count() {
+			m.podsView.SetCursor(newCursor)
+		}
+	}
+}
+
+// setActiveViewCursor sets the cursor position in the active view
+func (m *LsModel) setActiveViewCursor(pos int) {
+	switch m.activeTab {
+	case LsTabNodes:
+		m.nodesView.SetCursor(pos)
+	case LsTabDeployments:
+		m.deploymentsView.SetCursor(pos)
+	case LsTabOSDs:
+		m.osdsView.SetCursor(pos)
+	case LsTabPods:
+		m.podsView.SetCursor(pos)
+	}
+}
+
 // View implements tea.Model
 func (m *LsModel) View() string {
 	var b strings.Builder
@@ -387,35 +676,27 @@ func (m *LsModel) renderHeader() string {
 	}
 
 	header.WriteString(styles.StyleHeading.Render(title))
-
-	// Placeholder for cluster health - will be populated by header component
 	header.WriteString("\n")
-	header.WriteString(styles.StyleSubtle.Render("Ceph: loading..."))
+
+	// Use the header component for cluster health
+	header.WriteString(m.header.View())
 
 	return header.String()
 }
 
 // renderActiveView renders the currently active tab's content
 func (m *LsModel) renderActiveView() string {
-	// Placeholder - actual views will be implemented in crook-3qm.4-7
-	var content string
-
 	switch m.activeTab {
 	case LsTabNodes:
-		content = fmt.Sprintf("Nodes view (placeholder) - %d nodes", m.nodeCount)
+		return m.nodesView.View()
 	case LsTabDeployments:
-		content = fmt.Sprintf("Deployments view (placeholder) - %d deployments", m.deploymentCount)
+		return m.deploymentsView.View()
 	case LsTabOSDs:
-		content = fmt.Sprintf("OSDs view (placeholder) - %d OSDs", m.osdCount)
+		return m.osdsView.View()
 	case LsTabPods:
-		content = fmt.Sprintf("Pods view (placeholder) - %d pods", m.podCount)
+		return m.podsView.View()
 	}
-
-	if m.filter != "" {
-		content += fmt.Sprintf("\nFilter: %q", m.filter)
-	}
-
-	return styles.StyleNormal.Render(content)
+	return ""
 }
 
 // renderFilterBar renders the filter input bar
