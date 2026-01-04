@@ -36,4 +36,11 @@ Make sure to review @openspec/project.md for project conventions.
 
 ### Task tracking
 
-Use 'bd' CLI command for any task tracking work. Do not use the beads MCP.
+* Use 'bd' CLI command for any task tracking work. Do not use the beads MCP.
+* When creating tasks make sure that tasks are detailed focusing carefully on dependencies, detailed designs and potential parallelization.
+  * Put enough detail and context in the Beads tasks to enable you to execute them at a later time
+  * Add references relevan openspec specs, design and proposals to allow you to fetch data later on
+* When I ask you to work on multiple tasks do tasks one by
+  * Provide a summary for each task as soon as you finish it and then commit the changes to git.
+  * Don't stop until you have completed all tasks
+  * Finally provide overall summary for all tasks
