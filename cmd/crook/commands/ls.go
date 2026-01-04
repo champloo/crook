@@ -7,6 +7,7 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/andri/crook/pkg/config"
 	"github.com/andri/crook/pkg/k8s"
@@ -206,18 +207,45 @@ func runLsNonTUI(ctx context.Context, opts *LsOptions, cfg config.Config, client
 	// Parse resource types to display
 	resourceTypes := output.ParseResourceTypes(opts.Show)
 
-	// Fetch data
-	data, fetchErr := output.FetchData(ctx, output.FetchOptions{
-		Client:        client,
-		Config:        cfg,
-		ResourceTypes: resourceTypes,
-		NodeFilter:    opts.NodeFilter,
-	})
+	// Create fetch function
+	fetchFunc := func(fetchCtx context.Context) (*output.Data, error) {
+		return output.FetchData(fetchCtx, output.FetchOptions{
+			Client:        client,
+			Config:        cfg,
+			ResourceTypes: resourceTypes,
+			NodeFilter:    opts.NodeFilter,
+		})
+	}
+
+	// Handle watch mode
+	if opts.Watch {
+		// Build command string for header
+		command := "crook ls"
+		if opts.NodeFilter != "" {
+			command += " " + opts.NodeFilter
+		}
+		if opts.Output != "tui" {
+			command += " -o " + opts.Output
+		}
+		if opts.Show != "" {
+			command += " --show " + opts.Show
+		}
+
+		return output.RunWatch(ctx, output.WatchOptions{
+			Interval:  time.Duration(opts.RefreshInterval) * time.Second,
+			Format:    format,
+			FetchFunc: fetchFunc,
+			Writer:    os.Stdout,
+			Command:   command,
+		})
+	}
+
+	// Single fetch and render
+	data, fetchErr := fetchFunc(ctx)
 	if fetchErr != nil {
 		return fmt.Errorf("failed to fetch data: %w", fetchErr)
 	}
 
-	// Render output
 	if renderErr := output.Render(os.Stdout, data, format); renderErr != nil {
 		return fmt.Errorf("failed to render output: %w", renderErr)
 	}
