@@ -146,12 +146,15 @@ func TestLsCmdAcceptsOptionalNodeArg(t *testing.T) {
 	cmd := commands.NewRootCmd()
 	cmd.SetArgs([]string{"ls"})
 
-	// We expect it to fail in runLs (not implemented), not arg validation
+	// Execute the command - it should fail connecting to K8s (no valid kubeconfig)
+	// but NOT fail on argument validation
 	err := cmd.Execute()
 	if err == nil {
-		t.Error("expected error (command not implemented), got nil")
+		t.Error("expected error (invalid kubeconfig), got nil")
+		return
 	}
-	// Should NOT be an argument error
+
+	// Should NOT be an argument error (e.g., "accepts at most 1 arg")
 	if strings.Contains(err.Error(), "accepts") && strings.Contains(err.Error(), "arg") {
 		t.Errorf("unexpected argument validation error: %v", err)
 	}
