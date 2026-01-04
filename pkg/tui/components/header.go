@@ -150,7 +150,7 @@ func (h *ClusterHeader) renderCompact() string {
 	b.WriteString(" ")
 	b.WriteString(styles.StyleSubtle.Render(fmt.Sprintf("OSDs:%d/%d", h.data.OSDsUp, h.data.OSDs)))
 	b.WriteString(" ")
-	b.WriteString(styles.StyleSubtle.Render(fmt.Sprintf("MONs:%d/%d", h.data.MonsInQuorum, h.data.MonsTotal)))
+	b.WriteString(styles.StyleSubtle.Render(fmt.Sprintf("MONs:%d/%d in quorum", h.data.MonsInQuorum, h.data.MonsTotal)))
 
 	if h.data.NooutSet {
 		b.WriteString(" ")
@@ -209,7 +209,7 @@ func (h *ClusterHeader) renderMonStats() string {
 		color = styles.StyleError
 	}
 
-	return fmt.Sprintf("MONs: %s",
+	return fmt.Sprintf("MONs: %s in quorum",
 		color.Render(fmt.Sprintf("%d/%d", h.data.MonsInQuorum, h.data.MonsTotal)),
 	)
 }

@@ -130,7 +130,7 @@ func (tw *TableWriter) writeClusterHealth(health *ClusterHealth) {
 		monColor = colorRed
 	}
 
-	_, _ = fmt.Fprintf(tw.w, "MONs: %s\n",
+	_, _ = fmt.Fprintf(tw.w, "MONs: %s in quorum\n",
 		tw.colorize(fmt.Sprintf("%d/%d", health.MonsInQuorum, health.MonsTotal), monColor))
 
 	// Noout flag
