@@ -21,6 +21,7 @@ devenv.local.yaml
 go.work
 go.work.sum
 bin/
+.kube/
 
 # Vendor
 vendor/
