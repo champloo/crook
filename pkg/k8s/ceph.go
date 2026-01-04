@@ -342,3 +342,114 @@ func (f *CephFlags) ActiveFlags() []string {
 	}
 	return active
 }
+
+// StorageUsage represents Ceph cluster storage statistics
+type StorageUsage struct {
+	TotalBytes     int64       `json:"total_bytes"`
+	UsedBytes      int64       `json:"used_bytes"`
+	AvailableBytes int64       `json:"available_bytes"`
+	UsedPercent    float64     `json:"used_percent"`
+	Pools          []PoolUsage `json:"pools,omitempty"`
+}
+
+// PoolUsage represents storage statistics for a single Ceph pool
+type PoolUsage struct {
+	Name        string  `json:"name"`
+	ID          int     `json:"id"`
+	StoredBytes int64   `json:"stored_bytes"`
+	UsedPercent float64 `json:"used_percent"`
+	MaxAvail    int64   `json:"max_avail"`
+	Objects     int64   `json:"objects"`
+}
+
+// cephDF represents the parsed output of 'ceph df --format json'
+type cephDF struct {
+	Stats struct {
+		TotalBytes        int64 `json:"total_bytes"`
+		TotalUsedBytes    int64 `json:"total_used_bytes"`
+		TotalAvailBytes   int64 `json:"total_avail_bytes"`
+		TotalUsedRawBytes int64 `json:"total_used_raw_bytes"`
+	} `json:"stats"`
+	Pools []struct {
+		Name  string `json:"name"`
+		ID    int    `json:"id"`
+		Stats struct {
+			Stored      int64   `json:"stored"`
+			Objects     int64   `json:"objects"`
+			PercentUsed float64 `json:"percent_used"`
+			MaxAvail    int64   `json:"max_avail"`
+		} `json:"stats"`
+	} `json:"pools"`
+}
+
+// GetStorageUsage gets the Ceph cluster storage usage statistics
+func (c *Client) GetStorageUsage(ctx context.Context, namespace string) (*StorageUsage, error) {
+	output, err := c.ExecuteCephCommand(ctx, namespace, []string{"ceph", "df", "--format", "json"})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ceph df: %w", err)
+	}
+
+	return parseStorageUsage(output)
+}
+
+// GetStorageUsage is a package-level function that uses the global client
+func GetStorageUsage(ctx context.Context, namespace string) (*StorageUsage, error) {
+	client, err := GetClient(ctx, ClientConfig{})
+	if err != nil {
+		return nil, err
+	}
+	return client.GetStorageUsage(ctx, namespace)
+}
+
+// parseStorageUsage parses the output of 'ceph df --format json'
+func parseStorageUsage(output string) (*StorageUsage, error) {
+	var df cephDF
+	if err := json.Unmarshal([]byte(output), &df); err != nil {
+		return nil, fmt.Errorf("failed to parse ceph df JSON: %w", err)
+	}
+
+	usage := &StorageUsage{
+		TotalBytes:     df.Stats.TotalBytes,
+		UsedBytes:      df.Stats.TotalUsedBytes,
+		AvailableBytes: df.Stats.TotalAvailBytes,
+	}
+
+	// Calculate percentage (avoid division by zero)
+	if df.Stats.TotalBytes > 0 {
+		usage.UsedPercent = float64(df.Stats.TotalUsedBytes) / float64(df.Stats.TotalBytes) * 100
+	}
+
+	// Parse pool statistics
+	for _, pool := range df.Pools {
+		usage.Pools = append(usage.Pools, PoolUsage{
+			Name:        pool.Name,
+			ID:          pool.ID,
+			StoredBytes: pool.Stats.Stored,
+			UsedPercent: pool.Stats.PercentUsed * 100, // Convert from decimal to percentage
+			MaxAvail:    pool.Stats.MaxAvail,
+			Objects:     pool.Stats.Objects,
+		})
+	}
+
+	return usage, nil
+}
+
+// IsNearFull returns true if storage usage is above 85%
+func (s *StorageUsage) IsNearFull() bool {
+	return s.UsedPercent >= 85.0
+}
+
+// IsFull returns true if storage usage is above 95%
+func (s *StorageUsage) IsFull() bool {
+	return s.UsedPercent >= 95.0
+}
+
+// GetPoolByName returns the pool usage for a named pool, or nil if not found
+func (s *StorageUsage) GetPoolByName(name string) *PoolUsage {
+	for i := range s.Pools {
+		if s.Pools[i].Name == name {
+			return &s.Pools[i]
+		}
+	}
+	return nil
+}

@@ -1,0 +1,71 @@
+{
+  "stats": {
+    "total_bytes": 4398046511104,
+    "total_used_bytes": 1319413953433,
+    "total_avail_bytes": 3078632557671,
+    "total_used_raw_bytes": 2638827906866,
+    "total_used_raw_ratio": 0.30,
+    "num_osds": 6,
+    "num_per_pool_osds": 6,
+    "num_per_pool_omap_osds": 6
+  },
+  "stats_by_class": {
+    "hdd": {
+      "total_bytes": 4398046511104,
+      "total_used_bytes": 1319413953433,
+      "total_avail_bytes": 3078632557671,
+      "total_used_raw_bytes": 2638827906866,
+      "total_used_raw_ratio": 0.30
+    }
+  },
+  "pools": [
+    {
+      "name": "device_health_metrics",
+      "id": 1,
+      "stats": {
+        "stored": 987654,
+        "objects": 56,
+        "kb_used": 1024,
+        "bytes_used": 1048576,
+        "percent_used": 0.001,
+        "max_avail": 500000000
+      }
+    },
+    {
+      "name": "replicapool",
+      "id": 2,
+      "stats": {
+        "stored": 123456789012,
+        "objects": 12345,
+        "kb_used": 120563965,
+        "bytes_used": 123456789012,
+        "percent_used": 0.03,
+        "max_avail": 1024000000000
+      }
+    },
+    {
+      "name": "cephfs_data",
+      "id": 3,
+      "stats": {
+        "stored": 567890123456,
+        "objects": 56789,
+        "kb_used": 554580199,
+        "bytes_used": 567890123456,
+        "percent_used": 0.15,
+        "max_avail": 1024000000000
+      }
+    },
+    {
+      "name": "cephfs_metadata",
+      "id": 4,
+      "stats": {
+        "stored": 12345678,
+        "objects": 1234,
+        "kb_used": 12056,
+        "bytes_used": 12345678,
+        "percent_used": 0.0001,
+        "max_avail": 1024000000000
+      }
+    }
+  ]
+}
