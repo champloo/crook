@@ -9,6 +9,7 @@
     just
     openssl
     golangci-lint
+    minikube
   ];
 
   languages.go = {
