@@ -87,7 +87,7 @@ func copyFile(dst, src string, perm os.FileMode) error {
 	if err != nil {
 		return fmt.Errorf("open state file %s: %w", src, err)
 	}
-	defer in.Close()
+	defer func() { _ = in.Close() }()
 
 	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm)
 	if err != nil {

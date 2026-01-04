@@ -12,7 +12,7 @@ import (
 
 // ValidationWarning represents a non-fatal validation issue.
 type ValidationWarning struct {
-	Message               string
+	Message              string
 	RequiresConfirmation bool
 }
 
@@ -32,7 +32,7 @@ func ValidateFile(path string, opts ValidationOptions) (*State, []ValidationWarn
 	info, err := os.Stat(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, nil, fmt.Errorf("State file not found: %s. Cannot proceed with up phase.", path)
+			return nil, nil, fmt.Errorf("state file not found: %s, cannot proceed with up phase", path)
 		}
 		return nil, nil, fmt.Errorf("stat state file %s: %w", path, err)
 	}
@@ -104,7 +104,7 @@ func ValidateState(state *State, path string, opts ValidationOptions) ([]Validat
 			hours := int(math.Round(age.Hours()))
 			warnings := []ValidationWarning{
 				{
-					Message:               fmt.Sprintf("State file is %d hours old. Cluster state may have changed.", hours),
+					Message:              fmt.Sprintf("State file is %d hours old. Cluster state may have changed.", hours),
 					RequiresConfirmation: true,
 				},
 			}

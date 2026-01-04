@@ -13,6 +13,7 @@ import (
 )
 
 func TestDefaultMonitorConfig(t *testing.T) {
+	//nolint:staticcheck // SA1019: NewClientset requires apply configurations, using deprecated NewSimpleClientset
 	clientset := fake.NewSimpleClientset()
 	client := &k8s.Client{Clientset: clientset}
 
@@ -42,6 +43,7 @@ func TestDefaultMonitorConfig(t *testing.T) {
 }
 
 func TestNewMonitor(t *testing.T) {
+	//nolint:staticcheck // SA1019: NewClientset requires apply configurations, using deprecated NewSimpleClientset
 	clientset := fake.NewSimpleClientset()
 	client := &k8s.Client{Clientset: clientset}
 	cfg := DefaultMonitorConfig(client, "test-node", "rook-ceph", []string{})
@@ -69,6 +71,7 @@ func TestNewMonitor(t *testing.T) {
 }
 
 func TestMonitorGetLatest(t *testing.T) {
+	//nolint:staticcheck // SA1019: NewClientset requires apply configurations, using deprecated NewSimpleClientset
 	clientset := fake.NewSimpleClientset()
 	client := &k8s.Client{Clientset: clientset}
 	cfg := DefaultMonitorConfig(client, "test-node", "rook-ceph", []string{})
@@ -118,6 +121,7 @@ func TestMonitorStartStop(t *testing.T) {
 		},
 	}
 
+	//nolint:staticcheck // SA1019: NewClientset requires apply configurations, using deprecated NewSimpleClientset
 	clientset := fake.NewSimpleClientset(node, deployment)
 	client := &k8s.Client{Clientset: clientset}
 
@@ -210,6 +214,7 @@ func TestStartMonitoring(t *testing.T) {
 		{
 			name: "valid config",
 			config: &MonitorConfig{
+				//nolint:staticcheck // SA1019: NewClientset requires apply configurations
 				Client:                    &k8s.Client{Clientset: fake.NewSimpleClientset()},
 				NodeName:                  "test",
 				CephNamespace:             "rook-ceph",
@@ -269,6 +274,7 @@ func TestMonitorStartIndividualMonitors(t *testing.T) {
 		},
 	}
 
+	//nolint:staticcheck // SA1019: NewClientset requires apply configurations, using deprecated NewSimpleClientset
 	clientset := fake.NewSimpleClientset(node)
 	client := &k8s.Client{Clientset: clientset}
 
@@ -318,6 +324,7 @@ func TestMonitorStartIndividualMonitors(t *testing.T) {
 }
 
 func TestMonitorAggregator(t *testing.T) {
+	//nolint:staticcheck // SA1019: NewClientset requires apply configurations, using deprecated NewSimpleClientset
 	clientset := fake.NewSimpleClientset()
 	client := &k8s.Client{Clientset: clientset}
 
@@ -387,6 +394,7 @@ func TestMonitorAggregator(t *testing.T) {
 }
 
 func TestMonitorAggregatorAllChannels(t *testing.T) {
+	//nolint:staticcheck // SA1019: NewClientset requires apply configurations, using deprecated NewSimpleClientset
 	clientset := fake.NewSimpleClientset()
 	client := &k8s.Client{Clientset: clientset}
 
@@ -480,6 +488,7 @@ func TestMonitorAggregatorAllChannels(t *testing.T) {
 }
 
 func TestMonitorAggregatorChannelFull(t *testing.T) {
+	//nolint:staticcheck // SA1019: NewClientset requires apply configurations, using deprecated NewSimpleClientset
 	clientset := fake.NewSimpleClientset()
 	client := &k8s.Client{Clientset: clientset}
 

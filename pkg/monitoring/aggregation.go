@@ -17,12 +17,12 @@ const (
 
 // HealthSummary represents the aggregated health summary
 type HealthSummary struct {
-	Status         OverallHealthStatus
-	Reasons        []string
-	NodeHealth     *NodeHealthInfo
-	CephHealth     *CephHealthInfo
+	Status           OverallHealthStatus
+	Reasons          []string
+	NodeHealth       *NodeHealthInfo
+	CephHealth       *CephHealthInfo
 	DeploymentHealth *DeploymentHealthInfo
-	LastUpdateTime time.Time
+	LastUpdateTime   time.Time
 }
 
 // NodeHealthInfo contains health information about the node
@@ -34,21 +34,21 @@ type NodeHealthInfo struct {
 
 // CephHealthInfo contains health information about Ceph
 type CephHealthInfo struct {
-	Healthy       bool
-	Status        string
-	Reason        string
-	OSDsHealthy   bool
-	OSDsUp        int
-	OSDsTotal     int
+	Healthy     bool
+	Status      string
+	Reason      string
+	OSDsHealthy bool
+	OSDsUp      int
+	OSDsTotal   int
 }
 
 // DeploymentHealthInfo contains health information about deployments
 type DeploymentHealthInfo struct {
-	Healthy       bool
-	Status        DeploymentHealthStatus
-	Reason        string
-	TotalCount    int
-	HealthyCount  int
+	Healthy          bool
+	Status           DeploymentHealthStatus
+	Reason           string
+	TotalCount       int
+	HealthyCount     int
 	UnavailableCount int
 }
 
@@ -143,13 +143,14 @@ func evaluateCephHealth(cephHealth *CephHealth, osdStatus *OSDTreeStatus, summar
 	healthy := cephHealth.OverallStatus == "HEALTH_OK"
 	reason := ""
 
-	if cephHealth.OverallStatus == "HEALTH_WARN" {
+	switch cephHealth.OverallStatus {
+	case "HEALTH_WARN":
 		reason = "Ceph cluster has warnings"
 		if len(cephHealth.HealthMessages) > 0 {
 			reason = fmt.Sprintf("Ceph warnings: %s", cephHealth.HealthMessages[0])
 		}
 		summary.Reasons = append(summary.Reasons, reason)
-	} else if cephHealth.OverallStatus == "HEALTH_ERR" {
+	case "HEALTH_ERR":
 		reason = "Ceph cluster has errors"
 		if len(cephHealth.HealthMessages) > 0 {
 			reason = fmt.Sprintf("Ceph errors: %s", cephHealth.HealthMessages[0])
@@ -158,9 +159,9 @@ func evaluateCephHealth(cephHealth *CephHealth, osdStatus *OSDTreeStatus, summar
 	}
 
 	// Check OSD health
-	osdsHealthy := true
 	osdsUp := cephHealth.OSDsUp
 	osdsTotal := cephHealth.OSDCount
+	osdsHealthy := cephHealth.OSDsUp == cephHealth.OSDCount && cephHealth.OSDsIn == cephHealth.OSDCount
 
 	if osdStatus != nil && len(osdStatus.OSDs) > 0 {
 		// If we have OSD status for a specific node, use that
@@ -176,18 +177,15 @@ func evaluateCephHealth(cephHealth *CephHealth, osdStatus *OSDTreeStatus, summar
 			reason := fmt.Sprintf("%d of %d OSDs are down or out on this node", osdsTotal-osdsUp, osdsTotal)
 			summary.Reasons = append(summary.Reasons, reason)
 		}
-	} else {
+	} else if !osdsHealthy {
 		// Use cluster-wide OSD stats
-		osdsHealthy = cephHealth.OSDsUp == cephHealth.OSDCount && cephHealth.OSDsIn == cephHealth.OSDCount
-		if !osdsHealthy {
-			if cephHealth.OSDsUp < cephHealth.OSDCount {
-				reason := fmt.Sprintf("%d of %d OSDs are down", cephHealth.OSDCount-cephHealth.OSDsUp, cephHealth.OSDCount)
-				summary.Reasons = append(summary.Reasons, reason)
-			}
-			if cephHealth.OSDsIn < cephHealth.OSDCount {
-				reason := fmt.Sprintf("%d of %d OSDs are out", cephHealth.OSDCount-cephHealth.OSDsIn, cephHealth.OSDCount)
-				summary.Reasons = append(summary.Reasons, reason)
-			}
+		if cephHealth.OSDsUp < cephHealth.OSDCount {
+			reason := fmt.Sprintf("%d of %d OSDs are down", cephHealth.OSDCount-cephHealth.OSDsUp, cephHealth.OSDCount)
+			summary.Reasons = append(summary.Reasons, reason)
+		}
+		if cephHealth.OSDsIn < cephHealth.OSDCount {
+			reason := fmt.Sprintf("%d of %d OSDs are out", cephHealth.OSDCount-cephHealth.OSDsIn, cephHealth.OSDCount)
+			summary.Reasons = append(summary.Reasons, reason)
 		}
 	}
 
@@ -221,22 +219,24 @@ func evaluateDeploymentsHealth(deploymentsStatus *DeploymentsStatus, summary *He
 	healthyCount := 0
 	unavailableCount := 0
 	for _, deployment := range deploymentsStatus.Deployments {
-		if deployment.Status == DeploymentHealthy {
+		switch deployment.Status {
+		case DeploymentHealthy:
 			healthyCount++
-		} else if deployment.Status == DeploymentUnavailable {
+		case DeploymentUnavailable:
 			unavailableCount++
 		}
 	}
 
 	totalCount := len(deploymentsStatus.Deployments)
 
-	if deploymentsStatus.OverallStatus == DeploymentUnavailable {
+	switch deploymentsStatus.OverallStatus {
+	case DeploymentUnavailable:
 		reason = fmt.Sprintf("%d of %d deployments unavailable", unavailableCount, totalCount)
 		summary.Reasons = append(summary.Reasons, reason)
-	} else if deploymentsStatus.OverallStatus == DeploymentScaling {
+	case DeploymentScaling:
 		reason = fmt.Sprintf("Deployments are scaling (%d of %d healthy)", healthyCount, totalCount)
 		summary.Reasons = append(summary.Reasons, reason)
-	} else if deploymentsStatus.OverallStatus == DeploymentProgressing {
+	case DeploymentProgressing:
 		reason = "Deployments are progressing"
 		summary.Reasons = append(summary.Reasons, reason)
 	}

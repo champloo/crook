@@ -56,14 +56,6 @@ const (
 // Spinner frames for indeterminate progress
 var spinnerFrames = []string{"◐", "◓", "◑", "◒"}
 
-// ASCII fallbacks
-const (
-	progressFullASCII  = "="
-	progressEmptyASCII = "-"
-)
-
-var spinnerFramesASCII = []string{"|", "/", "-", "\\"}
-
 // NewProgressBar creates a new progress bar with default settings
 func NewProgressBar(label string) *ProgressBar {
 	return &ProgressBar{
@@ -167,11 +159,14 @@ func (p *ProgressBar) renderDeterminate() string {
 
 	// Add label if present
 	if p.Label != "" {
-		labelStyle := styles.StyleNormal
-		if p.State == ProgressStateComplete {
+		var labelStyle lipgloss.Style
+		switch p.State {
+		case ProgressStateComplete:
 			labelStyle = styles.StyleSuccess
-		} else if p.State == ProgressStateError {
+		case ProgressStateError:
 			labelStyle = styles.StyleError
+		default:
+			labelStyle = styles.StyleNormal
 		}
 		result = labelStyle.Render(p.Label) + "\n" + result
 	}

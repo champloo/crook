@@ -16,11 +16,11 @@ type CephStatus struct {
 		Status string `json:"status"`
 	} `json:"health"`
 	OSDMap struct {
-		NumOSDs       int `json:"num_osds"`
-		NumUpOSDs     int `json:"num_up_osds"`
-		NumInOSDs     int `json:"num_in_osds"`
-		Full          bool `json:"full"`
-		NearFull      bool `json:"nearfull"`
+		NumOSDs   int  `json:"num_osds"`
+		NumUpOSDs int  `json:"num_up_osds"`
+		NumInOSDs int  `json:"num_in_osds"`
+		Full      bool `json:"full"`
+		NearFull  bool `json:"nearfull"`
 	} `json:"osdmap"`
 }
 

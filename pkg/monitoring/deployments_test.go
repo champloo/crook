@@ -88,6 +88,7 @@ func TestMonitorDeployment(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			//nolint:staticcheck // SA1019: NewClientset requires apply configurations, using deprecated NewSimpleClientset
 			clientset := fake.NewSimpleClientset(tt.deployment)
 			client := &k8s.Client{Clientset: clientset}
 
@@ -137,9 +138,10 @@ func TestMonitorDeployments(t *testing.T) {
 		},
 	}
 
+	//nolint:staticcheck // SA1019: NewClientset requires apply configurations, using deprecated NewSimpleClientset
 	clientset := fake.NewSimpleClientset()
 	for _, d := range deployments {
-		clientset.AppsV1().Deployments("default").Create(context.Background(), d, metav1.CreateOptions{})
+		_, _ = clientset.AppsV1().Deployments("default").Create(context.Background(), d, metav1.CreateOptions{})
 	}
 
 	client := &k8s.Client{Clientset: clientset}
@@ -173,6 +175,7 @@ func TestStartDeploymentsMonitoring(t *testing.T) {
 		},
 	}
 
+	//nolint:staticcheck // SA1019: NewClientset requires apply configurations, using deprecated NewSimpleClientset
 	clientset := fake.NewSimpleClientset(deployment)
 	client := &k8s.Client{Clientset: clientset}
 
@@ -337,6 +340,7 @@ func TestDetermineDeploymentHealth(t *testing.T) {
 
 func TestMonitorDeploymentsError(t *testing.T) {
 	// Test with non-existent deployment
+	//nolint:staticcheck // SA1019: NewClientset requires apply configurations, using deprecated NewSimpleClientset
 	clientset := fake.NewSimpleClientset()
 	client := &k8s.Client{Clientset: clientset}
 
@@ -388,9 +392,10 @@ func TestMonitorDeploymentsMixedStates(t *testing.T) {
 		},
 	}
 
+	//nolint:staticcheck // SA1019: NewClientset requires apply configurations, using deprecated NewSimpleClientset
 	clientset := fake.NewSimpleClientset()
 	for _, d := range deployments {
-		clientset.AppsV1().Deployments("default").Create(context.Background(), d, metav1.CreateOptions{})
+		_, _ = clientset.AppsV1().Deployments("default").Create(context.Background(), d, metav1.CreateOptions{})
 	}
 
 	client := &k8s.Client{Clientset: clientset}

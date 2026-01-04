@@ -37,7 +37,7 @@ func TestWaitForDeploymentScaleDown_EventuallyScalesDown(t *testing.T) {
 
 	// Set up reactor to simulate scale down after some time
 	callCount := 0
-	client.Clientset.(*fake.Clientset).Fake.PrependReactor("get", "deployments", func(action ktest.Action) (bool, runtime.Object, error) {
+	client.Clientset.(*fake.Clientset).PrependReactor("get", "deployments", func(action ktest.Action) (bool, runtime.Object, error) {
 		callCount++
 		if callCount <= 2 {
 			// First two calls return deployment with ready replicas
@@ -119,7 +119,7 @@ func TestWaitForDeploymentScaleDown_ProgressCallback(t *testing.T) {
 
 	// Set up reactor to simulate gradual scale down
 	callCount := 0
-	client.Clientset.(*fake.Clientset).Fake.PrependReactor("get", "deployments", func(action ktest.Action) (bool, runtime.Object, error) {
+	client.Clientset.(*fake.Clientset).PrependReactor("get", "deployments", func(action ktest.Action) (bool, runtime.Object, error) {
 		callCount++
 		switch callCount {
 		case 1:
@@ -183,7 +183,7 @@ func TestWaitForDeploymentScaleUp_EventuallyScalesUp(t *testing.T) {
 
 	// Set up reactor to simulate scale up after some time
 	callCount := 0
-	client.Clientset.(*fake.Clientset).Fake.PrependReactor("get", "deployments", func(action ktest.Action) (bool, runtime.Object, error) {
+	client.Clientset.(*fake.Clientset).PrependReactor("get", "deployments", func(action ktest.Action) (bool, runtime.Object, error) {
 		callCount++
 		if callCount <= 2 {
 			// First two calls return scaled down deployment

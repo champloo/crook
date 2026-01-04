@@ -26,10 +26,10 @@ func TestBuildConfig(t *testing.T) {
 			cfg:  ClientConfig{},
 			setupEnv: func() func() {
 				old := os.Getenv("KUBECONFIG")
-				os.Unsetenv("KUBECONFIG")
+				_ = os.Unsetenv("KUBECONFIG")
 				return func() {
 					if old != "" {
-						os.Setenv("KUBECONFIG", old)
+						_ = os.Setenv("KUBECONFIG", old)
 					}
 				}
 			},

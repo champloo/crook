@@ -26,7 +26,7 @@ func TestValidateDownPhase_AllChecksPassed(t *testing.T) {
 	)
 
 	// Add RBAC check support
-	client.Clientset.(*fake.Clientset).Fake.PrependReactor("create", "selfsubjectaccessreviews", func(action ktest.Action) (bool, runtime.Object, error) {
+	client.Clientset.(*fake.Clientset).PrependReactor("create", "selfsubjectaccessreviews", func(action ktest.Action) (bool, runtime.Object, error) {
 		return true, &authv1.SelfSubjectAccessReview{
 			Status: authv1.SubjectAccessReviewStatus{
 				Allowed: true,
@@ -247,7 +247,7 @@ func TestCheckPermission_Allowed(t *testing.T) {
 	ctx := context.Background()
 
 	client := createTestClient()
-	client.Clientset.(*fake.Clientset).Fake.PrependReactor("create", "selfsubjectaccessreviews", func(action ktest.Action) (bool, runtime.Object, error) {
+	client.Clientset.(*fake.Clientset).PrependReactor("create", "selfsubjectaccessreviews", func(action ktest.Action) (bool, runtime.Object, error) {
 		return true, &authv1.SelfSubjectAccessReview{
 			Status: authv1.SubjectAccessReviewStatus{
 				Allowed: true,
@@ -269,7 +269,7 @@ func TestCheckPermission_Denied(t *testing.T) {
 	ctx := context.Background()
 
 	client := createTestClient()
-	client.Clientset.(*fake.Clientset).Fake.PrependReactor("create", "selfsubjectaccessreviews", func(action ktest.Action) (bool, runtime.Object, error) {
+	client.Clientset.(*fake.Clientset).PrependReactor("create", "selfsubjectaccessreviews", func(action ktest.Action) (bool, runtime.Object, error) {
 		return true, &authv1.SelfSubjectAccessReview{
 			Status: authv1.SubjectAccessReviewStatus{
 				Allowed: false,
@@ -290,6 +290,7 @@ func TestCheckPermission_Denied(t *testing.T) {
 // Helper functions
 
 func createTestClient(objects ...runtime.Object) *k8s.Client {
+	//nolint:staticcheck // SA1019: NewClientset requires apply configurations, using deprecated NewSimpleClientset
 	clientset := fake.NewSimpleClientset(objects...)
 	return &k8s.Client{
 		Clientset: clientset,

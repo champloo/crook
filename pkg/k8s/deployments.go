@@ -11,12 +11,12 @@ import (
 
 // DeploymentStatus holds the status information for a deployment
 type DeploymentStatus struct {
-	Name             string
-	Namespace        string
-	Replicas         int32
-	ReadyReplicas    int32
+	Name              string
+	Namespace         string
+	Replicas          int32
+	ReadyReplicas     int32
 	AvailableReplicas int32
-	UpdatedReplicas  int32
+	UpdatedReplicas   int32
 }
 
 // ScaleDeployment scales a deployment to the specified number of replicas

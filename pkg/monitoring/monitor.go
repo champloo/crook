@@ -55,13 +55,13 @@ type MonitorUpdate struct {
 
 // Monitor manages background monitoring of cluster components
 type Monitor struct {
-	config   *MonitorConfig
-	ctx      context.Context
-	cancel   context.CancelFunc
-	updates  chan *MonitorUpdate
-	wg       sync.WaitGroup
-	mu       sync.RWMutex
-	latest   *MonitorUpdate
+	config  *MonitorConfig
+	ctx     context.Context
+	cancel  context.CancelFunc
+	updates chan *MonitorUpdate
+	wg      sync.WaitGroup
+	mu      sync.RWMutex
+	latest  *MonitorUpdate
 }
 
 // NewMonitor creates a new monitoring instance

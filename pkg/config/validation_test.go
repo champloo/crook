@@ -34,10 +34,10 @@ func TestValidateConfigMultipleErrors(t *testing.T) {
 		t.Fatalf("expected warnings for aggressive refresh")
 	}
 
-	assertErrorContains(t, result.Errors, "Invalid namespace")
-	assertErrorContains(t, result.Errors, "Kubeconfig file not found")
-	assertErrorContains(t, result.Errors, "Invalid state file template: unknown placeholder")
-	assertErrorContains(t, result.Errors, "Timeout must be >= 1 second")
+	assertErrorContains(t, result.Errors, "invalid namespace")
+	assertErrorContains(t, result.Errors, "kubeconfig file not found")
+	assertErrorContains(t, result.Errors, "invalid state file template: unknown placeholder")
+	assertErrorContains(t, result.Errors, "timeout must be >= 1 second")
 	assertErrorContains(t, result.Errors, "deployment filter prefixes must be non-empty")
 }
 

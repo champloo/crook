@@ -41,10 +41,10 @@ func TestNew(t *testing.T) {
 
 func TestLogLevels(t *testing.T) {
 	tests := []struct {
-		name          string
-		level         Level
-		logFunc       func(*Logger, string)
-		shouldAppear  bool
+		name         string
+		level        Level
+		logFunc      func(*Logger, string)
+		shouldAppear bool
 	}{
 		{
 			name:         "debug level logs debug",

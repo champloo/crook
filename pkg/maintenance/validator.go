@@ -7,9 +7,9 @@ import (
 
 	"github.com/andri/crook/pkg/config"
 	"github.com/andri/crook/pkg/k8s"
+	authv1 "k8s.io/api/authorization/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	authv1 "k8s.io/api/authorization/v1"
 )
 
 // ValidationResult holds the result of a single pre-flight check
@@ -22,14 +22,14 @@ type ValidationResult struct {
 
 // ValidationResults holds all validation results
 type ValidationResults struct {
-	Results []ValidationResult
+	Results   []ValidationResult
 	AllPassed bool
 }
 
 // ValidateDownPhase performs comprehensive pre-flight checks before down phase
 func ValidateDownPhase(ctx context.Context, client *k8s.Client, cfg config.Config, nodeName string) (*ValidationResults, error) {
 	results := &ValidationResults{
-		Results: make([]ValidationResult, 0),
+		Results:   make([]ValidationResult, 0),
 		AllPassed: true,
 	}
 
@@ -76,7 +76,7 @@ func ValidateDownPhase(ctx context.Context, client *k8s.Client, cfg config.Confi
 // ValidateUpPhase performs pre-flight checks before up phase
 func ValidateUpPhase(ctx context.Context, client *k8s.Client, cfg config.Config, nodeName string) (*ValidationResults, error) {
 	results := &ValidationResults{
-		Results: make([]ValidationResult, 0),
+		Results:   make([]ValidationResult, 0),
 		AllPassed: true,
 	}
 

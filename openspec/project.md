@@ -25,12 +25,41 @@
 ### Code Style
 - **Go Standards:**
   - Follow official Go style guide and `gofmt` formatting
-  - Use `golangci-lint` for comprehensive linting
+  - Use `golangci-lint` for comprehensive linting (see Linter Configuration below)
   - Effective Go principles: clear, idiomatic code over cleverness
   - Package names: lowercase, single-word, descriptive (e.g., `maintenance`, `monitoring`)
   - Exported identifiers: PascalCase; unexported: camelCase
   - Error messages: lowercase, no punctuation at end
   - Prefer early returns over deeply nested conditionals
+
+- **Linter Configuration:**
+  - **Critical for robustness and safety** (enforces project conventions):
+    - `errcheck` - Ensures all errors are checked (critical for Kubernetes operations)
+    - `govet` - Official Go static analyzer (catches common mistakes)
+    - `staticcheck` - Comprehensive static analysis (bugs, performance, style)
+    - `gosec` - Security vulnerabilities (G104: unchecked errors, G304: file paths, etc.)
+    - `errorlint` - Proper error wrapping with %w (enforces Error Handling conventions)
+    - `contextcheck` - Ensures functions pass context.Context correctly
+    - `noctx` - Detects http.Request without context (for future HTTP endpoints)
+    - `bodyclose` - Ensures HTTP response bodies are closed (resource leaks)
+  - **Code quality and maintainability:**
+    - `gocyclo` - Cyclomatic complexity limit (max 15, enforces simple functions)
+    - `gocognit` - Cognitive complexity (catches overly complex logic)
+    - `dupl` - Duplicate code detection (encourages DRY)
+    - `goconst` - Repeated strings that should be constants
+    - `misspell` - Common spelling mistakes in code/comments
+    - `unconvert` - Unnecessary type conversions
+    - `unparam` - Unused function parameters
+    - `ineffassign` - Ineffectual assignments
+  - **Style consistency:**
+    - `gofmt` - Standard formatting
+    - `goimports` - Import grouping and formatting
+    - `revive` - Fast, configurable linter (replaces golint)
+    - `stylecheck` - Go style guide enforcement
+  - **Test quality:**
+    - `testpackage` - Encourages black-box testing (use `package foo_test`)
+    - `thelper` - Enforces t.Helper() in test helpers
+  - Run with: `golangci-lint run` (configuration in `.golangci.yml`)
 
 - **Error Handling:**
   - Always check errors; use `if err != nil` pattern

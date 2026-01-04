@@ -27,8 +27,8 @@ var (
 
 	// Progress indicator colors
 	ColorInProgress = ColorInfo    // Blue for in-progress
-	ColorComplete   = ColorSuccess  // Green for complete
-	ColorFailed     = ColorError    // Red for error
+	ColorComplete   = ColorSuccess // Green for complete
+	ColorFailed     = ColorError   // Red for error
 
 	// UI element colors
 	ColorBorder     = lipgloss.AdaptiveColor{Light: "#B2B2B2", Dark: "#585858"}

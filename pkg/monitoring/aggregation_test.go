@@ -164,8 +164,8 @@ func TestAggregateHealth(t *testing.T) {
 
 func TestEvaluateNodeHealth(t *testing.T) {
 	tests := []struct {
-		name       string
-		nodeStatus *NodeStatus
+		name        string
+		nodeStatus  *NodeStatus
 		wantHealthy bool
 		wantReasons bool
 	}{
@@ -266,10 +266,10 @@ func TestEvaluateCephHealthEdgeCases(t *testing.T) {
 		{
 			name: "cluster-wide OSD down issues",
 			cephHealth: &CephHealth{
-				OverallStatus: "HEALTH_WARN",
-				OSDCount:      6,
-				OSDsUp:        5,
-				OSDsIn:        6,
+				OverallStatus:  "HEALTH_WARN",
+				OSDCount:       6,
+				OSDsUp:         5,
+				OSDsIn:         6,
 				HealthMessages: []string{"1 OSD down"},
 			},
 			osdStatus:   nil,
@@ -278,10 +278,10 @@ func TestEvaluateCephHealthEdgeCases(t *testing.T) {
 		{
 			name: "cluster-wide OSD out issues",
 			cephHealth: &CephHealth{
-				OverallStatus: "HEALTH_WARN",
-				OSDCount:      6,
-				OSDsUp:        6,
-				OSDsIn:        5,
+				OverallStatus:  "HEALTH_WARN",
+				OSDCount:       6,
+				OSDsUp:         6,
+				OSDsIn:         5,
 				HealthMessages: []string{"1 OSD out"},
 			},
 			osdStatus:   nil,

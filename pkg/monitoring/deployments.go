@@ -27,10 +27,10 @@ type DeploymentStatus struct {
 type DeploymentHealthStatus string
 
 const (
-	DeploymentHealthy      DeploymentHealthStatus = "Ready"
-	DeploymentScaling      DeploymentHealthStatus = "Scaling"
-	DeploymentUnavailable  DeploymentHealthStatus = "Unavailable"
-	DeploymentProgressing  DeploymentHealthStatus = "Progressing"
+	DeploymentHealthy     DeploymentHealthStatus = "Ready"
+	DeploymentScaling     DeploymentHealthStatus = "Scaling"
+	DeploymentUnavailable DeploymentHealthStatus = "Unavailable"
+	DeploymentProgressing DeploymentHealthStatus = "Progressing"
 )
 
 // DeploymentsStatus represents the aggregated status of multiple deployments
@@ -146,9 +146,10 @@ func MonitorDeployments(ctx context.Context, client *k8s.Client, namespace strin
 		deployments = append(deployments, *status)
 
 		// Track overall status
-		if status.Status == DeploymentUnavailable {
+		switch status.Status {
+		case DeploymentUnavailable:
 			hasUnavailable = true
-		} else if status.Status == DeploymentScaling || status.Status == DeploymentProgressing {
+		case DeploymentScaling, DeploymentProgressing:
 			hasScaling = true
 		}
 	}

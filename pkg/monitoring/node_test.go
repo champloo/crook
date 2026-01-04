@@ -78,10 +78,11 @@ func TestMonitorNodeStatus(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			//nolint:staticcheck // SA1019: NewClientset requires apply configurations, using deprecated NewSimpleClientset
 			clientset := fake.NewSimpleClientset(tt.node)
 			for i := range tt.pods {
 				tt.pods[i].Spec.NodeName = "test-node"
-				clientset.CoreV1().Pods("default").Create(context.Background(), &tt.pods[i], metav1.CreateOptions{})
+				_, _ = clientset.CoreV1().Pods("default").Create(context.Background(), &tt.pods[i], metav1.CreateOptions{})
 			}
 
 			client := &k8s.Client{Clientset: clientset}
@@ -123,6 +124,7 @@ func TestStartNodeMonitoring(t *testing.T) {
 		},
 	}
 
+	//nolint:staticcheck // SA1019: NewClientset requires apply configurations, using deprecated NewSimpleClientset
 	clientset := fake.NewSimpleClientset(node)
 	client := &k8s.Client{Clientset: clientset}
 
@@ -213,9 +215,10 @@ func TestGetPodCountForNode(t *testing.T) {
 		},
 	}
 
+	//nolint:staticcheck // SA1019: NewClientset requires apply configurations, using deprecated NewSimpleClientset
 	clientset := fake.NewSimpleClientset(node)
 	for i := range pods {
-		clientset.CoreV1().Pods(pods[i].Namespace).Create(context.Background(), &pods[i], metav1.CreateOptions{})
+		_, _ = clientset.CoreV1().Pods(pods[i].Namespace).Create(context.Background(), &pods[i], metav1.CreateOptions{})
 	}
 
 	client := &k8s.Client{Clientset: clientset}
@@ -245,6 +248,7 @@ func TestMonitorNodeStatus_NoPods(t *testing.T) {
 		},
 	}
 
+	//nolint:staticcheck // SA1019: NewClientset requires apply configurations, using deprecated NewSimpleClientset
 	clientset := fake.NewSimpleClientset(node)
 	client := &k8s.Client{Clientset: clientset}
 
@@ -272,6 +276,7 @@ func TestMonitorNodeStatus_NoReadyCondition(t *testing.T) {
 		},
 	}
 
+	//nolint:staticcheck // SA1019: NewClientset requires apply configurations, using deprecated NewSimpleClientset
 	clientset := fake.NewSimpleClientset(node)
 	client := &k8s.Client{Clientset: clientset}
 
@@ -314,6 +319,7 @@ func TestMonitorNodeStatus_WithTaints(t *testing.T) {
 		},
 	}
 
+	//nolint:staticcheck // SA1019: NewClientset requires apply configurations, using deprecated NewSimpleClientset
 	clientset := fake.NewSimpleClientset(node)
 	client := &k8s.Client{Clientset: clientset}
 
@@ -328,6 +334,7 @@ func TestMonitorNodeStatus_WithTaints(t *testing.T) {
 }
 
 func TestMonitorNodeStatus_NonExistent(t *testing.T) {
+	//nolint:staticcheck // SA1019: NewClientset requires apply configurations, using deprecated NewSimpleClientset
 	clientset := fake.NewSimpleClientset()
 	client := &k8s.Client{Clientset: clientset}
 
@@ -350,6 +357,7 @@ func TestStartNodeMonitoring_CancelContext(t *testing.T) {
 		},
 	}
 
+	//nolint:staticcheck // SA1019: NewClientset requires apply configurations, using deprecated NewSimpleClientset
 	clientset := fake.NewSimpleClientset(node)
 	client := &k8s.Client{Clientset: clientset}
 

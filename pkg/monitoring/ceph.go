@@ -44,12 +44,12 @@ type cephStatusJSON struct {
 		NumMons int `json:"num_mons"`
 	} `json:"monmap"`
 	PGMap struct {
-		NumPGs       int            `json:"num_pgs"`
-		PGsByState   []pgStateEntry `json:"pgs_by_state"`
-		BytesUsed    uint64         `json:"bytes_used"`
-		BytesTotal   uint64         `json:"bytes_total"`
-		BytesAvail   uint64         `json:"bytes_avail"`
-		DataBytes    uint64         `json:"data_bytes"`
+		NumPGs     int            `json:"num_pgs"`
+		PGsByState []pgStateEntry `json:"pgs_by_state"`
+		BytesUsed  uint64         `json:"bytes_used"`
+		BytesTotal uint64         `json:"bytes_total"`
+		BytesAvail uint64         `json:"bytes_avail"`
+		DataBytes  uint64         `json:"data_bytes"`
 	} `json:"pgmap"`
 }
 
@@ -186,13 +186,13 @@ type OSDTreeStatus struct {
 // cephOSDTreeJSON represents the JSON structure from 'ceph osd tree --format json'
 type cephOSDTreeJSON struct {
 	Nodes []struct {
-		ID       int     `json:"id"`
-		Name     string  `json:"name"`
-		Type     string  `json:"type"`
-		Status   string  `json:"status"`
-		Reweight float64 `json:"reweight"`
+		ID          int     `json:"id"`
+		Name        string  `json:"name"`
+		Type        string  `json:"type"`
+		Status      string  `json:"status"`
+		Reweight    float64 `json:"reweight"`
 		CrushWeight float64 `json:"crush_weight"`
-		Children []int   `json:"children,omitempty"`
+		Children    []int   `json:"children,omitempty"`
 	} `json:"nodes"`
 	Stray []interface{} `json:"stray"`
 }
@@ -252,12 +252,12 @@ func MonitorOSDStatus(ctx context.Context, client *k8s.Client, namespace, nodeNa
 			}
 
 			osd := OSDStatus{
-				ID:       node.ID,
-				Name:     node.Name,
-				Up:       node.Status == "up",
-				In:       node.Reweight > 0,
-				Weight:   node.Reweight,
-				NodeName: hostName,
+				ID:             node.ID,
+				Name:           node.Name,
+				Up:             node.Status == "up",
+				In:             node.Reweight > 0,
+				Weight:         node.Reweight,
+				NodeName:       hostName,
 				DeploymentName: fmt.Sprintf("rook-ceph-osd-%d", node.ID),
 			}
 

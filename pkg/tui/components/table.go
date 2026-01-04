@@ -59,9 +59,6 @@ type Table struct {
 	// MaxRows limits displayed rows (0 = no limit)
 	MaxRows int
 
-	// selectedRow for future navigation support
-	selectedRow int
-
 	// styles
 	headerStyle    lipgloss.Style
 	cellStyle      lipgloss.Style

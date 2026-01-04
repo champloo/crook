@@ -24,11 +24,11 @@ type OwnerInfo struct {
 
 // OwnerChain represents the ownership chain of a pod
 type OwnerChain struct {
-	Pod        OwnerInfo
-	ReplicaSet *OwnerInfo
-	Deployment *OwnerInfo
+	Pod         OwnerInfo
+	ReplicaSet  *OwnerInfo
+	Deployment  *OwnerInfo
 	StatefulSet *OwnerInfo
-	DaemonSet  *OwnerInfo
+	DaemonSet   *OwnerInfo
 	// Other possible owners
 	Other []OwnerInfo
 }

@@ -83,10 +83,10 @@ type AppModel struct {
 	upModel        SubModel
 
 	// Global state
-	showHelp     bool
-	initError    error
-	quitting     bool
-	initialized  bool
+	showHelp    bool
+	initError   error
+	quitting    bool
+	initialized bool
 }
 
 // NewAppModel creates a new app model with the given configuration

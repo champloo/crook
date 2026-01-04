@@ -55,6 +55,7 @@ func TestCephIsHealthy(t *testing.T) {
 
 func TestMonitorCephHealth_NoToolsPod(t *testing.T) {
 	// Test case where no rook-ceph-tools pod exists
+	//nolint:staticcheck // SA1019: NewClientset requires apply configurations, using deprecated NewSimpleClientset
 	clientset := fake.NewSimpleClientset()
 	client := &k8s.Client{Clientset: clientset}
 
@@ -80,6 +81,7 @@ func TestMonitorCephHealth_ToolsPodNotReady(t *testing.T) {
 		},
 	}
 
+	//nolint:staticcheck // SA1019: NewClientset requires apply configurations, using deprecated NewSimpleClientset
 	clientset := fake.NewSimpleClientset(pod)
 	client := &k8s.Client{Clientset: clientset}
 
@@ -91,6 +93,7 @@ func TestMonitorCephHealth_ToolsPodNotReady(t *testing.T) {
 
 func TestMonitorOSDStatus_NoToolsPod(t *testing.T) {
 	// Test case where no rook-ceph-tools pod exists
+	//nolint:staticcheck // SA1019: NewClientset requires apply configurations, using deprecated NewSimpleClientset
 	clientset := fake.NewSimpleClientset()
 	client := &k8s.Client{Clientset: clientset}
 
@@ -143,6 +146,7 @@ func TestStartCephHealthMonitoring(t *testing.T) {
 		},
 	}
 
+	//nolint:staticcheck // SA1019: NewClientset requires apply configurations, using deprecated NewSimpleClientset
 	clientset := fake.NewSimpleClientset(pod)
 	client := &k8s.Client{Clientset: clientset}
 
@@ -160,9 +164,8 @@ func TestStartCephHealthMonitoring(t *testing.T) {
 	// Channel should eventually close
 	select {
 	case _, ok := <-updates:
-		if ok {
-			// Still getting updates (errors), that's okay
-		}
+		// Either got a message (errors) or channel closed - both are acceptable
+		_ = ok
 	default:
 		// Channel might be closed or empty
 	}
@@ -184,6 +187,7 @@ func TestStartOSDMonitoring(t *testing.T) {
 		},
 	}
 
+	//nolint:staticcheck // SA1019: NewClientset requires apply configurations, using deprecated NewSimpleClientset
 	clientset := fake.NewSimpleClientset(pod)
 	client := &k8s.Client{Clientset: clientset}
 
@@ -201,15 +205,15 @@ func TestStartOSDMonitoring(t *testing.T) {
 	// Channel should eventually close
 	select {
 	case _, ok := <-updates:
-		if ok {
-			// Still getting updates (errors), that's okay
-		}
+		// Either got a message (errors) or channel closed - both are acceptable
+		_ = ok
 	default:
 		// Channel might be closed or empty
 	}
 }
 
 func TestCheckNoOutFlag_NoToolsPod(t *testing.T) {
+	//nolint:staticcheck // SA1019: NewClientset requires apply configurations, using deprecated NewSimpleClientset
 	clientset := fake.NewSimpleClientset()
 	client := &k8s.Client{Clientset: clientset}
 

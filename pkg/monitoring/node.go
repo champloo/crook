@@ -12,15 +12,15 @@ import (
 
 // NodeStatus represents the monitoring status of a node
 type NodeStatus struct {
-	Name            string
-	Ready           bool
-	ReadyStatus     corev1.ConditionStatus // True, False, Unknown
-	Unschedulable   bool
-	Taints          []corev1.Taint
-	KubeletVersion  string
-	PodCount        int
-	Conditions      []corev1.NodeCondition
-	LastUpdateTime  time.Time
+	Name           string
+	Ready          bool
+	ReadyStatus    corev1.ConditionStatus // True, False, Unknown
+	Unschedulable  bool
+	Taints         []corev1.Taint
+	KubeletVersion string
+	PodCount       int
+	Conditions     []corev1.NodeCondition
+	LastUpdateTime time.Time
 }
 
 // NodeStatusColor returns a color indicator for the node status
