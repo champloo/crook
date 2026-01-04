@@ -17,6 +17,10 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 
 <!-- OPENSPEC:END -->
 
+## Project Conventions
+
+Make sure to review @openspec/project.md for project conventions.
+
 ## Landing the Plane (Session Completion)
 
 **When ending a work session**, you MUST complete ALL steps below.
@@ -32,4 +36,4 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 
 ### Task tracking
 
-Use 'bd' for task tracking
+Use 'bd' CLI command for any task tracking work. Do not use the beads MCP.
