@@ -1,0 +1,24 @@
+{
+  "epoch": 456,
+  "fsid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "created": "2024-01-15T10:30:00.000000+0000",
+  "modified": "2024-01-15T14:22:33.123456+0000",
+  "flags": "sortbitwise,recovery_deletes,purged_snapdirs,pglog_hardlimit",
+  "flags_num": 5242880,
+  "flags_set": [
+    "sortbitwise",
+    "recovery_deletes",
+    "purged_snapdirs",
+    "pglog_hardlimit"
+  ],
+  "crush_version": 12,
+  "full_ratio": 0.95,
+  "backfillfull_ratio": 0.9,
+  "nearfull_ratio": 0.85,
+  "cluster_snapshot": "",
+  "pool_max": 5,
+  "max_osd": 6,
+  "require_min_compat_client": "luminous",
+  "min_compat_client": "luminous",
+  "require_osd_release": "quincy"
+}

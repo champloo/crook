@@ -214,3 +214,131 @@ func (s *CephStatus) IsWarning() bool {
 func (s *CephStatus) IsError() bool {
 	return strings.ToUpper(s.Health.Status) == "HEALTH_ERR"
 }
+
+// CephFlags represents the state of Ceph cluster flags
+type CephFlags struct {
+	NoOut       bool `json:"noout"`
+	NoIn        bool `json:"noin"`
+	NoDown      bool `json:"nodown"`
+	NoUp        bool `json:"noup"`
+	NoRebalance bool `json:"norebalance"`
+	NoRecover   bool `json:"norecover"`
+	NoScrub     bool `json:"noscrub"`
+	NoDeepScrub bool `json:"nodeep-scrub"`
+	NoBackfill  bool `json:"nobackfill"`
+	Pause       bool `json:"pause"`
+}
+
+// cephOSDDump represents the parsed output of 'ceph osd dump --format json'
+type cephOSDDump struct {
+	Flags string `json:"flags"`
+}
+
+// GetCephFlags gets the current Ceph cluster flags
+func (c *Client) GetCephFlags(ctx context.Context, namespace string) (*CephFlags, error) {
+	output, err := c.ExecuteCephCommand(ctx, namespace, []string{"ceph", "osd", "dump", "--format", "json"})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ceph osd dump: %w", err)
+	}
+
+	return parseCephFlags(output)
+}
+
+// GetCephFlags is a package-level function that uses the global client
+func GetCephFlags(ctx context.Context, namespace string) (*CephFlags, error) {
+	client, err := GetClient(ctx, ClientConfig{})
+	if err != nil {
+		return nil, err
+	}
+	return client.GetCephFlags(ctx, namespace)
+}
+
+// parseCephFlags parses the flags from ceph osd dump output
+func parseCephFlags(output string) (*CephFlags, error) {
+	var dump cephOSDDump
+	if err := json.Unmarshal([]byte(output), &dump); err != nil {
+		return nil, fmt.Errorf("failed to parse ceph osd dump JSON: %w", err)
+	}
+
+	return parseFlagsString(dump.Flags), nil
+}
+
+// parseFlagsString parses a comma-separated flags string into CephFlags
+func parseFlagsString(flagsStr string) *CephFlags {
+	flags := &CephFlags{}
+	if flagsStr == "" {
+		return flags
+	}
+
+	// Flags come as comma-separated values like "noout,nodown,sortbitwise,..."
+	flagsList := strings.Split(flagsStr, ",")
+	flagSet := make(map[string]bool, len(flagsList))
+	for _, f := range flagsList {
+		flagSet[strings.TrimSpace(f)] = true
+	}
+
+	// Map known flags
+	flags.NoOut = flagSet["noout"]
+	flags.NoIn = flagSet["noin"]
+	flags.NoDown = flagSet["nodown"]
+	flags.NoUp = flagSet["noup"]
+	flags.NoRebalance = flagSet["norebalance"]
+	flags.NoRecover = flagSet["norecover"]
+	flags.NoScrub = flagSet["noscrub"]
+	flags.NoDeepScrub = flagSet["nodeep-scrub"]
+	flags.NoBackfill = flagSet["nobackfill"]
+	flags.Pause = flagSet["pause"]
+
+	return flags
+}
+
+// HasMaintenanceFlags returns true if any maintenance-related flags are set
+func (f *CephFlags) HasMaintenanceFlags() bool {
+	return f.NoOut || f.NoIn || f.NoDown || f.NoUp
+}
+
+// HasScrubFlags returns true if any scrub-related flags are set
+func (f *CephFlags) HasScrubFlags() bool {
+	return f.NoScrub || f.NoDeepScrub
+}
+
+// HasRecoveryFlags returns true if any recovery-related flags are set
+func (f *CephFlags) HasRecoveryFlags() bool {
+	return f.NoRebalance || f.NoRecover || f.NoBackfill
+}
+
+// ActiveFlags returns a slice of all currently active flag names
+func (f *CephFlags) ActiveFlags() []string {
+	var active []string
+	if f.NoOut {
+		active = append(active, "noout")
+	}
+	if f.NoIn {
+		active = append(active, "noin")
+	}
+	if f.NoDown {
+		active = append(active, "nodown")
+	}
+	if f.NoUp {
+		active = append(active, "noup")
+	}
+	if f.NoRebalance {
+		active = append(active, "norebalance")
+	}
+	if f.NoRecover {
+		active = append(active, "norecover")
+	}
+	if f.NoScrub {
+		active = append(active, "noscrub")
+	}
+	if f.NoDeepScrub {
+		active = append(active, "nodeep-scrub")
+	}
+	if f.NoBackfill {
+		active = append(active, "nobackfill")
+	}
+	if f.Pause {
+		active = append(active, "pause")
+	}
+	return active
+}
