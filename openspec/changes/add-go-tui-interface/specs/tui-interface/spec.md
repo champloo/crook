@@ -210,6 +210,16 @@ The system SHALL provide a `crook ls` command to display Ceph-related Kubernetes
   - Storage usage (used/total)
 - **THEN** system refreshes summary every 5 seconds
 
+#### Scenario: Automatic resource refresh
+
+- **WHEN** ls TUI is displayed
+- **THEN** system automatically refreshes resource data in the background
+- **THEN** Kubernetes resources (nodes, deployments, pods) refresh every 2 seconds
+- **THEN** Ceph resources (OSDs, cluster health) refresh every 5 seconds
+- **THEN** each resource type updates independently when new data is available
+- **THEN** refresh intervals are configurable via config file
+- **THEN** user can force immediate refresh with 'r' key
+
 #### Scenario: Keyboard navigation in ls mode
 
 - **WHEN** user presses keys in ls TUI
