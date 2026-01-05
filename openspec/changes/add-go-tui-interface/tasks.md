@@ -218,7 +218,7 @@
 - [ ] 10.3 Add godoc comments to all exported functions
 - [ ] 10.4 Create CONTRIBUTING.md with development setup
 - [ ] 10.5 Add LICENSE file
-- [ ] 10.6 Create Makefile or justfile with common tasks:
+- [ ] 10.6 Create justfile with common tasks:
   - [ ] build, test, lint, install targets
 - [ ] 10.7 Set up CI/CD pipeline (GitHub Actions):
   - [ ] Run tests on PR
