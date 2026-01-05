@@ -6,11 +6,15 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"sync/atomic"
 	"syscall"
 	"time"
 
 	"golang.org/x/term"
 )
+
+// MinWatchInterval is the minimum allowed watch interval to prevent excessive CPU usage.
+const MinWatchInterval = 100 * time.Millisecond
 
 // WatchOptions configures watch mode behavior
 type WatchOptions struct {
@@ -30,18 +34,32 @@ type WatchOptions struct {
 	Command string
 }
 
-// RunWatch runs the watch loop, refreshing output at the specified interval
+// RunWatch runs the watch loop, refreshing output at the specified interval.
+// Returns an error if opts.Interval is <= 0.
 func RunWatch(ctx context.Context, opts WatchOptions) error {
+	// Validate interval to prevent ticker panic
+	if opts.Interval <= 0 {
+		return fmt.Errorf("watch interval must be positive, got %v", opts.Interval)
+	}
+	if opts.Interval < MinWatchInterval {
+		return fmt.Errorf("watch interval must be at least %v, got %v", MinWatchInterval, opts.Interval)
+	}
+
 	// Set up signal handling
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(sigChan)
 
 	go func() {
-		<-sigChan
-		cancel()
+		select {
+		case <-sigChan:
+			cancel()
+		case <-ctx.Done():
+			// Context cancelled, exit goroutine cleanly
+		}
 	}()
 
 	// Get terminal info
@@ -135,7 +153,7 @@ func isTerminalWriter(w io.Writer) bool {
 // WatchRunner is a wrapper that manages watch mode execution
 type WatchRunner struct {
 	opts    WatchOptions
-	running bool
+	running atomic.Bool
 }
 
 // NewWatchRunner creates a new watch runner
@@ -147,16 +165,15 @@ func NewWatchRunner(opts WatchOptions) *WatchRunner {
 
 // Run starts the watch loop
 func (wr *WatchRunner) Run(ctx context.Context) error {
-	if wr.running {
+	if !wr.running.CompareAndSwap(false, true) {
 		return fmt.Errorf("watch already running")
 	}
-	wr.running = true
-	defer func() { wr.running = false }()
+	defer wr.running.Store(false)
 
 	return RunWatch(ctx, wr.opts)
 }
 
 // IsRunning returns true if the watch loop is running
 func (wr *WatchRunner) IsRunning() bool {
-	return wr.running
+	return wr.running.Load()
 }

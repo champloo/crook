@@ -44,7 +44,7 @@ func TestWatchHeader_Format(t *testing.T) {
 	}
 
 	// Run for just one iteration using a cancelled context
-	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
 	defer cancel()
 
 	// Ignore the context cancelled error
@@ -111,7 +111,7 @@ func TestWatch_JSONFormat(t *testing.T) {
 		Command: "crook ls -o json",
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
 	defer cancel()
 
 	_ = output.RunWatch(ctx, opts)
@@ -145,7 +145,7 @@ func TestWatch_YAMLFormat(t *testing.T) {
 		Command: "crook ls -o yaml",
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
 	defer cancel()
 
 	_ = output.RunWatch(ctx, opts)
@@ -180,7 +180,7 @@ func TestWatch_HandlesContextCancellation(t *testing.T) {
 	}()
 
 	// Cancel after a short time
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(150 * time.Millisecond)
 	cancel()
 
 	// Should complete within reasonable time
@@ -196,7 +196,7 @@ func TestWatch_HandlesContextCancellation(t *testing.T) {
 
 func TestWatchRunner_IsRunning(t *testing.T) {
 	opts := output.WatchOptions{
-		Interval: 100 * time.Millisecond,
+		Interval: 200 * time.Millisecond,
 		Format:   output.FormatTable,
 		FetchFunc: func(_ context.Context) (*output.Data, error) {
 			return &output.Data{FetchedAt: time.Now()}, nil
@@ -221,7 +221,7 @@ func TestWatchRunner_IsRunning(t *testing.T) {
 	}()
 
 	// Give it time to start
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(150 * time.Millisecond)
 
 	if !wr.IsRunning() {
 		t.Error("Should be running after Run()")
@@ -256,7 +256,7 @@ func TestWatch_WithNodes(t *testing.T) {
 		Command: "crook ls",
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
 	defer cancel()
 
 	_ = output.RunWatch(ctx, opts)
@@ -269,4 +269,101 @@ func TestWatch_WithNodes(t *testing.T) {
 	if !strings.Contains(result, "NODES") {
 		t.Error("Output should contain NODES section")
 	}
+}
+
+func TestWatch_InvalidInterval_Zero(t *testing.T) {
+	opts := output.WatchOptions{
+		Interval: 0,
+		Format:   output.FormatTable,
+		FetchFunc: func(_ context.Context) (*output.Data, error) {
+			return &output.Data{FetchedAt: time.Now()}, nil
+		},
+		Writer:  &bytes.Buffer{},
+		Command: "crook ls",
+	}
+
+	err := output.RunWatch(context.Background(), opts)
+	if err == nil {
+		t.Error("Expected error for zero interval")
+	}
+	if !strings.Contains(err.Error(), "must be positive") {
+		t.Errorf("Expected 'must be positive' error, got: %v", err)
+	}
+}
+
+func TestWatch_InvalidInterval_Negative(t *testing.T) {
+	opts := output.WatchOptions{
+		Interval: -1 * time.Second,
+		Format:   output.FormatTable,
+		FetchFunc: func(_ context.Context) (*output.Data, error) {
+			return &output.Data{FetchedAt: time.Now()}, nil
+		},
+		Writer:  &bytes.Buffer{},
+		Command: "crook ls",
+	}
+
+	err := output.RunWatch(context.Background(), opts)
+	if err == nil {
+		t.Error("Expected error for negative interval")
+	}
+	if !strings.Contains(err.Error(), "must be positive") {
+		t.Errorf("Expected 'must be positive' error, got: %v", err)
+	}
+}
+
+func TestWatch_InvalidInterval_TooSmall(t *testing.T) {
+	opts := output.WatchOptions{
+		Interval: 50 * time.Millisecond, // Below MinWatchInterval
+		Format:   output.FormatTable,
+		FetchFunc: func(_ context.Context) (*output.Data, error) {
+			return &output.Data{FetchedAt: time.Now()}, nil
+		},
+		Writer:  &bytes.Buffer{},
+		Command: "crook ls",
+	}
+
+	err := output.RunWatch(context.Background(), opts)
+	if err == nil {
+		t.Error("Expected error for interval below minimum")
+	}
+	if !strings.Contains(err.Error(), "at least") {
+		t.Errorf("Expected 'at least' error, got: %v", err)
+	}
+}
+
+func TestWatchRunner_AlreadyRunning(t *testing.T) {
+	opts := output.WatchOptions{
+		Interval: 200 * time.Millisecond,
+		Format:   output.FormatTable,
+		FetchFunc: func(_ context.Context) (*output.Data, error) {
+			return &output.Data{FetchedAt: time.Now()}, nil
+		},
+		Writer:  &bytes.Buffer{},
+		Command: "crook ls",
+	}
+
+	wr := output.NewWatchRunner(opts)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Start first run
+	done := make(chan error)
+	go func() {
+		done <- wr.Run(ctx)
+	}()
+
+	// Wait for it to start
+	time.Sleep(150 * time.Millisecond)
+
+	// Try to start again - should fail
+	err := wr.Run(ctx)
+	if err == nil {
+		t.Error("Expected error when calling Run() on already running WatchRunner")
+	}
+	if !strings.Contains(err.Error(), "already running") {
+		t.Errorf("Expected 'already running' error, got: %v", err)
+	}
+
+	cancel()
+	<-done
 }
