@@ -53,6 +53,35 @@ crook completion fish > ~/.config/fish/completions/crook.fish
 
 ## Quick Start
 
+### Interactive TUI
+
+crook provides a rich terminal user interface with tabbed views showing real-time cluster state:
+
+<div align="center">
+  <table>
+    <tr>
+      <td align="center">
+        <strong>Nodes View</strong><br>
+        <img src="docs/images/nodes.png" alt="Nodes view" width="400">
+      </td>
+      <td align="center">
+        <strong>Deployments View</strong><br>
+        <img src="docs/images/deployments.png" alt="Deployments view" width="400">
+      </td>
+    </tr>
+    <tr>
+      <td align="center">
+        <strong>OSDs View</strong><br>
+        <img src="docs/images/osds.png" alt="OSDs view" width="400">
+      </td>
+      <td align="center">
+        <strong>Pods View</strong><br>
+        <img src="docs/images/pods.png" alt="Pods view" width="400">
+      </td>
+    </tr>
+  </table>
+</div>
+
 ### Prerequisites
 
 1. A Kubernetes cluster with Rook-Ceph deployed
@@ -265,6 +294,25 @@ crook up worker-1
 # 5. Verify cluster status
 crook ls worker-1
 ```
+
+#### Down Phase Progress
+
+The down phase safely prepares a node for maintenance with confirmation dialogs and real-time progress tracking:
+
+<div align="center">
+  <table>
+    <tr>
+      <td align="center">
+        <strong>Confirmation Prompt</strong><br>
+        <img src="docs/images/down-confirmation.png" alt="Down confirmation prompt" width="400">
+      </td>
+      <td align="center">
+        <strong>Operation Progress</strong><br>
+        <img src="docs/images/down-progress.png" alt="Down phase progress" width="400">
+      </td>
+    </tr>
+  </table>
+</div>
 
 ### Scripted Automation
 
