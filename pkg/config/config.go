@@ -15,6 +15,11 @@ const (
 	DefaultProgressRefreshMS            = 100
 	DefaultDashboardRefreshNodeMS       = 2000
 	DefaultDashboardRefreshCephMS       = 5000
+	DefaultLsRefreshNodesMS             = 2000
+	DefaultLsRefreshDeploymentsMS       = 2000
+	DefaultLsRefreshPodsMS              = 2000
+	DefaultLsRefreshOSDsMS              = 5000
+	DefaultLsRefreshHeaderMS            = 5000
 	DefaultAPICallTimeoutSeconds        = 30
 	DefaultWaitDeploymentTimeoutSeconds = 300
 	DefaultCephCommandTimeoutSeconds    = 10
@@ -65,6 +70,13 @@ type UIConfig struct {
 	ProgressRefreshMS      int    `mapstructure:"progress-refresh-ms" yaml:"progress-refresh-ms" json:"progress-refresh-ms"`
 	DashboardRefreshNodeMS int    `mapstructure:"dashboard-refresh-node-ms" yaml:"dashboard-refresh-node-ms" json:"dashboard-refresh-node-ms"`
 	DashboardRefreshCephMS int    `mapstructure:"dashboard-refresh-ceph-ms" yaml:"dashboard-refresh-ceph-ms" json:"dashboard-refresh-ceph-ms"`
+
+	// Ls refresh intervals (independent per resource type)
+	LsRefreshNodesMS       int `mapstructure:"ls-refresh-nodes-ms" yaml:"ls-refresh-nodes-ms" json:"ls-refresh-nodes-ms"`
+	LsRefreshDeploymentsMS int `mapstructure:"ls-refresh-deployments-ms" yaml:"ls-refresh-deployments-ms" json:"ls-refresh-deployments-ms"`
+	LsRefreshPodsMS        int `mapstructure:"ls-refresh-pods-ms" yaml:"ls-refresh-pods-ms" json:"ls-refresh-pods-ms"`
+	LsRefreshOSDsMS        int `mapstructure:"ls-refresh-osds-ms" yaml:"ls-refresh-osds-ms" json:"ls-refresh-osds-ms"`
+	LsRefreshHeaderMS      int `mapstructure:"ls-refresh-header-ms" yaml:"ls-refresh-header-ms" json:"ls-refresh-header-ms"`
 }
 
 // TimeoutConfig captures configurable timeouts.
@@ -106,6 +118,11 @@ func DefaultConfig() Config {
 			ProgressRefreshMS:      DefaultProgressRefreshMS,
 			DashboardRefreshNodeMS: DefaultDashboardRefreshNodeMS,
 			DashboardRefreshCephMS: DefaultDashboardRefreshCephMS,
+			LsRefreshNodesMS:       DefaultLsRefreshNodesMS,
+			LsRefreshDeploymentsMS: DefaultLsRefreshDeploymentsMS,
+			LsRefreshPodsMS:        DefaultLsRefreshPodsMS,
+			LsRefreshOSDsMS:        DefaultLsRefreshOSDsMS,
+			LsRefreshHeaderMS:      DefaultLsRefreshHeaderMS,
 		},
 		Timeouts: TimeoutConfig{
 			APICallTimeoutSeconds:        DefaultAPICallTimeoutSeconds,

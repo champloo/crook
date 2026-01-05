@@ -9,6 +9,7 @@ import (
 
 	"github.com/andri/crook/pkg/config"
 	"github.com/andri/crook/pkg/k8s"
+	"github.com/andri/crook/pkg/monitoring"
 	"github.com/andri/crook/pkg/tui/components"
 	"github.com/andri/crook/pkg/tui/styles"
 	"github.com/andri/crook/pkg/tui/views"
@@ -104,6 +105,10 @@ type LsModel struct {
 
 	// Error state
 	lastError error
+
+	// Monitor for background updates
+	monitor        *monitoring.LsMonitor
+	lastUpdateTime time.Time
 }
 
 // LsDataUpdateMsg is sent when data is updated
@@ -122,6 +127,12 @@ type LsFilterMsg struct {
 type LsRefreshMsg struct {
 	Tab LsTab
 }
+
+// LsMonitorStartedMsg is sent when the monitor is ready
+type LsMonitorStartedMsg struct{}
+
+// LsRefreshTickMsg triggers checking for monitor updates
+type LsRefreshTickMsg struct{}
 
 // NewLsModel creates a new ls model
 func NewLsModel(cfg LsModelConfig) *LsModel {
@@ -167,160 +178,35 @@ func NewLsModel(cfg LsModelConfig) *LsModel {
 // Init implements tea.Model
 func (m *LsModel) Init() tea.Cmd {
 	return tea.Batch(
-		m.fetchAllDataCmd(),
+		m.startMonitorCmd(),
+		m.tickCmd(),
 	)
 }
 
-// fetchAllDataCmd fetches all data for the TUI
-func (m *LsModel) fetchAllDataCmd() tea.Cmd {
-	return func() tea.Msg {
-		return LsRefreshMsg{Tab: LsTabNodes} // Start by triggering a refresh
-	}
+// tickCmd returns a command that ticks every 100ms to check for monitor updates
+func (m *LsModel) tickCmd() tea.Cmd {
+	return tea.Tick(100*time.Millisecond, func(_ time.Time) tea.Msg {
+		return LsRefreshTickMsg{}
+	})
 }
 
-// LsDataLoadedMsg is sent when all data has been loaded
-type LsDataLoadedMsg struct {
-	Nodes       []views.NodeInfo
-	Deployments []views.DeploymentInfo
-	OSDs        []views.OSDInfo
-	Pods        []views.PodInfo
-	Header      *components.ClusterHeaderData
-	Error       error
-}
-
-// fetchDataCmd fetches data from Kubernetes
-func (m *LsModel) fetchDataCmd() tea.Cmd {
+// startMonitorCmd starts the LsMonitor in a goroutine and returns when ready
+func (m *LsModel) startMonitorCmd() tea.Cmd {
 	return func() tea.Msg {
-		ctx := m.config.Context
-		client := m.config.Client
-		cfg := m.config.Config
-
-		namespace := cfg.Kubernetes.RookClusterNamespace
-		prefixes := cfg.DeploymentFilters.Prefixes
-
-		var result LsDataLoadedMsg
-
-		// Fetch cluster health for header
-		status, err := client.GetCephStatus(ctx, namespace)
-		if err == nil {
-			headerData := &components.ClusterHeaderData{
-				Health:     status.Health.Status,
-				OSDs:       status.OSDMap.NumOSDs,
-				OSDsUp:     status.OSDMap.NumUpOSDs,
-				OSDsIn:     status.OSDMap.NumInOSDs,
-				LastUpdate: time.Now(),
-			}
-
-			// Fetch monitor status
-			monStatus, monErr := client.GetMonitorStatus(ctx, namespace)
-			if monErr == nil {
-				headerData.MonsTotal = monStatus.TotalCount
-				headerData.MonsInQuorum = monStatus.InQuorum
-			}
-
-			// Fetch flags
-			flags, flagsErr := client.GetCephFlags(ctx, namespace)
-			if flagsErr == nil {
-				headerData.NooutSet = flags.NoOut
-			}
-
-			// Fetch storage usage
-			storage, storageErr := client.GetStorageUsage(ctx, namespace)
-			if storageErr == nil {
-				headerData.UsedBytes = storage.UsedBytes
-				headerData.TotalBytes = storage.TotalBytes
-			}
-
-			result.Header = headerData
+		cfg := &monitoring.LsMonitorConfig{
+			Client:                     m.config.Client,
+			Namespace:                  m.config.Config.Kubernetes.RookClusterNamespace,
+			Prefixes:                   m.config.Config.DeploymentFilters.Prefixes,
+			NodeFilter:                 m.config.NodeFilter,
+			NodesRefreshInterval:       time.Duration(m.config.Config.UI.LsRefreshNodesMS) * time.Millisecond,
+			DeploymentsRefreshInterval: time.Duration(m.config.Config.UI.LsRefreshDeploymentsMS) * time.Millisecond,
+			PodsRefreshInterval:        time.Duration(m.config.Config.UI.LsRefreshPodsMS) * time.Millisecond,
+			OSDsRefreshInterval:        time.Duration(m.config.Config.UI.LsRefreshOSDsMS) * time.Millisecond,
+			HeaderRefreshInterval:      time.Duration(m.config.Config.UI.LsRefreshHeaderMS) * time.Millisecond,
 		}
-
-		// Fetch nodes
-		nodes, err := client.ListNodesWithCephPods(ctx, namespace, prefixes)
-		if err == nil {
-			result.Nodes = make([]views.NodeInfo, len(nodes))
-			for i, n := range nodes {
-				result.Nodes[i] = views.NodeInfo{
-					Name:           n.Name,
-					Status:         n.Status,
-					Roles:          n.Roles,
-					Schedulable:    n.Schedulable,
-					Cordoned:       n.Cordoned,
-					CephPodCount:   n.CephPodCount,
-					Age:            n.Age,
-					KubeletVersion: n.KubeletVersion,
-				}
-			}
-		}
-
-		// Fetch deployments
-		deployments, err := client.ListCephDeployments(ctx, namespace, prefixes)
-		if err == nil {
-			result.Deployments = make([]views.DeploymentInfo, 0)
-			for _, d := range deployments {
-				// Apply node filter if specified
-				if m.config.NodeFilter != "" && d.NodeName != m.config.NodeFilter {
-					continue
-				}
-				result.Deployments = append(result.Deployments, views.DeploymentInfo{
-					Name:            d.Name,
-					Namespace:       d.Namespace,
-					ReadyReplicas:   d.ReadyReplicas,
-					DesiredReplicas: d.DesiredReplicas,
-					NodeName:        d.NodeName,
-					Age:             d.Age,
-					Status:          d.Status,
-					Type:            d.Type,
-					OsdID:           d.OsdID,
-				})
-			}
-		}
-
-		// Fetch OSDs
-		osds, err := client.GetOSDInfoList(ctx, namespace)
-		if err == nil {
-			result.OSDs = make([]views.OSDInfo, 0)
-			for _, o := range osds {
-				// Apply node filter if specified
-				if m.config.NodeFilter != "" && o.Hostname != m.config.NodeFilter {
-					continue
-				}
-				result.OSDs = append(result.OSDs, views.OSDInfo{
-					ID:             o.ID,
-					Name:           o.Name,
-					Hostname:       o.Hostname,
-					Status:         o.Status,
-					InOut:          o.InOut,
-					Weight:         o.Weight,
-					Reweight:       o.Reweight,
-					DeviceClass:    o.DeviceClass,
-					DeploymentName: o.DeploymentName,
-				})
-			}
-		}
-
-		// Fetch pods
-		pods, err := client.ListCephPods(ctx, namespace, prefixes, m.config.NodeFilter)
-		if err == nil {
-			result.Pods = make([]views.PodInfo, len(pods))
-			for i, p := range pods {
-				result.Pods[i] = views.PodInfo{
-					Name:            p.Name,
-					Namespace:       p.Namespace,
-					Status:          p.Status,
-					Ready:           p.ReadyContainers == p.TotalContainers && p.TotalContainers > 0,
-					ReadyContainers: p.ReadyContainers,
-					TotalContainers: p.TotalContainers,
-					Restarts:        p.Restarts,
-					NodeName:        p.NodeName,
-					Age:             p.Age,
-					Type:            p.Type,
-					IP:              p.IP,
-					OwnerDeployment: p.OwnerDeployment,
-				}
-			}
-		}
-
-		return result
+		m.monitor = monitoring.NewLsMonitor(cfg)
+		m.monitor.Start()
+		return LsMonitorStartedMsg{}
 	}
 }
 
@@ -357,9 +243,6 @@ func (m *LsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.updateActiveTab(msg.Index)
 		m.cursor = 0 // Reset cursor on tab switch
 
-	case LsDataLoadedMsg:
-		m.handleDataLoaded(msg)
-
 	case LsDataUpdateMsg:
 		m.updateDataCount(msg)
 
@@ -375,41 +258,60 @@ func (m *LsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.updateAllCounts()
 
 	case LsRefreshMsg:
-		// Trigger data fetch
-		cmds = append(cmds, m.fetchDataCmd())
+		// Manual refresh - force update from monitor's latest data
+		if m.monitor != nil {
+			latest := m.monitor.GetLatest()
+			if latest != nil {
+				m.updateFromMonitor(latest)
+			}
+		}
+
+	case LsMonitorStartedMsg:
+		// Monitor is ready, nothing special to do
+
+	case LsRefreshTickMsg:
+		// Check for new data from monitor
+		if m.monitor != nil {
+			latest := m.monitor.GetLatest()
+			if latest != nil && latest.UpdateTime.After(m.lastUpdateTime) {
+				m.updateFromMonitor(latest)
+				m.lastUpdateTime = latest.UpdateTime
+			}
+		}
+		cmds = append(cmds, m.tickCmd())
 	}
 
 	return m, tea.Batch(cmds...)
 }
 
-// handleDataLoaded processes the loaded data
-func (m *LsModel) handleDataLoaded(msg LsDataLoadedMsg) {
+// updateFromMonitor updates the model from a monitor update
+func (m *LsModel) updateFromMonitor(update *monitoring.LsMonitorUpdate) {
 	// Update header
-	if msg.Header != nil {
-		m.header.SetData(msg.Header)
-		m.nooutSet = msg.Header.NooutSet
-		m.osdsView.SetNooutFlag(msg.Header.NooutSet)
+	if update.Header != nil {
+		m.header.SetData(update.Header)
+		m.nooutSet = update.Header.NooutSet
+		m.osdsView.SetNooutFlag(update.Header.NooutSet)
 	}
 
 	// Update views with data
-	if msg.Nodes != nil {
-		m.nodesView.SetNodes(msg.Nodes)
+	if update.Nodes != nil {
+		m.nodesView.SetNodes(update.Nodes)
 	}
-	if msg.Deployments != nil {
-		m.deploymentsView.SetDeployments(msg.Deployments)
+	if update.Deployments != nil {
+		m.deploymentsView.SetDeployments(update.Deployments)
 	}
-	if msg.OSDs != nil {
-		m.osdsView.SetOSDs(msg.OSDs)
+	if update.OSDs != nil {
+		m.osdsView.SetOSDs(update.OSDs)
 	}
-	if msg.Pods != nil {
-		m.podsView.SetPods(msg.Pods)
+	if update.Pods != nil {
+		m.podsView.SetPods(update.Pods)
 	}
 
 	// Update counts and badges
 	m.updateAllCounts()
 
 	// Store any error
-	m.lastError = msg.Error
+	m.lastError = update.Error
 }
 
 // updateAllCounts updates all tab counts and badges
@@ -461,6 +363,9 @@ func (m *LsModel) handleKeyPress(msg tea.KeyMsg) tea.Cmd {
 
 	switch key {
 	case "q", "esc":
+		if m.monitor != nil {
+			m.monitor.Stop()
+		}
 		return tea.Quit
 
 	case "?":
@@ -503,6 +408,9 @@ func (m *LsModel) handleKeyPress(msg tea.KeyMsg) tea.Cmd {
 		return nil
 
 	case "ctrl+c":
+		if m.monitor != nil {
+			m.monitor.Stop()
+		}
 		return tea.Quit
 	}
 
