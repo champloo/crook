@@ -193,16 +193,24 @@ func (m *LsModel) tickCmd() tea.Cmd {
 // startMonitorCmd starts the LsMonitor in a goroutine and returns when ready
 func (m *LsModel) startMonitorCmd() tea.Cmd {
 	return func() tea.Msg {
+		// Helper to ensure non-zero duration with default fallback
+		getInterval := func(ms int, defaultMS int) time.Duration {
+			if ms <= 0 {
+				ms = defaultMS
+			}
+			return time.Duration(ms) * time.Millisecond
+		}
+
 		cfg := &monitoring.LsMonitorConfig{
 			Client:                     m.config.Client,
 			Namespace:                  m.config.Config.Kubernetes.RookClusterNamespace,
 			Prefixes:                   m.config.Config.DeploymentFilters.Prefixes,
 			NodeFilter:                 m.config.NodeFilter,
-			NodesRefreshInterval:       time.Duration(m.config.Config.UI.LsRefreshNodesMS) * time.Millisecond,
-			DeploymentsRefreshInterval: time.Duration(m.config.Config.UI.LsRefreshDeploymentsMS) * time.Millisecond,
-			PodsRefreshInterval:        time.Duration(m.config.Config.UI.LsRefreshPodsMS) * time.Millisecond,
-			OSDsRefreshInterval:        time.Duration(m.config.Config.UI.LsRefreshOSDsMS) * time.Millisecond,
-			HeaderRefreshInterval:      time.Duration(m.config.Config.UI.LsRefreshHeaderMS) * time.Millisecond,
+			NodesRefreshInterval:       getInterval(m.config.Config.UI.LsRefreshNodesMS, config.DefaultLsRefreshNodesMS),
+			DeploymentsRefreshInterval: getInterval(m.config.Config.UI.LsRefreshDeploymentsMS, config.DefaultLsRefreshDeploymentsMS),
+			PodsRefreshInterval:        getInterval(m.config.Config.UI.LsRefreshPodsMS, config.DefaultLsRefreshPodsMS),
+			OSDsRefreshInterval:        getInterval(m.config.Config.UI.LsRefreshOSDsMS, config.DefaultLsRefreshOSDsMS),
+			HeaderRefreshInterval:      getInterval(m.config.Config.UI.LsRefreshHeaderMS, config.DefaultLsRefreshHeaderMS),
 		}
 		m.monitor = monitoring.NewLsMonitor(cfg)
 		m.monitor.Start()
