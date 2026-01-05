@@ -165,6 +165,150 @@ func TestListCephDeployments(t *testing.T) {
 	}
 }
 
+func TestListCephDeployments_OverlappingNames(t *testing.T) {
+	// Test case for deployment names where one is a prefix of another
+	// e.g., "rook-ceph-exporter-rook" vs "rook-ceph-exporter-rook-m02"
+	ctx := context.Background()
+	replicas := int32(1)
+
+	// Create deployments with overlapping names (simulating exporter naming)
+	deployments := &appsv1.DeploymentList{
+		Items: []appsv1.Deployment{
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "rook-ceph-exporter-rook",
+					Namespace:         "rook-ceph",
+					CreationTimestamp: metav1.Time{Time: time.Now().Add(-24 * time.Hour)},
+				},
+				Spec: appsv1.DeploymentSpec{
+					Replicas: &replicas,
+				},
+				Status: appsv1.DeploymentStatus{
+					ReadyReplicas: 1,
+				},
+			},
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "rook-ceph-exporter-rook-m02",
+					Namespace:         "rook-ceph",
+					CreationTimestamp: metav1.Time{Time: time.Now().Add(-24 * time.Hour)},
+				},
+				Spec: appsv1.DeploymentSpec{
+					Replicas: &replicas,
+				},
+				Status: appsv1.DeploymentStatus{
+					ReadyReplicas: 1,
+				},
+			},
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "rook-ceph-exporter-rook-m03",
+					Namespace:         "rook-ceph",
+					CreationTimestamp: metav1.Time{Time: time.Now().Add(-24 * time.Hour)},
+				},
+				Spec: appsv1.DeploymentSpec{
+					Replicas: &replicas,
+				},
+				Status: appsv1.DeploymentStatus{
+					ReadyReplicas: 1,
+				},
+			},
+		},
+	}
+
+	// Create pods with their respective ReplicaSets
+	pods := &corev1.PodList{
+		Items: []corev1.Pod{
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "rook-ceph-exporter-rook-76f958cb56-cgpgw",
+					Namespace: "rook-ceph",
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							Kind: "ReplicaSet",
+							Name: "rook-ceph-exporter-rook-76f958cb56",
+						},
+					},
+				},
+				Spec: corev1.PodSpec{
+					NodeName: "rook",
+				},
+			},
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "rook-ceph-exporter-rook-m02-66756fcc4d-2rwcc",
+					Namespace: "rook-ceph",
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							Kind: "ReplicaSet",
+							Name: "rook-ceph-exporter-rook-m02-66756fcc4d",
+						},
+					},
+				},
+				Spec: corev1.PodSpec{
+					NodeName: "rook-m02",
+				},
+			},
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "rook-ceph-exporter-rook-m03-54b8d869ff-djc57",
+					Namespace: "rook-ceph",
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							Kind: "ReplicaSet",
+							Name: "rook-ceph-exporter-rook-m03-54b8d869ff",
+						},
+					},
+				},
+				Spec: corev1.PodSpec{
+					NodeName: "rook-m03",
+				},
+			},
+		},
+	}
+
+	clientset := fake.NewClientset(deployments, pods)
+	client := &Client{Clientset: clientset}
+
+	prefixes := []string{"rook-ceph-exporter"}
+	result, err := client.ListCephDeployments(ctx, "rook-ceph", prefixes)
+
+	if err != nil {
+		t.Fatalf("ListCephDeployments() error = %v", err)
+	}
+
+	if len(result) != 3 {
+		t.Errorf("len(result) = %d, want 3", len(result))
+	}
+
+	// Build map for easier lookup
+	depMap := make(map[string]DeploymentInfoForLS)
+	for _, d := range result {
+		depMap[d.Name] = d
+	}
+
+	// Verify each deployment is mapped to the correct node
+	tests := []struct {
+		depName  string
+		wantNode string
+	}{
+		{"rook-ceph-exporter-rook", "rook"},
+		{"rook-ceph-exporter-rook-m02", "rook-m02"},
+		{"rook-ceph-exporter-rook-m03", "rook-m03"},
+	}
+
+	for _, tt := range tests {
+		dep, ok := depMap[tt.depName]
+		if !ok {
+			t.Errorf("deployment %q not found in result", tt.depName)
+			continue
+		}
+		if dep.NodeName != tt.wantNode {
+			t.Errorf("deployment %q: NodeName = %q, want %q", tt.depName, dep.NodeName, tt.wantNode)
+		}
+	}
+}
+
 func TestGetDeploymentStatusString(t *testing.T) {
 	tests := []struct {
 		name    string

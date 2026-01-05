@@ -282,13 +282,22 @@ func (c *Client) ListCephDeployments(ctx context.Context, namespace string, pref
 		for _, ownerRef := range pod.OwnerReferences {
 			if ownerRef.Kind == "ReplicaSet" {
 				// ReplicaSet name format: <deployment-name>-<hash>
-				// Extract deployment name
+				// Find the best (longest) matching deployment name to handle cases
+				// where one deployment name is a prefix of another (e.g., "rook-ceph-exporter-rook"
+				// vs "rook-ceph-exporter-rook-m02")
 				rsName := ownerRef.Name
+				var bestMatch string
 				for _, dep := range filtered {
-					if strings.HasPrefix(rsName, dep.Name+"-") {
-						deploymentNodes[dep.Name] = pod.Spec.NodeName
-						break
+					prefix := dep.Name + "-"
+					if strings.HasPrefix(rsName, prefix) {
+						// Keep the longest matching deployment name
+						if len(dep.Name) > len(bestMatch) {
+							bestMatch = dep.Name
+						}
 					}
+				}
+				if bestMatch != "" {
+					deploymentNodes[bestMatch] = pod.Spec.NodeName
 				}
 			}
 		}
