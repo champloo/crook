@@ -30,6 +30,19 @@ test-verbose:
 test-race:
     go test -race ./...
 
+# Generate test coverage report
+coverage:
+    go test -coverprofile=coverage.out ./...
+    go tool cover -html=coverage.out -o coverage.html
+    @echo "Coverage report generated: coverage.html"
+
+# Show test coverage in terminal
+coverage-report:
+    go test -coverprofile=coverage.out ./...
+    go tool cover -func=coverage.out
+    @echo ""
+    @echo "For HTML report, run: just coverage"
+
 # Run linter
 lint:
     golangci-lint run
