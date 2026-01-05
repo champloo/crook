@@ -17,7 +17,7 @@ const (
 	DefaultDashboardRefreshCephMS       = 5000
 	DefaultAPICallTimeoutSeconds        = 30
 	DefaultWaitDeploymentTimeoutSeconds = 300
-	DefaultCephCommandTimeoutSeconds    = 60
+	DefaultCephCommandTimeoutSeconds    = 10
 	DefaultLogLevel                     = "info"
 	DefaultLogFormat                    = "text"
 )

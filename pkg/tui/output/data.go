@@ -193,7 +193,7 @@ func FetchData(ctx context.Context, opts FetchOptions) (*Data, error) {
 	namespace := opts.Config.Kubernetes.RookClusterNamespace
 	prefixes := opts.Config.DeploymentFilters.Prefixes
 
-	// Always fetch cluster health for header
+	// Always fetch cluster health for header (non-fatal - Ceph may be degraded)
 	health, err := fetchClusterHealth(ctx, opts.Client, namespace)
 	if err != nil {
 		// Non-fatal: continue without health data
@@ -220,11 +220,14 @@ func FetchData(ctx context.Context, opts FetchOptions) (*Data, error) {
 			data.Deployments = deployments
 
 		case ResourceOSDs:
+			// Non-fatal: OSDs require Ceph commands which may timeout on degraded clusters
 			osds, fetchErr := fetchOSDs(ctx, opts.Client, namespace, opts.NodeFilter)
 			if fetchErr != nil {
-				return nil, fetchErr
+				// Continue without OSD data - cluster may be degraded
+				data.OSDs = nil
+			} else {
+				data.OSDs = osds
 			}
-			data.OSDs = osds
 
 		case ResourcePods:
 			pods, fetchErr := fetchPods(ctx, opts.Client, namespace, prefixes, opts.NodeFilter)

@@ -5,10 +5,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+// DefaultCephCommandTimeout is the default timeout for Ceph CLI commands.
+// Ceph commands can hang when the cluster is degraded (e.g., node down, OSDs offline).
+// This timeout prevents indefinite hangs while still allowing time for slow responses.
+const DefaultCephCommandTimeout = 10 * time.Second
 
 // CephStatus represents the parsed output of 'ceph status --format json'
 type CephStatus struct {
@@ -41,8 +47,13 @@ type CephOSDNode struct {
 	Children    []int   `json:"children,omitempty"`
 }
 
-// ExecuteCephCommand executes a Ceph command via the rook-ceph-tools pod
+// ExecuteCephCommand executes a Ceph command via the rook-ceph-tools pod.
+// It applies a default timeout to prevent hanging on degraded clusters.
 func (c *Client) ExecuteCephCommand(ctx context.Context, namespace string, command []string) (string, error) {
+	// Apply timeout to prevent hanging when cluster is degraded
+	ctx, cancel := context.WithTimeout(ctx, DefaultCephCommandTimeout)
+	defer cancel()
+
 	// Find the rook-ceph-tools pod
 	pod, err := c.findRookCephToolsPod(ctx, namespace)
 	if err != nil {
@@ -52,6 +63,10 @@ func (c *Client) ExecuteCephCommand(ctx context.Context, namespace string, comma
 	// Execute the command in the pod
 	output, err := c.ExecInPod(ctx, namespace, pod.Name, "", command)
 	if err != nil {
+		// Provide more context if it was a timeout
+		if ctx.Err() == context.DeadlineExceeded {
+			return "", fmt.Errorf("ceph command timed out after %v (cluster may be degraded): %w", DefaultCephCommandTimeout, err)
+		}
 		return "", fmt.Errorf("failed to execute ceph command: %w", err)
 	}
 

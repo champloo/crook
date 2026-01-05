@@ -282,3 +282,33 @@ The system SHALL provide comprehensive resource queries to support the `crook ls
   - Monitors in quorum (count and names)
   - Monitors out of quorum (if any)
   - Leader monitor name
+
+### Requirement: Graceful Degradation on Ceph Failures
+
+The system SHALL continue displaying available data when Ceph commands fail or timeout.
+
+#### Scenario: Ceph commands timeout during ls
+
+- **WHEN** system executes `crook ls` and Ceph commands timeout (cluster degraded)
+- **THEN** system continues to display Kubernetes data (nodes, deployments, pods)
+- **THEN** system omits OSD data from output (empty/null in JSON/YAML)
+- **THEN** system omits cluster health from output header
+- **THEN** system does not return error to user
+- **THEN** system completes within timeout period (does not hang)
+
+#### Scenario: Partial data in TUI mode
+
+- **WHEN** TUI refreshes data and some Ceph commands fail
+- **THEN** TUI displays available data (nodes, deployments, pods)
+- **THEN** TUI shows empty or stale data for failed sections (OSDs, cluster health)
+- **THEN** TUI continues to accept user input
+- **THEN** TUI retries failed data on next refresh cycle
+
+#### Scenario: Partial data in non-TUI output
+
+- **WHEN** system executes `crook ls --output json` with degraded cluster
+- **THEN** system outputs valid JSON with available data
+- **THEN** system sets `cluster_health` to null if health fetch failed
+- **THEN** system sets `osds` to null or empty array if OSD fetch failed
+- **THEN** system includes `nodes`, `deployments`, `pods` from Kubernetes API
+- **THEN** system exits with success (0) as partial data is valid output

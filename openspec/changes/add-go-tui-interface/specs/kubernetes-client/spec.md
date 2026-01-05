@@ -144,6 +144,14 @@ The system SHALL execute Ceph CLI commands via rook-ceph-tools deployment.
 - **THEN** system returns error with command output
 - **THEN** system includes exit code in error message
 
+#### Scenario: Ceph command timeout
+
+- **WHEN** Ceph command does not respond within 10 seconds
+- **THEN** system cancels the command execution
+- **THEN** system returns error: "ceph command timed out after 10s (cluster may be degraded)"
+- **THEN** system does not hang indefinitely
+- **THEN** caller can handle timeout gracefully and continue with partial data
+
 ### Requirement: Error Handling and Retries
 
 The system SHALL handle transient Kubernetes API errors with exponential backoff retry.
