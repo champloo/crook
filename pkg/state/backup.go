@@ -53,11 +53,15 @@ func BackupFile(path string, opts BackupOptions) (string, error) {
 		if strings.TrimSpace(opts.Node) == "" {
 			return "", errors.New("state node is required for backup directory")
 		}
-		if mkdirErr := os.MkdirAll(opts.Directory, 0o750); mkdirErr != nil {
-			return "", fmt.Errorf("create backup directory %s: %w", opts.Directory, mkdirErr)
+		expandedDir, expandErr := expandHome(opts.Directory)
+		if expandErr != nil {
+			return "", fmt.Errorf("expand backup directory path: %w", expandErr)
+		}
+		if mkdirErr := os.MkdirAll(expandedDir, 0o750); mkdirErr != nil {
+			return "", fmt.Errorf("create backup directory %s: %w", expandedDir, mkdirErr)
 		}
 		backupName := fmt.Sprintf("crook-state-%s.%s.json", opts.Node, timestamp)
-		backupPath = filepath.Join(opts.Directory, backupName)
+		backupPath = filepath.Join(expandedDir, backupName)
 	} else {
 		backupPath = fmt.Sprintf("%s.backup.%s.json", path, timestamp)
 	}
