@@ -186,10 +186,6 @@
 - [ ] 8.4 Create `crook config` command group:
   - [ ] `crook config show` - Display effective config
   - [ ] `crook config validate` - Validate config file
-- [ ] 8.5 Create `crook state` command group:
-  - [ ] `crook state list` - List state files
-  - [ ] `crook state clean` - Clean old backups
-  - [ ] `crook state show <file>` - Display state file contents
 - [ ] 8.6 Create `crook version` command
 - [ ] 8.7 Add shell completion generation (bash, zsh, fish)
 
