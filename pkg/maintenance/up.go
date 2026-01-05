@@ -72,7 +72,7 @@ func ExecuteUpPhase(
 	}
 
 	// Step 5: Restore deployments in order (pods can now schedule to uncordoned node)
-	if restoreErr := restoreDeployments(ctx, client, maintenanceState, missingDeployments, opts); restoreErr != nil {
+	if restoreErr := restoreDeployments(ctx, client, cfg, maintenanceState, missingDeployments, opts); restoreErr != nil {
 		return restoreErr
 	}
 
@@ -140,7 +140,8 @@ func validateDeploymentsExist(ctx context.Context, client *k8s.Client, maintenan
 }
 
 // restoreDeployments scales up deployments in the correct order
-func restoreDeployments(ctx context.Context, client *k8s.Client, maintenanceState *state.State, missingDeployments []string, opts UpPhaseOptions) error {
+// MON deployments are scaled first, then quorum is verified before scaling OSDs
+func restoreDeployments(ctx context.Context, client *k8s.Client, cfg config.Config, maintenanceState *state.State, missingDeployments []string, opts UpPhaseOptions) error {
 	deploymentResources := make([]state.Resource, 0)
 	for _, resource := range maintenanceState.Resources {
 		if resource.Kind == "Deployment" {
@@ -148,9 +149,41 @@ func restoreDeployments(ctx context.Context, client *k8s.Client, maintenanceStat
 		}
 	}
 
-	orderedResources := orderResourcesForUp(deploymentResources)
+	// Separate MON deployments from others
+	monResources, otherResources := separateMonDeployments(deploymentResources)
 
-	for _, resource := range orderedResources {
+	// First scale up MON deployments
+	if len(monResources) > 0 {
+		for _, resource := range monResources {
+			deploymentName := fmt.Sprintf("%s/%s", resource.Namespace, resource.Name)
+
+			if contains(missingDeployments, deploymentName) {
+				sendUpProgress(opts.ProgressCallback, "skip", fmt.Sprintf("Skipping missing MON deployment %s", deploymentName), deploymentName)
+				continue
+			}
+
+			sendUpProgress(opts.ProgressCallback, "scale-up", fmt.Sprintf("Scaling up MON %s to %d replicas", deploymentName, resource.Replicas), deploymentName)
+
+			if err := client.ScaleDeployment(ctx, resource.Namespace, resource.Name, safeInt32(resource.Replicas)); err != nil {
+				return fmt.Errorf("failed to scale MON deployment %s to %d: %w", deploymentName, resource.Replicas, err)
+			}
+
+			if err := WaitForDeploymentScaleUp(ctx, client, resource.Namespace, resource.Name, safeInt32(resource.Replicas), opts.WaitOptions); err != nil {
+				return fmt.Errorf("failed waiting for MON deployment %s to scale up: %w", deploymentName, err)
+			}
+		}
+
+		// Wait for MON quorum before proceeding to OSDs
+		sendUpProgress(opts.ProgressCallback, "quorum", "Waiting for Ceph monitor quorum", "")
+		if err := WaitForMonitorQuorum(ctx, client, cfg.Kubernetes.RookClusterNamespace, opts.WaitOptions); err != nil {
+			return fmt.Errorf("failed waiting for monitor quorum: %w", err)
+		}
+		sendUpProgress(opts.ProgressCallback, "quorum", "Ceph monitor quorum established", "")
+	}
+
+	// Now scale up remaining deployments (OSDs and others) in order
+	orderedOther := orderResourcesForUp(otherResources)
+	for _, resource := range orderedOther {
 		deploymentName := fmt.Sprintf("%s/%s", resource.Namespace, resource.Name)
 
 		if contains(missingDeployments, deploymentName) {
@@ -170,6 +203,18 @@ func restoreDeployments(ctx context.Context, client *k8s.Client, maintenanceStat
 	}
 
 	return nil
+}
+
+// separateMonDeployments separates MON deployments from other deployments
+func separateMonDeployments(resources []state.Resource) (monResources, otherResources []state.Resource) {
+	for _, resource := range resources {
+		if startsWithPrefix(resource.Name, "rook-ceph-mon") {
+			monResources = append(monResources, resource)
+		} else {
+			otherResources = append(otherResources, resource)
+		}
+	}
+	return monResources, otherResources
 }
 
 // scaleOperator scales up the rook-ceph-operator deployment
