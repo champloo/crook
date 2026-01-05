@@ -71,3 +71,25 @@ version:
 # Run the application (for testing)
 run *ARGS:
     go run -ldflags '{{LDFLAGS}}' ./cmd/crook {{ARGS}}
+
+# Cross-compilation targets
+# Build for Linux AMD64
+build-linux-amd64:
+    GOOS=linux GOARCH=amd64 go build -ldflags '{{LDFLAGS}} -s -w' -o bin/crook-linux-amd64 ./cmd/crook
+
+# Build for Linux ARM64
+build-linux-arm64:
+    GOOS=linux GOARCH=arm64 go build -ldflags '{{LDFLAGS}} -s -w' -o bin/crook-linux-arm64 ./cmd/crook
+
+# Build for macOS AMD64
+build-darwin-amd64:
+    GOOS=darwin GOARCH=amd64 go build -ldflags '{{LDFLAGS}} -s -w' -o bin/crook-darwin-amd64 ./cmd/crook
+
+# Build for macOS ARM64 (Apple Silicon)
+build-darwin-arm64:
+    GOOS=darwin GOARCH=arm64 go build -ldflags '{{LDFLAGS}} -s -w' -o bin/crook-darwin-arm64 ./cmd/crook
+
+# Build all release binaries
+build-all: build-linux-amd64 build-linux-arm64 build-darwin-amd64 build-darwin-arm64
+    @echo "Built all release binaries in bin/"
+    @ls -la bin/
