@@ -37,10 +37,11 @@ func NewHeaderFetcher(cfg HeaderFetcherConfig) *HeaderFetcher {
 	}
 }
 
-// HeaderFetchCmd returns a command that fetches header data
-func HeaderFetchCmd(client *k8s.Client, namespace string) tea.Cmd {
+// HeaderFetchCmd returns a command that fetches header data.
+// The context is used for cancellation - pass a cancelable context
+// to allow stopping in-flight fetches.
+func HeaderFetchCmd(ctx context.Context, client *k8s.Client, namespace string) tea.Cmd {
 	return func() tea.Msg {
-		ctx := context.Background()
 		data, err := FetchClusterHeaderData(ctx, client, namespace)
 		return HeaderUpdateMsg{Data: data, Error: err}
 	}
@@ -111,7 +112,7 @@ func FetchClusterHeaderData(ctx context.Context, client *k8s.Client, namespace s
 func (f *HeaderFetcher) Start() tea.Cmd {
 	f.ctx, f.cancel = context.WithCancel(context.Background())
 	return tea.Batch(
-		HeaderFetchCmd(f.config.Client, f.config.Namespace),
+		HeaderFetchCmd(f.ctx, f.config.Client, f.config.Namespace),
 		HeaderTickCmd(f.config.RefreshInterval),
 	)
 }
@@ -130,12 +131,13 @@ func (f *HeaderFetcher) HandleTick() tea.Cmd {
 		return nil
 	}
 	return tea.Batch(
-		HeaderFetchCmd(f.config.Client, f.config.Namespace),
+		HeaderFetchCmd(f.ctx, f.config.Client, f.config.Namespace),
 		HeaderTickCmd(f.config.RefreshInterval),
 	)
 }
 
 // FetchOnce performs a single fetch and returns the result
 func (f *HeaderFetcher) FetchOnce() tea.Cmd {
-	return HeaderFetchCmd(f.config.Client, f.config.Namespace)
+	// Use a background context for one-off fetches
+	return HeaderFetchCmd(context.Background(), f.config.Client, f.config.Namespace)
 }
