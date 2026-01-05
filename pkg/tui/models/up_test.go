@@ -302,8 +302,8 @@ func TestUpModel_Update_ConfirmYes(t *testing.T) {
 		t.Error("operationInProgress should be true after confirmation")
 	}
 
-	if m.state != UpStateRestoringDeployments {
-		t.Errorf("state = %v, want %v", m.state, UpStateRestoringDeployments)
+	if m.state != UpStateUncordoning {
+		t.Errorf("state = %v, want %v", m.state, UpStateUncordoning)
 	}
 
 	if cmd == nil {
@@ -436,12 +436,12 @@ func TestUpModel_startExecution(t *testing.T) {
 		t.Error("startTime should be set")
 	}
 
-	if model.state != UpStateRestoringDeployments {
-		t.Errorf("state = %v, want %v", model.state, UpStateRestoringDeployments)
+	if model.state != UpStateUncordoning {
+		t.Errorf("state = %v, want %v", model.state, UpStateUncordoning)
 	}
 
-	if model.statusList.Count() != 4 {
-		t.Errorf("statusList should have 4 items, got %d", model.statusList.Count())
+	if model.statusList.Count() != 5 {
+		t.Errorf("statusList should have 5 items, got %d", model.statusList.Count())
 	}
 }
 

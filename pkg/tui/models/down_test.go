@@ -377,8 +377,8 @@ func TestDownModel_startExecution(t *testing.T) {
 		t.Errorf("state = %v, want %v", model.state, DownStateCordoning)
 	}
 
-	if model.statusList.Count() != 6 {
-		t.Errorf("statusList should have 6 items, got %d", model.statusList.Count())
+	if model.statusList.Count() != 7 {
+		t.Errorf("statusList should have 7 items, got %d", model.statusList.Count())
 	}
 }
 

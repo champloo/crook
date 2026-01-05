@@ -138,6 +138,11 @@ type DownModel struct {
 
 	// Results for display
 	discoveredDeployments []string
+
+	// Cancellation and progress
+	cancelFunc     context.CancelFunc // Cancel function for ongoing operation
+	progressChan   chan maintenance.DownPhaseProgress
+	progressClosed bool // Track if progress channel is closed
 }
 
 // NewDownModel creates a new down phase model
@@ -182,6 +187,10 @@ type DeploymentsDiscoveredMsg struct {
 	Deployments []string
 }
 
+// DownProgressChannelClosedMsg signals that the progress channel was closed
+// (operation completed or errored)
+type DownProgressChannelClosedMsg struct{}
+
 // Init implements tea.Model
 func (m *DownModel) Init() tea.Cmd {
 	return tea.Batch(
@@ -220,31 +229,83 @@ func (m *DownModel) tickCmd() tea.Cmd {
 	})
 }
 
-// executeDownPhaseCmd runs the actual down phase operation
+// executeDownPhaseCmd runs the actual down phase operation.
+// It sets up a progress channel and returns a batch of commands:
+// one to execute the operation and one to listen for progress.
 func (m *DownModel) executeDownPhaseCmd() tea.Cmd {
+	// Create cancellable context
+	ctx, cancel := context.WithCancel(m.config.Context)
+	m.cancelFunc = cancel
+
+	// Create progress channel (buffered to avoid blocking)
+	m.progressChan = make(chan maintenance.DownPhaseProgress, 10)
+	m.progressClosed = false
+
+	// Return batch of operation + progress listener
+	return tea.Batch(
+		m.runDownPhase(ctx),
+		m.listenForProgress(),
+	)
+}
+
+// runDownPhase executes the maintenance operation in a goroutine
+func (m *DownModel) runDownPhase(ctx context.Context) tea.Cmd {
+	progressChan := m.progressChan
+	stateFilePath := m.config.StateFilePath
+	client := m.config.Client
+	cfg := m.config.Config
+	nodeName := m.config.NodeName
+
 	return func() tea.Msg {
 		opts := maintenance.DownPhaseOptions{
 			ProgressCallback: func(progress maintenance.DownPhaseProgress) {
-				// Progress is tracked via state transitions
+				// Non-blocking send to channel
+				select {
+				case progressChan <- progress:
+				default:
+					// Channel full, skip this update
+				}
 			},
-			StateFilePath: m.config.StateFilePath,
+			StateFilePath: stateFilePath,
 		}
 
 		err := maintenance.ExecuteDownPhase(
-			m.config.Context,
-			m.config.Client,
-			m.config.Config,
-			m.config.NodeName,
+			ctx,
+			client,
+			cfg,
+			nodeName,
 			opts,
 		)
+
+		// Close progress channel when done
+		close(progressChan)
 
 		if err != nil {
 			return DownPhaseErrorMsg{Err: err, Stage: "execute"}
 		}
 
 		// Resolve the state file path for display
-		statePath := resolveDownStatePath(m.config.Config, m.config.StateFilePath, m.config.NodeName)
+		statePath := resolveDownStatePath(cfg, stateFilePath, nodeName)
 		return DownPhaseCompleteMsg{StateFilePath: statePath}
+	}
+}
+
+// listenForProgress creates a command that listens for progress updates
+// and returns them as messages. It reschedules itself until the channel closes.
+func (m *DownModel) listenForProgress() tea.Cmd {
+	progressChan := m.progressChan
+
+	return func() tea.Msg {
+		progress, ok := <-progressChan
+		if !ok {
+			// Channel closed
+			return DownProgressChannelClosedMsg{}
+		}
+		return DownPhaseProgressMsg{
+			Stage:       progress.Stage,
+			Description: progress.Description,
+			Deployment:  progress.Deployment,
+		}
 	}
 }
 
@@ -285,17 +346,27 @@ func (m *DownModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case DownPhaseProgressMsg:
 		m.updateStateFromProgress(msg)
+		// Re-schedule the progress listener if channel is still open
+		if !m.progressClosed {
+			cmds = append(cmds, m.listenForProgress())
+		}
+
+	case DownProgressChannelClosedMsg:
+		m.progressClosed = true
+		// No need to reschedule listener
 
 	case DownPhaseCompleteMsg:
 		m.state = DownStateComplete
 		m.stateFilePath = msg.StateFilePath
 		m.operationInProgress = false
+		m.cancelFunc = nil // Clear cancel func
 		m.progress.Complete()
 
 	case DownPhaseErrorMsg:
 		m.state = DownStateError
 		m.lastError = msg.Err
 		m.operationInProgress = false
+		m.cancelFunc = nil // Clear cancel func
 		m.progress.Error()
 
 	case components.ConfirmResultMsg:
@@ -346,8 +417,12 @@ func (m *DownModel) handleKeyPress(msg tea.KeyMsg) tea.Cmd {
 		return nil
 
 	default:
-		// During operations, only allow cancel
+		// During operations, allow cancel
 		if msg.String() == "ctrl+c" {
+			// Cancel ongoing operation before quitting
+			if m.cancelFunc != nil {
+				m.cancelFunc()
+			}
 			return tea.Quit
 		}
 	}
@@ -367,6 +442,7 @@ func (m *DownModel) startExecution() {
 // initStatusList creates the status list for tracking progress
 func (m *DownModel) initStatusList() {
 	m.statusList = components.NewStatusList()
+	m.statusList.AddStatus("Pre-flight checks", components.StatusTypePending)
 	m.statusList.AddStatus("Cordon node", components.StatusTypePending)
 	m.statusList.AddStatus("Set noout flag", components.StatusTypePending)
 	m.statusList.AddStatus("Scale operator", components.StatusTypePending)
@@ -378,32 +454,35 @@ func (m *DownModel) initStatusList() {
 // updateStateFromProgress updates the model state based on progress messages
 func (m *DownModel) updateStateFromProgress(msg DownPhaseProgressMsg) {
 	switch msg.Stage {
+	case "pre-flight":
+		m.updateStatusItem(0, components.StatusTypeRunning)
 	case "cordon":
 		m.state = DownStateCordoning
-		m.updateStatusItem(0, components.StatusTypeRunning)
-	case "noout":
-		m.state = DownStateSettingNoOut
 		m.updateStatusItem(0, components.StatusTypeSuccess)
 		m.updateStatusItem(1, components.StatusTypeRunning)
-	case "operator":
-		m.state = DownStateScalingOperator
+	case "noout":
+		m.state = DownStateSettingNoOut
 		m.updateStatusItem(1, components.StatusTypeSuccess)
 		m.updateStatusItem(2, components.StatusTypeRunning)
-	case "discover":
-		m.state = DownStateDiscoveringDeployments
+	case "operator":
+		m.state = DownStateScalingOperator
 		m.updateStatusItem(2, components.StatusTypeSuccess)
 		m.updateStatusItem(3, components.StatusTypeRunning)
-	case "scale-down":
-		m.state = DownStateScalingDeployments
+	case "discover":
+		m.state = DownStateDiscoveringDeployments
 		m.updateStatusItem(3, components.StatusTypeSuccess)
 		m.updateStatusItem(4, components.StatusTypeRunning)
+	case "scale-down":
+		m.state = DownStateScalingDeployments
+		m.updateStatusItem(4, components.StatusTypeSuccess)
+		m.updateStatusItem(5, components.StatusTypeRunning)
 		m.currentDeployment = msg.Deployment
 		m.deploymentsScaled++
 	case "save-state":
-		m.updateStatusItem(4, components.StatusTypeSuccess)
-		m.updateStatusItem(5, components.StatusTypeRunning)
-	case "complete":
 		m.updateStatusItem(5, components.StatusTypeSuccess)
+		m.updateStatusItem(6, components.StatusTypeRunning)
+	case "complete":
+		m.updateStatusItem(6, components.StatusTypeSuccess)
 	}
 }
 

@@ -150,6 +150,11 @@ type UpModel struct {
 	elapsedTime         time.Duration
 	lastError           error
 	operationInProgress bool
+
+	// Cancellation and progress
+	cancelFunc     context.CancelFunc // Cancel function for ongoing operation
+	progressChan   chan maintenance.UpPhaseProgress
+	progressClosed bool // Track if progress channel is closed
 }
 
 // NewUpModel creates a new up phase model
@@ -197,6 +202,10 @@ type StateLoadedMsg struct {
 	RestorePlan   []RestorePlanItem
 	MissingDeploy []string
 }
+
+// UpProgressChannelClosedMsg signals that the progress channel was closed
+// (operation completed or errored)
+type UpProgressChannelClosedMsg struct{}
 
 // Init implements tea.Model
 func (m *UpModel) Init() tea.Cmd {
@@ -273,30 +282,84 @@ func (m *UpModel) tickCmd() tea.Cmd {
 	})
 }
 
-// executeUpPhaseCmd runs the actual up phase operation
+// executeUpPhaseCmd runs the actual up phase operation.
+// It sets up a progress channel and returns a batch of commands:
+// one to execute the operation and one to listen for progress.
 func (m *UpModel) executeUpPhaseCmd() tea.Cmd {
+	// Create cancellable context
+	ctx, cancel := context.WithCancel(m.config.Context)
+	m.cancelFunc = cancel
+
+	// Create progress channel (buffered to avoid blocking)
+	m.progressChan = make(chan maintenance.UpPhaseProgress, 10)
+	m.progressClosed = false
+
+	// Return batch of operation + progress listener
+	return tea.Batch(
+		m.runUpPhase(ctx),
+		m.listenForProgress(),
+	)
+}
+
+// runUpPhase executes the maintenance operation in a goroutine
+func (m *UpModel) runUpPhase(ctx context.Context) tea.Cmd {
+	progressChan := m.progressChan
+	stateFilePath := m.config.StateFilePath
+	client := m.config.Client
+	cfg := m.config.Config
+	nodeName := m.config.NodeName
+	missingDeploys := m.missingDeploys
+	modelStatePath := m.stateFilePath
+
 	return func() tea.Msg {
 		opts := maintenance.UpPhaseOptions{
 			ProgressCallback: func(progress maintenance.UpPhaseProgress) {
-				// Progress is tracked via state transitions
+				// Non-blocking send to channel
+				select {
+				case progressChan <- progress:
+				default:
+					// Channel full, skip this update
+				}
 			},
-			StateFilePath:          m.config.StateFilePath,
-			SkipMissingDeployments: len(m.missingDeploys) > 0, // Skip if user confirmed with missing
+			StateFilePath:          stateFilePath,
+			SkipMissingDeployments: len(missingDeploys) > 0, // Skip if user confirmed with missing
 		}
 
 		err := maintenance.ExecuteUpPhase(
-			m.config.Context,
-			m.config.Client,
-			m.config.Config,
-			m.config.NodeName,
+			ctx,
+			client,
+			cfg,
+			nodeName,
 			opts,
 		)
+
+		// Close progress channel when done
+		close(progressChan)
 
 		if err != nil {
 			return UpPhaseErrorMsg{Err: err, Stage: "execute"}
 		}
 
-		return UpPhaseCompleteMsg{StateFilePath: m.stateFilePath}
+		return UpPhaseCompleteMsg{StateFilePath: modelStatePath}
+	}
+}
+
+// listenForProgress creates a command that listens for progress updates
+// and returns them as messages. It reschedules itself until the channel closes.
+func (m *UpModel) listenForProgress() tea.Cmd {
+	progressChan := m.progressChan
+
+	return func() tea.Msg {
+		progress, ok := <-progressChan
+		if !ok {
+			// Channel closed
+			return UpProgressChannelClosedMsg{}
+		}
+		return UpPhaseProgressMsg{
+			Stage:       progress.Stage,
+			Description: progress.Description,
+			Deployment:  progress.Deployment,
+		}
 	}
 }
 
@@ -346,16 +409,26 @@ func (m *UpModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case UpPhaseProgressMsg:
 		m.updateStateFromProgress(msg)
+		// Re-schedule the progress listener if channel is still open
+		if !m.progressClosed {
+			cmds = append(cmds, m.listenForProgress())
+		}
+
+	case UpProgressChannelClosedMsg:
+		m.progressClosed = true
+		// No need to reschedule listener
 
 	case UpPhaseCompleteMsg:
 		m.state = UpStateComplete
 		m.operationInProgress = false
+		m.cancelFunc = nil // Clear cancel func
 		m.progress.Complete()
 
 	case UpPhaseErrorMsg:
 		m.state = UpStateError
 		m.lastError = msg.Err
 		m.operationInProgress = false
+		m.cancelFunc = nil // Clear cancel func
 		m.progress.Error()
 
 	case components.ConfirmResultMsg:
@@ -406,8 +479,12 @@ func (m *UpModel) handleKeyPress(msg tea.KeyMsg) tea.Cmd {
 		return nil
 
 	default:
-		// During operations, only allow cancel
+		// During operations, allow cancel
 		if msg.String() == "ctrl+c" {
+			// Cancel ongoing operation before quitting
+			if m.cancelFunc != nil {
+				m.cancelFunc()
+			}
 			return tea.Quit
 		}
 	}
@@ -419,7 +496,7 @@ func (m *UpModel) handleKeyPress(msg tea.KeyMsg) tea.Cmd {
 func (m *UpModel) startExecution() {
 	m.operationInProgress = true
 	m.startTime = time.Now()
-	m.state = UpStateRestoringDeployments
+	m.state = UpStateUncordoning // First real stage is uncordon
 	m.progress = components.NewIndeterminateProgress("Processing...")
 	m.initStatusList()
 }
@@ -427,6 +504,7 @@ func (m *UpModel) startExecution() {
 // initStatusList creates the status list for tracking progress
 func (m *UpModel) initStatusList() {
 	m.statusList = components.NewStatusList()
+	m.statusList.AddStatus("Pre-flight checks", components.StatusTypePending)
 	m.statusList.AddStatus("Uncordon node", components.StatusTypePending)
 	m.statusList.AddStatus("Restore deployments", components.StatusTypePending)
 	m.statusList.AddStatus("Scale operator", components.StatusTypePending)
@@ -436,23 +514,29 @@ func (m *UpModel) initStatusList() {
 // updateStateFromProgress updates the model state based on progress messages
 func (m *UpModel) updateStateFromProgress(msg UpPhaseProgressMsg) {
 	switch msg.Stage {
+	case "pre-flight":
+		m.updateStatusItem(0, components.StatusTypeRunning)
+	case "load-state", "validate-deployments":
+		// These happen before uncordon but after pre-flight
+		m.updateStatusItem(0, components.StatusTypeSuccess)
 	case "uncordon":
 		m.state = UpStateUncordoning
-		m.updateStatusItem(0, components.StatusTypeRunning)
-	case "scale-up":
-		m.state = UpStateRestoringDeployments
 		m.updateStatusItem(0, components.StatusTypeSuccess)
 		m.updateStatusItem(1, components.StatusTypeRunning)
-	case "operator":
-		m.state = UpStateScalingOperator
+	case "scale-up":
+		m.state = UpStateRestoringDeployments
 		m.updateStatusItem(1, components.StatusTypeSuccess)
 		m.updateStatusItem(2, components.StatusTypeRunning)
-	case "unset-noout":
-		m.state = UpStateUnsettingNoOut
+	case "operator":
+		m.state = UpStateScalingOperator
 		m.updateStatusItem(2, components.StatusTypeSuccess)
 		m.updateStatusItem(3, components.StatusTypeRunning)
-	case "complete":
+	case "unset-noout":
+		m.state = UpStateUnsettingNoOut
 		m.updateStatusItem(3, components.StatusTypeSuccess)
+		m.updateStatusItem(4, components.StatusTypeRunning)
+	case "complete":
+		m.updateStatusItem(4, components.StatusTypeSuccess)
 	}
 }
 
