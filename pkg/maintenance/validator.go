@@ -154,20 +154,22 @@ func validateRBACPermissions(ctx context.Context, client *k8s.Client, cfg config
 	results := make([]ValidationResult, 0)
 
 	// Required permissions for down phase
-	permissions := []struct {
-		resource string
-		verb     string
-		check    string
-	}{
-		{"nodes", "patch", "RBAC: cordon nodes"},
-		{"deployments", "get", "RBAC: get deployments"},
-		{"deployments", "update", "RBAC: scale deployments"},
-		{"pods", "list", "RBAC: list pods"},
-		{"pods/exec", "create", "RBAC: exec in pods"},
+	// Each permission defines: group, resource, subresource, verb, namespace (empty for cluster-scoped), check name
+	permissions := []permissionSpec{
+		// Cluster-scoped: nodes (patch for cordon/uncordon)
+		{group: "", resource: "nodes", subresource: "", verb: "patch", namespace: "", check: "RBAC: cordon nodes"},
+		// Namespaced: deployments (apps group)
+		{group: "apps", resource: "deployments", subresource: "", verb: "get", namespace: cfg.Kubernetes.RookClusterNamespace, check: "RBAC: get deployments"},
+		{group: "apps", resource: "deployments", subresource: "", verb: "update", namespace: cfg.Kubernetes.RookClusterNamespace, check: "RBAC: scale deployments"},
+		{group: "apps", resource: "deployments", subresource: "scale", verb: "update", namespace: cfg.Kubernetes.RookOperatorNamespace, check: "RBAC: scale operator"},
+		{group: "apps", resource: "replicasets", subresource: "", verb: "get", namespace: cfg.Kubernetes.RookClusterNamespace, check: "RBAC: get replicasets"},
+		// Namespaced: pods (core group)
+		{group: "", resource: "pods", subresource: "", verb: "list", namespace: cfg.Kubernetes.RookClusterNamespace, check: "RBAC: list pods"},
+		{group: "", resource: "pods", subresource: "exec", verb: "create", namespace: cfg.Kubernetes.RookClusterNamespace, check: "RBAC: exec in pods"},
 	}
 
 	for _, perm := range permissions {
-		allowed, err := checkPermission(ctx, client, perm.resource, perm.verb, cfg.Kubernetes.RookClusterNamespace)
+		allowed, err := checkPermission(ctx, client, perm)
 		if err != nil {
 			// Best-effort check - don't fail on errors
 			results = append(results, ValidationResult{
@@ -196,14 +198,26 @@ func validateRBACPermissions(ctx context.Context, client *k8s.Client, cfg config
 	return results
 }
 
+// permissionSpec defines a single RBAC permission to check
+type permissionSpec struct {
+	group       string // API group (empty for core, "apps" for deployments)
+	resource    string // Resource name (e.g., "pods", "deployments")
+	subresource string // Subresource (e.g., "exec", "scale") or empty
+	verb        string // Verb (e.g., "get", "create", "patch")
+	namespace   string // Namespace or empty for cluster-scoped resources
+	check       string // Human-readable check name for display
+}
+
 // checkPermission uses SelfSubjectAccessReview to check if current user has permission
-func checkPermission(ctx context.Context, client *k8s.Client, resource, verb, namespace string) (bool, error) {
+func checkPermission(ctx context.Context, client *k8s.Client, perm permissionSpec) (bool, error) {
 	sar := &authv1.SelfSubjectAccessReview{
 		Spec: authv1.SelfSubjectAccessReviewSpec{
 			ResourceAttributes: &authv1.ResourceAttributes{
-				Namespace: namespace,
-				Verb:      verb,
-				Resource:  resource,
+				Group:       perm.group,
+				Resource:    perm.resource,
+				Subresource: perm.subresource,
+				Verb:        perm.verb,
+				Namespace:   perm.namespace, // Empty for cluster-scoped
 			},
 		},
 	}

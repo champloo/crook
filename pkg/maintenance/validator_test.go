@@ -255,7 +255,14 @@ func TestCheckPermission_Allowed(t *testing.T) {
 		}, nil
 	})
 
-	allowed, err := checkPermission(ctx, client, "nodes", "patch", "default")
+	perm := permissionSpec{
+		group:     "",
+		resource:  "nodes",
+		verb:      "patch",
+		namespace: "",
+		check:     "test",
+	}
+	allowed, err := checkPermission(ctx, client, perm)
 	if err != nil {
 		t.Fatalf("checkPermission failed: %v", err)
 	}
@@ -277,13 +284,165 @@ func TestCheckPermission_Denied(t *testing.T) {
 		}, nil
 	})
 
-	allowed, err := checkPermission(ctx, client, "nodes", "patch", "default")
+	perm := permissionSpec{
+		group:     "",
+		resource:  "nodes",
+		verb:      "patch",
+		namespace: "",
+		check:     "test",
+	}
+	allowed, err := checkPermission(ctx, client, perm)
 	if err != nil {
 		t.Fatalf("checkPermission failed: %v", err)
 	}
 
 	if allowed {
 		t.Error("Expected permission to be denied")
+	}
+}
+
+func TestCheckPermission_WithGroupAndSubresource(t *testing.T) {
+	ctx := context.Background()
+
+	client := createTestClient()
+
+	var capturedSAR *authv1.SelfSubjectAccessReview
+	client.Clientset.(*fake.Clientset).PrependReactor("create", "selfsubjectaccessreviews", func(action ktest.Action) (bool, runtime.Object, error) { //nolint:errcheck // test helper
+		createAction, ok := action.(ktest.CreateAction)
+		if ok {
+			capturedSAR, _ = createAction.GetObject().(*authv1.SelfSubjectAccessReview)
+		}
+		return true, &authv1.SelfSubjectAccessReview{
+			Status: authv1.SubjectAccessReviewStatus{
+				Allowed: true,
+			},
+		}, nil
+	})
+
+	perm := permissionSpec{
+		group:       "apps",
+		resource:    "deployments",
+		subresource: "scale",
+		verb:        "update",
+		namespace:   "rook-ceph",
+		check:       "test",
+	}
+	_, err := checkPermission(ctx, client, perm)
+	if err != nil {
+		t.Fatalf("checkPermission failed: %v", err)
+	}
+
+	// Verify the SAR was constructed correctly
+	if capturedSAR == nil {
+		t.Fatal("SAR was not captured")
+	}
+
+	attrs := capturedSAR.Spec.ResourceAttributes
+	if attrs.Group != "apps" {
+		t.Errorf("Expected group 'apps', got '%s'", attrs.Group)
+	}
+	if attrs.Resource != "deployments" {
+		t.Errorf("Expected resource 'deployments', got '%s'", attrs.Resource)
+	}
+	if attrs.Subresource != "scale" {
+		t.Errorf("Expected subresource 'scale', got '%s'", attrs.Subresource)
+	}
+	if attrs.Verb != "update" {
+		t.Errorf("Expected verb 'update', got '%s'", attrs.Verb)
+	}
+	if attrs.Namespace != "rook-ceph" {
+		t.Errorf("Expected namespace 'rook-ceph', got '%s'", attrs.Namespace)
+	}
+}
+
+func TestCheckPermission_ClusterScoped(t *testing.T) {
+	ctx := context.Background()
+
+	client := createTestClient()
+
+	var capturedSAR *authv1.SelfSubjectAccessReview
+	client.Clientset.(*fake.Clientset).PrependReactor("create", "selfsubjectaccessreviews", func(action ktest.Action) (bool, runtime.Object, error) { //nolint:errcheck // test helper
+		createAction, ok := action.(ktest.CreateAction)
+		if ok {
+			capturedSAR, _ = createAction.GetObject().(*authv1.SelfSubjectAccessReview)
+		}
+		return true, &authv1.SelfSubjectAccessReview{
+			Status: authv1.SubjectAccessReviewStatus{
+				Allowed: true,
+			},
+		}, nil
+	})
+
+	// Nodes are cluster-scoped - namespace should be empty
+	perm := permissionSpec{
+		group:     "",
+		resource:  "nodes",
+		verb:      "patch",
+		namespace: "", // Empty for cluster-scoped
+		check:     "test",
+	}
+	_, err := checkPermission(ctx, client, perm)
+	if err != nil {
+		t.Fatalf("checkPermission failed: %v", err)
+	}
+
+	// Verify the SAR was constructed correctly
+	if capturedSAR == nil {
+		t.Fatal("SAR was not captured")
+	}
+
+	attrs := capturedSAR.Spec.ResourceAttributes
+	if attrs.Namespace != "" {
+		t.Errorf("Expected empty namespace for cluster-scoped resource, got '%s'", attrs.Namespace)
+	}
+	if attrs.Resource != "nodes" {
+		t.Errorf("Expected resource 'nodes', got '%s'", attrs.Resource)
+	}
+}
+
+func TestCheckPermission_PodExecSubresource(t *testing.T) {
+	ctx := context.Background()
+
+	client := createTestClient()
+
+	var capturedSAR *authv1.SelfSubjectAccessReview
+	client.Clientset.(*fake.Clientset).PrependReactor("create", "selfsubjectaccessreviews", func(action ktest.Action) (bool, runtime.Object, error) { //nolint:errcheck // test helper
+		createAction, ok := action.(ktest.CreateAction)
+		if ok {
+			capturedSAR, _ = createAction.GetObject().(*authv1.SelfSubjectAccessReview)
+		}
+		return true, &authv1.SelfSubjectAccessReview{
+			Status: authv1.SubjectAccessReviewStatus{
+				Allowed: true,
+			},
+		}, nil
+	})
+
+	// pods/exec should be resource=pods, subresource=exec
+	perm := permissionSpec{
+		group:       "",
+		resource:    "pods",
+		subresource: "exec",
+		verb:        "create",
+		namespace:   "rook-ceph",
+		check:       "test",
+	}
+	_, err := checkPermission(ctx, client, perm)
+	if err != nil {
+		t.Fatalf("checkPermission failed: %v", err)
+	}
+
+	// Verify the SAR was constructed correctly
+	if capturedSAR == nil {
+		t.Fatal("SAR was not captured")
+	}
+
+	attrs := capturedSAR.Spec.ResourceAttributes
+	if attrs.Resource != "pods" {
+		t.Errorf("Expected resource 'pods', got '%s'", attrs.Resource)
+	}
+	if attrs.Subresource != "exec" {
+		t.Errorf("Expected subresource 'exec', got '%s'", attrs.Subresource)
 	}
 }
 
