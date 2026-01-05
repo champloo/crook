@@ -93,6 +93,14 @@ func NewDashboardModel(cfg DashboardModelConfig) *DashboardModel {
 
 // Messages for dashboard state updates
 
+// DashboardMonitorStartedMsg carries the started monitor from the init command.
+// This message is returned by startMonitorCmd() and processed in Update()
+// to avoid mutating model state inside tea.Cmd closures.
+type DashboardMonitorStartedMsg struct {
+	Monitor *monitoring.Monitor
+	Initial *monitoring.MonitorUpdate
+}
+
 // DashboardMonitorUpdateMsg delivers a monitoring update
 type DashboardMonitorUpdateMsg struct {
 	Update *monitoring.MonitorUpdate
@@ -117,7 +125,10 @@ func (m *DashboardModel) Init() tea.Cmd {
 	)
 }
 
-// startMonitorCmd initializes and starts the background monitor
+// startMonitorCmd initializes and starts the background monitor.
+// Returns a DashboardMonitorStartedMsg which is handled in Update() to
+// assign the monitor - following Bubble Tea's rule that cmds return messages
+// and only Update() mutates model state.
 func (m *DashboardModel) startMonitorCmd() tea.Cmd {
 	return func() tea.Msg {
 		// Build monitor config
@@ -129,12 +140,15 @@ func (m *DashboardModel) startMonitorCmd() tea.Cmd {
 		)
 
 		// Create and start monitor
-		m.monitor = monitoring.NewMonitor(monitorCfg)
-		m.monitor.Start()
+		monitor := monitoring.NewMonitor(monitorCfg)
+		monitor.Start()
 
 		// Get initial state
-		latest := m.monitor.GetLatest()
-		return DashboardMonitorUpdateMsg{Update: latest}
+		latest := monitor.GetLatest()
+		return DashboardMonitorStartedMsg{
+			Monitor: monitor,
+			Initial: latest,
+		}
 	}
 }
 
@@ -172,6 +186,15 @@ func (m *DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		cmds = append(cmds, m.tickCmd())
+
+	case DashboardMonitorStartedMsg:
+		// Assign the monitor from the initialization message
+		// This is where model state mutation happens, safely in Update()
+		m.monitor = msg.Monitor
+		m.latestUpdate = msg.Initial
+		if m.state == DashboardStateLoading && msg.Initial != nil {
+			m.state = DashboardStateReady
+		}
 
 	case DashboardMonitorUpdateMsg:
 		m.latestUpdate = msg.Update

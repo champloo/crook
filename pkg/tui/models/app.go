@@ -107,8 +107,15 @@ func NewAppModel(cfg AppConfig) *AppModel {
 
 // Messages for internal communication
 
-// InitCompleteMsg signals that initialization is complete
-type InitCompleteMsg struct{}
+// SubModelsInitializedMsg carries initialized sub-models from the init command.
+// This message is returned by initializeSubModels() and processed in Update()
+// to avoid mutating model state inside tea.Cmd closures.
+type SubModelsInitializedMsg struct {
+	DashboardModel SubModel
+	DownModel      SubModel
+	UpModel        SubModel
+	Route          Route
+}
 
 // InitErrorMsg signals an initialization error
 type InitErrorMsg struct {
@@ -138,14 +145,19 @@ func (m *AppModel) Init() tea.Cmd {
 	)
 }
 
-// initializeSubModels creates the sub-models based on the current route
+// initializeSubModels creates the sub-models based on the current route.
+// This function returns a message carrying the created models, which are then
+// assigned to the AppModel fields in Update() - following Bubble Tea's rule
+// that cmds return messages and only Update() mutates model state.
 func (m *AppModel) initializeSubModels() tea.Msg {
+	msg := SubModelsInitializedMsg{Route: m.route}
+
 	switch m.route {
 	case RouteDashboard:
 		// Dashboard is not yet implemented
-		m.dashboardModel = newPlaceholderModel("Dashboard", "Cluster health dashboard coming soon...")
+		msg.DashboardModel = newPlaceholderModel("Dashboard", "Cluster health dashboard coming soon...")
 	case RouteDown:
-		m.downModel = NewDownModel(DownModelConfig{
+		msg.DownModel = NewDownModel(DownModelConfig{
 			NodeName:      m.config.NodeName,
 			StateFilePath: m.config.StateFilePath,
 			Config:        m.config.Config,
@@ -153,7 +165,7 @@ func (m *AppModel) initializeSubModels() tea.Msg {
 			Context:       m.config.Context,
 		})
 	case RouteUp:
-		m.upModel = NewUpModel(UpModelConfig{
+		msg.UpModel = NewUpModel(UpModelConfig{
 			NodeName:      m.config.NodeName,
 			StateFilePath: m.config.StateFilePath,
 			Config:        m.config.Config,
@@ -162,8 +174,7 @@ func (m *AppModel) initializeSubModels() tea.Msg {
 		})
 	}
 
-	m.initialized = true
-	return InitCompleteMsg{}
+	return msg
 }
 
 // Update implements tea.Model
@@ -183,8 +194,20 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.sizeWarning = terminal.SizeWarning(msg.Width, msg.Height)
 		m.propagateSizeToSubModels()
 
-	case InitCompleteMsg:
-		// Initialization complete, propagate size if we have it
+	case SubModelsInitializedMsg:
+		// Assign sub-models from the initialization message
+		// This is where model state mutation happens, safely in Update()
+		switch msg.Route {
+		case RouteDashboard:
+			m.dashboardModel = msg.DashboardModel
+		case RouteDown:
+			m.downModel = msg.DownModel
+		case RouteUp:
+			m.upModel = msg.UpModel
+		}
+		m.initialized = true
+
+		// Propagate size if we have it
 		if m.width > 0 && m.height > 0 {
 			m.propagateSizeToSubModels()
 		}

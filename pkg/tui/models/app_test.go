@@ -398,6 +398,96 @@ func TestAppModel_IsInitialized(t *testing.T) {
 	}
 }
 
+func TestAppModel_Update_SubModelsInitializedMsg(t *testing.T) {
+	model := NewAppModel(AppConfig{
+		Route:   RouteDown,
+		Context: context.Background(),
+	})
+	model.width = 80
+	model.height = 24
+
+	// Create a down model placeholder
+	downModel := newPlaceholderModel("Down", "")
+
+	// Simulate SubModelsInitializedMsg
+	msg := SubModelsInitializedMsg{
+		DownModel: downModel,
+		Route:     RouteDown,
+	}
+	updatedModel, cmd := model.Update(msg)
+	m, ok := updatedModel.(*AppModel)
+	if !ok {
+		t.Fatal("expected *AppModel type")
+	}
+
+	if !m.initialized {
+		t.Error("initialized should be true after SubModelsInitializedMsg")
+	}
+
+	if m.downModel != downModel {
+		t.Error("downModel should be set from message")
+	}
+
+	// Should return a command to call Init on the submodel
+	// But since placeholder.Init() returns nil, cmd might be nil
+	// or it could be a batch
+	_ = cmd // Test doesn't require cmd check here
+}
+
+func TestAppModel_Update_SubModelsInitializedMsg_Dashboard(t *testing.T) {
+	model := NewAppModel(AppConfig{
+		Route:   RouteDashboard,
+		Context: context.Background(),
+	})
+
+	dashModel := newPlaceholderModel("Dashboard", "")
+
+	msg := SubModelsInitializedMsg{
+		DashboardModel: dashModel,
+		Route:          RouteDashboard,
+	}
+	updatedModel, _ := model.Update(msg)
+	m, ok := updatedModel.(*AppModel)
+	if !ok {
+		t.Fatal("expected *AppModel type")
+	}
+
+	if !m.initialized {
+		t.Error("initialized should be true")
+	}
+
+	if m.dashboardModel != dashModel {
+		t.Error("dashboardModel should be set from message")
+	}
+}
+
+func TestAppModel_Update_SubModelsInitializedMsg_Up(t *testing.T) {
+	model := NewAppModel(AppConfig{
+		Route:   RouteUp,
+		Context: context.Background(),
+	})
+
+	upModel := newPlaceholderModel("Up", "")
+
+	msg := SubModelsInitializedMsg{
+		UpModel: upModel,
+		Route:   RouteUp,
+	}
+	updatedModel, _ := model.Update(msg)
+	m, ok := updatedModel.(*AppModel)
+	if !ok {
+		t.Fatal("expected *AppModel type")
+	}
+
+	if !m.initialized {
+		t.Error("initialized should be true")
+	}
+
+	if m.upModel != upModel {
+		t.Error("upModel should be set from message")
+	}
+}
+
 func TestPlaceholderModel(t *testing.T) {
 	p := newPlaceholderModel("Test Title", "Test description")
 

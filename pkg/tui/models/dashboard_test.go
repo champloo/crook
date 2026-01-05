@@ -545,6 +545,67 @@ func TestDashboardModel_renderCephHealth_Variations(t *testing.T) {
 	}
 }
 
+func TestDashboardModel_Update_MonitorStartedMsg(t *testing.T) {
+	model := NewDashboardModel(DashboardModelConfig{
+		NodeName: "test-node",
+		Context:  context.Background(),
+	})
+
+	initial := &monitoring.MonitorUpdate{
+		NodeStatus: &monitoring.NodeStatus{
+			Name:  "test-node",
+			Ready: true,
+		},
+		HealthSummary: &monitoring.HealthSummary{
+			Status: monitoring.HealthStatusHealthy,
+		},
+		UpdateTime: time.Now(),
+	}
+
+	// We can't easily create a real monitor here, so test with nil monitor
+	// but with initial update
+	msg := DashboardMonitorStartedMsg{
+		Monitor: nil, // Would be a real monitor in production
+		Initial: initial,
+	}
+	updatedModel, _ := model.Update(msg)
+	m, ok := updatedModel.(*DashboardModel)
+	if !ok {
+		t.Fatal("expected *DashboardModel type")
+	}
+
+	if m.latestUpdate != initial {
+		t.Error("latestUpdate should be set from DashboardMonitorStartedMsg")
+	}
+
+	if m.state != DashboardStateReady {
+		t.Errorf("state = %v, want %v", m.state, DashboardStateReady)
+	}
+}
+
+func TestDashboardModel_Update_MonitorStartedMsg_NilInitial(t *testing.T) {
+	model := NewDashboardModel(DashboardModelConfig{
+		NodeName: "test-node",
+		Context:  context.Background(),
+	})
+
+	// Monitor started but no initial data yet
+	msg := DashboardMonitorStartedMsg{
+		Monitor: nil,
+		Initial: nil,
+	}
+	updatedModel, _ := model.Update(msg)
+	m, ok := updatedModel.(*DashboardModel)
+	if !ok {
+		t.Fatal("expected *DashboardModel type")
+	}
+
+	// Should still be loading since no initial data
+	if m.state != DashboardStateLoading {
+		t.Errorf("state = %v, want %v (should stay loading with nil initial)", m.state, DashboardStateLoading)
+	}
+}
+
 func TestDashboardModel_stopMonitor(t *testing.T) {
 	model := NewDashboardModel(DashboardModelConfig{
 		NodeName: "test-node",
