@@ -125,8 +125,6 @@ The system SHALL provide CLI flags for common configuration options.
   - `--state-file <path>` - Explicit state file path
 - **WHEN** user runs `crook ls` command
 - **THEN** system accepts:
-  - `--watch` or `-w` - Continuous refresh mode (like `watch` command)
-  - `--refresh <seconds>` - Refresh interval for watch mode (default: 2)
   - `--output <format>` or `-o` - Output format: tui (default), table, json, yaml
   - `--all-namespaces` or `-A` - Show resources across all namespaces (not just configured ones)
   - `--show <types>` - Comma-separated list of resource types to show: nodes,deployments,osds,pods (default: all)

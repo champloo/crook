@@ -7,7 +7,6 @@ import (
 	"os"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/andri/crook/pkg/config"
 	"github.com/andri/crook/pkg/k8s"
@@ -19,12 +18,6 @@ import (
 
 // LsOptions holds options specific to the ls command
 type LsOptions struct {
-	// Watch enables continuous refresh mode
-	Watch bool
-
-	// RefreshInterval is the refresh interval in seconds (for watch mode)
-	RefreshInterval int
-
 	// Output specifies the output format: tui, table, json, yaml
 	Output string
 
@@ -64,9 +57,6 @@ select alternative output formats for scripting or CI/CD integration.`,
   # Filter by node name
   crook ls worker-1
 
-  # Watch mode with 5 second refresh
-  crook ls --watch --refresh 5
-
   # Table output for scripting
   crook ls --output table
 
@@ -93,10 +83,6 @@ select alternative output formats for scripting or CI/CD integration.`,
 
 	// Add ls-specific flags
 	flags := cmd.Flags()
-	flags.BoolVarP(&opts.Watch, "watch", "w", false,
-		"enable continuous refresh mode")
-	flags.IntVar(&opts.RefreshInterval, "refresh", 2,
-		"refresh interval in seconds (requires --watch)")
 	flags.StringVarP(&opts.Output, "output", "o", "tui",
 		"output format: tui, table, json, yaml")
 	flags.BoolVarP(&opts.AllNamespaces, "all-namespaces", "A", false,
@@ -109,11 +95,6 @@ select alternative output formats for scripting or CI/CD integration.`,
 
 // validateLsOptions validates the ls command options
 func validateLsOptions(opts *LsOptions) error {
-	// Validate --refresh
-	if opts.RefreshInterval < 1 {
-		return fmt.Errorf("--refresh must be at least 1 second, got %d", opts.RefreshInterval)
-	}
-
 	// Validate --output
 	if !slices.Contains(validOutputFormats, opts.Output) {
 		return fmt.Errorf("--output must be one of: %s, got %q",
@@ -207,41 +188,13 @@ func runLsNonTUI(ctx context.Context, opts *LsOptions, cfg config.Config, client
 	// Parse resource types to display
 	resourceTypes := output.ParseResourceTypes(opts.Show)
 
-	// Create fetch function
-	fetchFunc := func(fetchCtx context.Context) (*output.Data, error) {
-		return output.FetchData(fetchCtx, output.FetchOptions{
-			Client:        client,
-			Config:        cfg,
-			ResourceTypes: resourceTypes,
-			NodeFilter:    opts.NodeFilter,
-		})
-	}
-
-	// Handle watch mode
-	if opts.Watch {
-		// Build command string for header
-		command := "crook ls"
-		if opts.NodeFilter != "" {
-			command += " " + opts.NodeFilter
-		}
-		if opts.Output != "tui" {
-			command += " -o " + opts.Output
-		}
-		if opts.Show != "" {
-			command += " --show " + opts.Show
-		}
-
-		return output.RunWatch(ctx, output.WatchOptions{
-			Interval:  time.Duration(opts.RefreshInterval) * time.Second,
-			Format:    format,
-			FetchFunc: fetchFunc,
-			Writer:    os.Stdout,
-			Command:   command,
-		})
-	}
-
-	// Single fetch and render
-	data, fetchErr := fetchFunc(ctx)
+	// Fetch and render
+	data, fetchErr := output.FetchData(ctx, output.FetchOptions{
+		Client:        client,
+		Config:        cfg,
+		ResourceTypes: resourceTypes,
+		NodeFilter:    opts.NodeFilter,
+	})
 	if fetchErr != nil {
 		return fmt.Errorf("failed to fetch data: %w", fetchErr)
 	}

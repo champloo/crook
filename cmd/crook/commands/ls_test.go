@@ -48,7 +48,7 @@ func TestLsCmdHasRequiredFlags(t *testing.T) {
 		}
 	}
 
-	expectedFlags := []string{"watch", "refresh", "output", "all-namespaces", "show"}
+	expectedFlags := []string{"output", "all-namespaces", "show"}
 
 	for _, flagName := range expectedFlags {
 		found := false
@@ -70,14 +70,6 @@ func TestLsCmdShorthandFlags(t *testing.T) {
 	// Find the ls subcommand
 	for _, subCmd := range cmd.Commands() {
 		if strings.HasPrefix(subCmd.Use, "ls") {
-			// Test -w shorthand for --watch
-			watchFlag := subCmd.Flags().ShorthandLookup("w")
-			if watchFlag == nil {
-				t.Error("expected -w shorthand for --watch flag")
-			} else if watchFlag.Name != "watch" {
-				t.Errorf("expected -w to be shorthand for 'watch', got %s", watchFlag.Name)
-			}
-
 			// Test -o shorthand for --output
 			outputFlag := subCmd.Flags().ShorthandLookup("o")
 			if outputFlag == nil {
@@ -107,15 +99,6 @@ func TestLsCmdDefaultValues(t *testing.T) {
 	// Find the ls subcommand
 	for _, subCmd := range cmd.Commands() {
 		if strings.HasPrefix(subCmd.Use, "ls") {
-			// Test --refresh default (2 seconds)
-			refreshFlag := subCmd.Flags().Lookup("refresh")
-			if refreshFlag == nil {
-				t.Fatal("expected refresh flag to exist")
-			}
-			if refreshFlag.DefValue != "2" {
-				t.Errorf("expected default refresh to be 2, got %s", refreshFlag.DefValue)
-			}
-
 			// Test --output default (tui)
 			outputFlag := subCmd.Flags().Lookup("output")
 			if outputFlag == nil {
@@ -125,13 +108,13 @@ func TestLsCmdDefaultValues(t *testing.T) {
 				t.Errorf("expected default output to be 'tui', got %s", outputFlag.DefValue)
 			}
 
-			// Test --watch default (false)
-			watchFlag := subCmd.Flags().Lookup("watch")
-			if watchFlag == nil {
-				t.Fatal("expected watch flag to exist")
+			// Test --all-namespaces default (false)
+			allNsFlag := subCmd.Flags().Lookup("all-namespaces")
+			if allNsFlag == nil {
+				t.Fatal("expected all-namespaces flag to exist")
 			}
-			if watchFlag.DefValue != "false" {
-				t.Errorf("expected default watch to be false, got %s", watchFlag.DefValue)
+			if allNsFlag.DefValue != "false" {
+				t.Errorf("expected default all-namespaces to be false, got %s", allNsFlag.DefValue)
 			}
 
 			return
@@ -203,45 +186,6 @@ func TestLsCmdValidatesOutputFlag(t *testing.T) {
 	}
 }
 
-func TestLsCmdValidatesRefreshFlag(t *testing.T) {
-	tests := []struct {
-		name      string
-		refresh   string
-		wantError bool
-		errorMsg  string
-	}{
-		{"valid 1 second", "1", false, ""},
-		{"valid 5 seconds", "5", false, ""},
-		{"valid 60 seconds", "60", false, ""},
-		{"invalid 0", "0", true, "must be at least 1"},
-		{"invalid negative", "-1", true, "must be at least 1"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cmd := commands.NewRootCmd()
-			cmd.SetArgs([]string{"ls", "--refresh", tt.refresh})
-
-			err := cmd.Execute()
-
-			if tt.wantError {
-				if err == nil {
-					t.Errorf("expected error for refresh=%s, got nil", tt.refresh)
-					return
-				}
-				if !strings.Contains(err.Error(), tt.errorMsg) {
-					t.Errorf("expected error containing %q, got: %v", tt.errorMsg, err)
-				}
-			} else {
-				// Not implemented error is expected, but not validation error
-				if err != nil && strings.Contains(err.Error(), "must be at least") {
-					t.Errorf("unexpected validation error for valid refresh %s: %v", tt.refresh, err)
-				}
-			}
-		})
-	}
-}
-
 func TestLsCmdValidatesShowFlag(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -303,12 +247,9 @@ func TestLsCmdHelp(t *testing.T) {
 
 	// Verify help shows all flags
 	expectedInHelp := []string{
-		"--watch",
-		"--refresh",
 		"--output",
 		"--all-namespaces",
 		"--show",
-		"-w",
 		"-o",
 		"-A",
 	}
