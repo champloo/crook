@@ -55,6 +55,15 @@ func LoadConfig(opts LoadOptions) (LoadResult, error) {
 	applyNamespaceOverride(v, &cfg)
 
 	validation := ValidateConfig(cfg)
+
+	// Check for unknown keys (only if config file was loaded)
+	if configPath != "" {
+		unknownKeys := detectUnknownKeys(v)
+		for _, key := range unknownKeys {
+			validation.Errors = append(validation.Errors, fmt.Errorf("unknown config key: %s", key))
+		}
+	}
+
 	if validation.HasErrors() {
 		return LoadResult{
 			Config:         cfg,
@@ -184,4 +193,91 @@ func applyNamespaceOverride(v *viper.Viper, cfg *Config) {
 	}
 	cfg.Kubernetes.RookOperatorNamespace = namespace
 	cfg.Kubernetes.RookClusterNamespace = namespace
+}
+
+// knownConfigKeys returns the set of all valid configuration keys
+func knownConfigKeys() map[string]bool {
+	return map[string]bool{
+		// Top-level sections
+		"kubernetes":         true,
+		"state":              true,
+		"deployment-filters": true,
+		"ui":                 true,
+		"timeouts":           true,
+		"logging":            true,
+
+		// kubernetes section
+		"kubernetes.rook-operator-namespace": true,
+		"kubernetes.rook-cluster-namespace":  true,
+		"kubernetes.kubeconfig":              true,
+		"kubernetes.context":                 true,
+
+		// state section
+		"state.file-path-template": true,
+		"state.backup-enabled":     true,
+		"state.backup-directory":   true,
+
+		// deployment-filters section
+		"deployment-filters.prefixes": true,
+
+		// ui section
+		"ui.theme":                     true,
+		"ui.progress-refresh-ms":       true,
+		"ui.dashboard-refresh-node-ms": true,
+		"ui.dashboard-refresh-ceph-ms": true,
+
+		// timeouts section
+		"timeouts.api-call-timeout-seconds":        true,
+		"timeouts.wait-deployment-timeout-seconds": true,
+		"timeouts.ceph-command-timeout-seconds":    true,
+
+		// logging section
+		"logging.level":  true,
+		"logging.file":   true,
+		"logging.format": true,
+
+		// Special keys (CLI-only via flag binding)
+		"namespace": true,
+	}
+}
+
+// detectUnknownKeys returns a list of configuration keys that are not in the known schema
+func detectUnknownKeys(v *viper.Viper) []string {
+	known := knownConfigKeys()
+	allSettings := v.AllSettings()
+
+	var unknown []string
+	collectUnknownKeys(allSettings, "", known, &unknown)
+	return unknown
+}
+
+// collectUnknownKeys recursively collects unknown keys from nested maps
+func collectUnknownKeys(settings map[string]interface{}, prefix string, known map[string]bool, unknown *[]string) {
+	for key, value := range settings {
+		fullKey := key
+		if prefix != "" {
+			fullKey = prefix + "." + key
+		}
+
+		// Check if this key is known
+		if !known[fullKey] {
+			// For nested maps, also check if the parent section is known
+			// (allows for section-level recognition)
+			if prefix == "" {
+				// Top-level key that's unknown
+				*unknown = append(*unknown, fullKey)
+			} else if !known[prefix] {
+				// Nested key under unknown parent - skip (parent already reported)
+				continue
+			} else {
+				// Known parent but unknown child key
+				*unknown = append(*unknown, fullKey)
+			}
+		}
+
+		// Recurse into nested maps
+		if nestedMap, ok := value.(map[string]interface{}); ok {
+			collectUnknownKeys(nestedMap, fullKey, known, unknown)
+		}
+	}
 }

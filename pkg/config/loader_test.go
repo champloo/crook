@@ -255,6 +255,103 @@ func TestLoadConfigInvalidYAML(t *testing.T) {
 	}
 }
 
+func TestLoadConfigUnknownTopLevelKey(t *testing.T) {
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "config.yaml")
+	// unknown-section is not a valid config key
+	configContents := []byte(`kubernetes:
+  rook-operator-namespace: test
+unknown-section:
+  foo: bar
+`)
+	if err := os.WriteFile(configPath, configContents, 0o600); err != nil {
+		t.Fatalf("write config file: %v", err)
+	}
+
+	_, err := config.LoadConfig(config.LoadOptions{ConfigFile: configPath})
+	if err == nil {
+		t.Fatalf("expected error for unknown config key")
+	}
+
+	if !strings.Contains(err.Error(), "configuration validation failed") {
+		t.Errorf("expected validation error, got: %v", err)
+	}
+}
+
+func TestLoadConfigUnknownNestedKey(t *testing.T) {
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "config.yaml")
+	// kubernetes.invalid-key is not a valid config key
+	configContents := []byte(`kubernetes:
+  rook-operator-namespace: test
+  invalid-key: some-value
+`)
+	if err := os.WriteFile(configPath, configContents, 0o600); err != nil {
+		t.Fatalf("write config file: %v", err)
+	}
+
+	result, err := config.LoadConfig(config.LoadOptions{ConfigFile: configPath})
+	if err == nil {
+		t.Fatalf("expected error for unknown config key")
+	}
+
+	// Check that the error message contains the unknown key
+	found := false
+	for _, validationErr := range result.Validation.Errors {
+		if strings.Contains(validationErr.Error(), "kubernetes.invalid-key") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected validation error for kubernetes.invalid-key, got errors: %v", result.Validation.Errors)
+	}
+}
+
+func TestLoadConfigTypoInKnownKey(t *testing.T) {
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "config.yaml")
+	// rook-operator-namesapce is a typo of rook-operator-namespace
+	configContents := []byte(`kubernetes:
+  rook-operator-namesapce: typo-value
+`)
+	if err := os.WriteFile(configPath, configContents, 0o600); err != nil {
+		t.Fatalf("write config file: %v", err)
+	}
+
+	result, err := config.LoadConfig(config.LoadOptions{ConfigFile: configPath})
+	if err == nil {
+		t.Fatalf("expected error for typo in config key")
+	}
+
+	// Check that the error message contains the typo
+	found := false
+	for _, validationErr := range result.Validation.Errors {
+		if strings.Contains(validationErr.Error(), "rook-operator-namesapce") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected validation error for typo key, got errors: %v", result.Validation.Errors)
+	}
+}
+
+func TestLoadConfigValidKeysDoNotError(t *testing.T) {
+	// Test that a config file with all valid keys doesn't report unknown keys
+	result, err := config.LoadConfig(config.LoadOptions{ConfigFile: testdataPath(t, "full.yaml")})
+	if err != nil {
+		t.Fatalf("load config with valid keys should succeed: %v", err)
+	}
+
+	// Check no unknown key errors
+	for _, validationErr := range result.Validation.Errors {
+		if strings.Contains(validationErr.Error(), "unknown config key") {
+			t.Errorf("unexpected unknown key error for valid config: %v", validationErr)
+		}
+	}
+}
+
 func testdataPath(t *testing.T, name string) string {
 	t.Helper()
 	return filepath.Join("testdata", name)
