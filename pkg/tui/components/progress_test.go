@@ -234,3 +234,51 @@ func TestMultiProgress_SetWidth(t *testing.T) {
 		t.Errorf("Bar width = %d, want 60", bar.Width)
 	}
 }
+
+func TestProgressBar_View_SmallWidth(t *testing.T) {
+	// Test that small widths with ShowPercentage=true don't panic
+	smallWidths := []int{0, 1, 2, 3, 4, 5}
+
+	for _, width := range smallWidths {
+		p := NewProgressBar("Test")
+		p.Width = width
+		p.ShowPercentage = true
+		p.Progress = 0.5
+
+		// This should not panic
+		view := p.View()
+
+		if view == "" {
+			t.Errorf("View should not be empty for width=%d", width)
+		}
+	}
+}
+
+func TestProgressBar_View_ZeroWidth(t *testing.T) {
+	p := NewProgressBar("Test")
+	p.Width = 0
+	p.ShowPercentage = true
+	p.Progress = 0.75
+
+	// Width 0 should default to 40, then subtract 5 for percentage = 35
+	view := p.View()
+
+	if !strings.Contains(view, "75%") {
+		t.Error("View should show 75%")
+	}
+}
+
+func TestProgressBar_View_NegativeWidth(t *testing.T) {
+	p := NewProgressBar("Test")
+	p.Width = -10
+	p.ShowPercentage = true
+	p.Progress = 0.5
+
+	// Negative width should be treated like 0 (default to 40)
+	// This should not panic
+	view := p.View()
+
+	if view == "" {
+		t.Error("View should not be empty for negative width")
+	}
+}

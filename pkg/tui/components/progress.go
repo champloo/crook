@@ -137,6 +137,11 @@ func (p *ProgressBar) renderDeterminate() string {
 		barWidth -= 5 // " 100%"
 	}
 
+	// Clamp bar width to minimum of 1 to prevent negative strings.Repeat
+	if barWidth < 1 {
+		barWidth = 1
+	}
+
 	// Calculate filled portion
 	filled := int(float64(barWidth) * progress)
 	empty := barWidth - filled
