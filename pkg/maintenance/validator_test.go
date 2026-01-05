@@ -255,14 +255,11 @@ func TestCheckPermission_Allowed(t *testing.T) {
 		}, nil
 	})
 
-	perm := permissionSpec{
-		group:     "",
-		resource:  "nodes",
-		verb:      "patch",
-		namespace: "",
-		check:     "test",
+	ra := &authv1.ResourceAttributes{
+		Resource: "nodes",
+		Verb:     "patch",
 	}
-	allowed, err := checkPermission(ctx, client, perm)
+	allowed, err := checkPermission(ctx, client, ra)
 	if err != nil {
 		t.Fatalf("checkPermission failed: %v", err)
 	}
@@ -284,14 +281,11 @@ func TestCheckPermission_Denied(t *testing.T) {
 		}, nil
 	})
 
-	perm := permissionSpec{
-		group:     "",
-		resource:  "nodes",
-		verb:      "patch",
-		namespace: "",
-		check:     "test",
+	ra := &authv1.ResourceAttributes{
+		Resource: "nodes",
+		Verb:     "patch",
 	}
-	allowed, err := checkPermission(ctx, client, perm)
+	allowed, err := checkPermission(ctx, client, ra)
 	if err != nil {
 		t.Fatalf("checkPermission failed: %v", err)
 	}
@@ -319,15 +313,14 @@ func TestCheckPermission_WithGroupAndSubresource(t *testing.T) {
 		}, nil
 	})
 
-	perm := permissionSpec{
-		group:       "apps",
-		resource:    "deployments",
-		subresource: "scale",
-		verb:        "update",
-		namespace:   "rook-ceph",
-		check:       "test",
+	ra := &authv1.ResourceAttributes{
+		Group:       "apps",
+		Resource:    "deployments",
+		Subresource: "scale",
+		Verb:        "update",
+		Namespace:   "rook-ceph",
 	}
-	_, err := checkPermission(ctx, client, perm)
+	_, err := checkPermission(ctx, client, ra)
 	if err != nil {
 		t.Fatalf("checkPermission failed: %v", err)
 	}
@@ -374,14 +367,11 @@ func TestCheckPermission_ClusterScoped(t *testing.T) {
 	})
 
 	// Nodes are cluster-scoped - namespace should be empty
-	perm := permissionSpec{
-		group:     "",
-		resource:  "nodes",
-		verb:      "patch",
-		namespace: "", // Empty for cluster-scoped
-		check:     "test",
+	ra := &authv1.ResourceAttributes{
+		Resource: "nodes",
+		Verb:     "patch",
 	}
-	_, err := checkPermission(ctx, client, perm)
+	_, err := checkPermission(ctx, client, ra)
 	if err != nil {
 		t.Fatalf("checkPermission failed: %v", err)
 	}
@@ -419,15 +409,13 @@ func TestCheckPermission_PodExecSubresource(t *testing.T) {
 	})
 
 	// pods/exec should be resource=pods, subresource=exec
-	perm := permissionSpec{
-		group:       "",
-		resource:    "pods",
-		subresource: "exec",
-		verb:        "create",
-		namespace:   "rook-ceph",
-		check:       "test",
+	ra := &authv1.ResourceAttributes{
+		Resource:    "pods",
+		Subresource: "exec",
+		Verb:        "create",
+		Namespace:   "rook-ceph",
 	}
-	_, err := checkPermission(ctx, client, perm)
+	_, err := checkPermission(ctx, client, ra)
 	if err != nil {
 		t.Fatalf("checkPermission failed: %v", err)
 	}
@@ -443,6 +431,49 @@ func TestCheckPermission_PodExecSubresource(t *testing.T) {
 	}
 	if attrs.Subresource != "exec" {
 		t.Errorf("Expected subresource 'exec', got '%s'", attrs.Subresource)
+	}
+}
+
+func TestFormatPermissionCheck(t *testing.T) {
+	tests := []struct {
+		name     string
+		ra       authv1.ResourceAttributes
+		expected string
+	}{
+		{
+			name:     "cluster-scoped resource",
+			ra:       authv1.ResourceAttributes{Resource: "nodes", Verb: "patch"},
+			expected: "patch nodes [cluster]",
+		},
+		{
+			name:     "namespaced resource",
+			ra:       authv1.ResourceAttributes{Resource: "pods", Verb: "list", Namespace: "rook-ceph"},
+			expected: "list pods [rook-ceph]",
+		},
+		{
+			name:     "resource with group",
+			ra:       authv1.ResourceAttributes{Group: "apps", Resource: "deployments", Verb: "get", Namespace: "default"},
+			expected: "get apps/deployments [default]",
+		},
+		{
+			name:     "resource with subresource",
+			ra:       authv1.ResourceAttributes{Resource: "pods", Subresource: "exec", Verb: "create", Namespace: "rook-ceph"},
+			expected: "create pods/exec [rook-ceph]",
+		},
+		{
+			name:     "resource with group and subresource",
+			ra:       authv1.ResourceAttributes{Group: "apps", Resource: "deployments", Subresource: "scale", Verb: "update", Namespace: "rook-ceph"},
+			expected: "update apps/deployments/scale [rook-ceph]",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := formatPermissionCheck(&tt.ra)
+			if result != tt.expected {
+				t.Errorf("formatPermissionCheck() = %q, want %q", result, tt.expected)
+			}
+		})
 	}
 }
 

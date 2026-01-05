@@ -153,44 +153,44 @@ func validateRookToolsDeployment(ctx context.Context, client *k8s.Client, namesp
 func validateRBACPermissions(ctx context.Context, client *k8s.Client, cfg config.Config) []ValidationResult {
 	results := make([]ValidationResult, 0)
 
-	// Required permissions for down phase
-	// Each permission defines: group, resource, subresource, verb, namespace (empty for cluster-scoped), check name
-	permissions := []permissionSpec{
+	// Required permissions for maintenance operations
+	permissions := []authv1.ResourceAttributes{
 		// Cluster-scoped: nodes (patch for cordon/uncordon)
-		{group: "", resource: "nodes", subresource: "", verb: "patch", namespace: "", check: "RBAC: cordon nodes"},
+		{Resource: "nodes", Verb: "patch"},
 		// Namespaced: deployments (apps group)
-		{group: "apps", resource: "deployments", subresource: "", verb: "get", namespace: cfg.Kubernetes.RookClusterNamespace, check: "RBAC: get deployments"},
-		{group: "apps", resource: "deployments", subresource: "", verb: "update", namespace: cfg.Kubernetes.RookClusterNamespace, check: "RBAC: scale deployments"},
-		{group: "apps", resource: "deployments", subresource: "scale", verb: "update", namespace: cfg.Kubernetes.RookOperatorNamespace, check: "RBAC: scale operator"},
-		{group: "apps", resource: "replicasets", subresource: "", verb: "get", namespace: cfg.Kubernetes.RookClusterNamespace, check: "RBAC: get replicasets"},
+		{Group: "apps", Resource: "deployments", Verb: "get", Namespace: cfg.Kubernetes.RookClusterNamespace},
+		{Group: "apps", Resource: "deployments", Verb: "update", Namespace: cfg.Kubernetes.RookClusterNamespace},
+		{Group: "apps", Resource: "deployments", Subresource: "scale", Verb: "update", Namespace: cfg.Kubernetes.RookOperatorNamespace},
+		{Group: "apps", Resource: "replicasets", Verb: "get", Namespace: cfg.Kubernetes.RookClusterNamespace},
 		// Namespaced: pods (core group)
-		{group: "", resource: "pods", subresource: "", verb: "list", namespace: cfg.Kubernetes.RookClusterNamespace, check: "RBAC: list pods"},
-		{group: "", resource: "pods", subresource: "exec", verb: "create", namespace: cfg.Kubernetes.RookClusterNamespace, check: "RBAC: exec in pods"},
+		{Resource: "pods", Verb: "list", Namespace: cfg.Kubernetes.RookClusterNamespace},
+		{Resource: "pods", Subresource: "exec", Verb: "create", Namespace: cfg.Kubernetes.RookClusterNamespace},
 	}
 
 	for _, perm := range permissions {
-		allowed, err := checkPermission(ctx, client, perm)
+		checkName := formatPermissionCheck(&perm)
+		allowed, err := checkPermission(ctx, client, &perm)
 		if err != nil {
 			// Best-effort check - don't fail on errors
 			results = append(results, ValidationResult{
-				Check:   perm.check,
+				Check:   checkName,
 				Passed:  true, // Assume allowed if we can't check
 				Error:   nil,
-				Message: fmt.Sprintf("Unable to verify %s permission (assuming allowed)", perm.verb),
+				Message: "Unable to verify (assuming allowed)",
 			})
 		} else if !allowed {
 			results = append(results, ValidationResult{
-				Check:   perm.check,
+				Check:   checkName,
 				Passed:  false,
-				Error:   fmt.Errorf("missing %s permission on %s", perm.verb, perm.resource),
-				Message: fmt.Sprintf("Missing %s permission on %s - contact cluster admin", perm.verb, perm.resource),
+				Error:   fmt.Errorf("missing permission: %s", checkName),
+				Message: "Permission denied - contact cluster admin",
 			})
 		} else {
 			results = append(results, ValidationResult{
-				Check:   perm.check,
+				Check:   checkName,
 				Passed:  true,
 				Error:   nil,
-				Message: fmt.Sprintf("Permission %s on %s verified", perm.verb, perm.resource),
+				Message: "Permission verified",
 			})
 		}
 	}
@@ -198,27 +198,27 @@ func validateRBACPermissions(ctx context.Context, client *k8s.Client, cfg config
 	return results
 }
 
-// permissionSpec defines a single RBAC permission to check
-type permissionSpec struct {
-	group       string // API group (empty for core, "apps" for deployments)
-	resource    string // Resource name (e.g., "pods", "deployments")
-	subresource string // Subresource (e.g., "exec", "scale") or empty
-	verb        string // Verb (e.g., "get", "create", "patch")
-	namespace   string // Namespace or empty for cluster-scoped resources
-	check       string // Human-readable check name for display
+// formatPermissionCheck generates a display name from ResourceAttributes
+func formatPermissionCheck(ra *authv1.ResourceAttributes) string {
+	resource := ra.Resource
+	if ra.Subresource != "" {
+		resource += "/" + ra.Subresource
+	}
+	if ra.Group != "" {
+		resource = ra.Group + "/" + resource
+	}
+	scope := "cluster"
+	if ra.Namespace != "" {
+		scope = ra.Namespace
+	}
+	return fmt.Sprintf("%s %s [%s]", ra.Verb, resource, scope)
 }
 
 // checkPermission uses SelfSubjectAccessReview to check if current user has permission
-func checkPermission(ctx context.Context, client *k8s.Client, perm permissionSpec) (bool, error) {
+func checkPermission(ctx context.Context, client *k8s.Client, ra *authv1.ResourceAttributes) (bool, error) {
 	sar := &authv1.SelfSubjectAccessReview{
 		Spec: authv1.SelfSubjectAccessReviewSpec{
-			ResourceAttributes: &authv1.ResourceAttributes{
-				Group:       perm.group,
-				Resource:    perm.resource,
-				Subresource: perm.subresource,
-				Verb:        perm.verb,
-				Namespace:   perm.namespace, // Empty for cluster-scoped
-			},
+			ResourceAttributes: ra,
 		},
 	}
 
