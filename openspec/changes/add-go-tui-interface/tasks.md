@@ -163,6 +163,12 @@
 - [ ] 7.7 Implement keyboard navigation and shortcuts
 - [ ] 7.8 Add terminal size detection and responsive rendering
 - [ ] 7.9 Add color support detection and fallback
+- [ ] 7.10 `crook ls`: permanent Maintenance pane for up/down flows
+  - [ ] 7.10.1 Make UpModel/DownModel support embedded rendering (no outer frame)
+  - [ ] 7.10.2 Render Nodes + Maintenance panes side-by-side (top row)
+  - [ ] 7.10.3 Route key input to embedded flow while active; preserve node selection on exit
+  - [ ] 7.10.4 Make Nodes view responsive to reduced width (column sizing/degradation)
+  - [ ] 7.10.5 Update/add TUI tests for the split layout and embedded flows
 
 ## 8. CLI Commands (Cobra)
 

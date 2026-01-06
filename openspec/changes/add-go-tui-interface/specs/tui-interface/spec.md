@@ -153,26 +153,30 @@ The system SHALL support intuitive keyboard controls for navigation and actions.
 - **WHEN** user is running `crook ls` and the active pane is Nodes
 - **AND** a node row is selected
 - **AND** user presses `d`
-- **THEN** system displays a centered modal (floating pane) showing the Down Phase confirmation UI for the selected node
+- **THEN** system displays a permanent "Maintenance" pane to the right of the Nodes pane
+- **AND** system renders the Down Phase confirmation UI for the selected node inside the Maintenance pane (embedded; no centered modal and no nested frame)
 - **AND** the UI content and flow matches `crook down <node>` (same TUI screens and maintenance code path; no shelling out)
-- **AND** `Esc` closes the modal and returns to `crook ls` without making changes
-- **AND** `y` confirms and starts the down workflow inside the modal
+- **AND** while the flow is active, key input is routed to the embedded flow first
+- **AND** `Esc` cancels the confirmation prompt (no changes) and returns the Maintenance pane to its idle state
+- **AND** `y` confirms and starts the down workflow inside the Maintenance pane
 - **AND** `Enter` is treated as default No (no changes)
-- **AND** once the down workflow completes, errors, or is cancelled, the modal closes
-- **AND** system returns to `crook ls` with the same node still selected and triggers a refresh of node data
+- **AND** once the down workflow completes, errors, or is cancelled, the Maintenance pane returns to its idle state
+- **AND** system returns to normal `crook ls` navigation with the same node still selected and triggers a refresh of node data
 
 - **WHEN** user is running `crook ls` and the active pane is Nodes
 - **AND** a node row is selected
 - **AND** user presses `u`
-- **THEN** system displays a centered modal (floating pane) showing the Up Phase confirmation UI for the selected node
+- **THEN** system displays a permanent "Maintenance" pane to the right of the Nodes pane
+- **AND** system renders the Up Phase confirmation UI for the selected node inside the Maintenance pane (embedded; no centered modal and no nested frame)
 - **AND** the UI content and flow matches `crook up <node>` (same TUI screens and maintenance code path; no shelling out)
 - **AND** the state file path resolution matches `crook up <node>` (no additional override UI)
-- **AND** if the state file is missing or invalid, the Up Phase UI displays the error state inside the modal
-- **AND** `Esc` closes the modal and returns to `crook ls` without making changes
-- **AND** `y` confirms and starts the up workflow inside the modal
+- **AND** if the state file is missing or invalid, the Up Phase UI displays the error state inside the Maintenance pane
+- **AND** while the flow is active, key input is routed to the embedded flow first
+- **AND** `Esc` cancels the confirmation prompt (no changes) and returns the Maintenance pane to its idle state
+- **AND** `y` confirms and starts the up workflow inside the Maintenance pane
 - **AND** `Enter` is treated as default No (no changes)
-- **AND** once the up workflow completes, errors, or is cancelled, the modal closes
-- **AND** system returns to `crook ls` with the same node still selected and triggers a refresh of node data
+- **AND** once the up workflow completes, errors, or is cancelled, the Maintenance pane returns to its idle state
+- **AND** system returns to normal `crook ls` navigation with the same node still selected and triggers a refresh of node data
 
 ### Requirement: Resource List View (ls command)
 
