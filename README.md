@@ -20,7 +20,7 @@ Download the latest release from the [releases page](https://github.com/andri/cr
 ### Build from Source
 
 **Requirements:**
-- Go 1.24+
+- Go 1.25+
 - Access to a Kubernetes cluster with Rook-Ceph
 
 ```bash
@@ -381,7 +381,7 @@ crook/
 
 ### Prerequisites
 
-- Go 1.24+
+- Go 1.25+
 - [just](https://github.com/casey/just) (optional, for task automation)
 - [golangci-lint](https://golangci-lint.run/) (for linting)
 

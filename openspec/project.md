@@ -11,14 +11,78 @@
 - Enable safe, guided workflows with pre-flight validation and health monitoring
 
 ## Tech Stack
-- **Go 1.24+** - Primary implementation language
+- **Go 1.25+** - Primary implementation language
 - **Bubble Tea** - Terminal user interface framework (`github.com/charmbracelet/bubbletea`)
 - **Kubernetes client-go** - Official Kubernetes Go client library (`k8s.io/client-go`)
 - **Cobra** - CLI framework (`github.com/spf13/cobra`)
 - **Viper** - Configuration management (`github.com/spf13/viper`)
 - **Nix/devenv** - Reproducible development environment management
+- **golangci-lint** - Comprehensive Go linter
 - **git** - Version control
 - **just** - Command runner (task automation)
+
+## Development Environment
+
+### Quick Start with devenv (Recommended)
+
+The project uses [devenv](https://devenv.sh/) for reproducible development environments:
+
+```bash
+# Install devenv if not already installed
+# See: https://devenv.sh/getting-started/
+
+# Enter the development environment
+devenv shell
+
+# Or with direnv (automatic activation)
+direnv allow
+```
+
+The devenv environment provides:
+- Go toolchain
+- golangci-lint
+- just (task runner)
+- kubectl and minikube (for testing)
+
+### Manual Setup
+
+If not using devenv:
+
+1. Install Go 1.25+
+2. Install golangci-lint: `go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest`
+3. Install just: `cargo install just` or via package manager
+4. Clone and build:
+   ```bash
+   git clone https://github.com/andri/crook.git
+   cd crook
+   go build -o crook ./cmd/crook
+   ```
+
+### Common Development Commands
+
+```bash
+# Build
+just build              # Build with version info
+just build-release      # Build stripped binary
+
+# Test
+just test               # Run all tests
+just test-verbose       # Verbose output
+just test-race          # Race detection
+just coverage           # Generate HTML coverage report
+
+# Lint
+just lint               # Run golangci-lint
+just lint-fix           # Auto-fix issues
+just fmt                # Format code
+
+# Verify (before commit)
+just verify             # lint + test + build
+
+# Run
+just run ls             # Run with arguments
+just install            # Install to GOPATH/bin
+```
 
 ## Project Conventions
 
