@@ -1,6 +1,8 @@
 // Package models provides Bubble Tea models for the TUI interface.
 package models
 
+import tea "github.com/charmbracelet/bubbletea"
+
 // FlowExitBehavior defines how a flow signals exit to its caller.
 type FlowExitBehavior int
 
@@ -35,4 +37,13 @@ type DownFlowExitMsg struct {
 type UpFlowExitMsg struct {
 	Reason FlowExitReason
 	Err    error
+}
+
+func flowExitCmd(exitBehavior FlowExitBehavior, msg tea.Msg) tea.Cmd {
+	if exitBehavior == FlowExitMessage {
+		return func() tea.Msg {
+			return msg
+		}
+	}
+	return tea.Quit
 }

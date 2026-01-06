@@ -442,12 +442,7 @@ func (m *DownModel) handleKeyPress(msg tea.KeyMsg) tea.Cmd {
 }
 
 func (m *DownModel) exitCmd(reason FlowExitReason, err error) tea.Cmd {
-	if m.config.ExitBehavior == FlowExitMessage {
-		return func() tea.Msg {
-			return DownFlowExitMsg{Reason: reason, Err: err}
-		}
-	}
-	return tea.Quit
+	return flowExitCmd(m.config.ExitBehavior, DownFlowExitMsg{Reason: reason, Err: err})
 }
 
 // startExecution initializes state for operation execution

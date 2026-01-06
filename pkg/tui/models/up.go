@@ -504,12 +504,7 @@ func (m *UpModel) handleKeyPress(msg tea.KeyMsg) tea.Cmd {
 }
 
 func (m *UpModel) exitCmd(reason FlowExitReason, err error) tea.Cmd {
-	if m.config.ExitBehavior == FlowExitMessage {
-		return func() tea.Msg {
-			return UpFlowExitMsg{Reason: reason, Err: err}
-		}
-	}
-	return tea.Quit
+	return flowExitCmd(m.config.ExitBehavior, UpFlowExitMsg{Reason: reason, Err: err})
 }
 
 // startExecution initializes state for operation execution
