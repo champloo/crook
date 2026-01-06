@@ -70,9 +70,7 @@
   - [ ] CLI flag overrides
 - [ ] 4.3 Implement configuration validation
 - [ ] 4.4 Add default configuration values
-- [ ] 4.5 Implement `crook config show` command
-- [ ] 4.6 Implement `crook config validate` command
-- [ ] 4.7 Write unit tests for configuration loading and merging
+- [ ] 4.5 Write unit tests for configuration loading and merging
 - [ ] 4.8 Create example config file with documentation comments
 
 ## 5. Core Maintenance Logic (CLI only, no TUI yet)
@@ -183,10 +181,7 @@
   - [ ] Accept command-specific flags
   - [ ] Initialize TUI or run headless based on flag
   - [ ] Execute up phase
-- [ ] 8.4 Create `crook config` command group:
-  - [ ] `crook config show` - Display effective config
-  - [ ] `crook config validate` - Validate config file
-- [ ] 8.6 Create `crook version` command
+- [ ] 8.4 Create `crook version` command
 - [ ] 8.7 Add shell completion generation (bash, zsh, fish)
 
 ## 9. Integration and Testing

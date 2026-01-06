@@ -21,9 +21,6 @@ type LsOptions struct {
 	// Output specifies the output format: tui, table, json, yaml
 	Output string
 
-	// AllNamespaces searches across all namespaces
-	AllNamespaces bool
-
 	// Show specifies which resource types to display (comma-separated)
 	Show string
 
@@ -64,10 +61,7 @@ select alternative output formats for scripting or CI/CD integration.`,
   crook ls --output json
 
   # Show only specific resource types
-  crook ls --show nodes,osds
-
-  # Search across all namespaces
-  crook ls --all-namespaces`,
+  crook ls --show nodes,osds`,
 		Args: cobra.MaximumNArgs(1),
 		PreRunE: func(_ *cobra.Command, args []string) error {
 			// Store positional arg if provided
@@ -85,8 +79,6 @@ select alternative output formats for scripting or CI/CD integration.`,
 	flags := cmd.Flags()
 	flags.StringVarP(&opts.Output, "output", "o", "tui",
 		"output format: tui, table, json, yaml")
-	flags.BoolVarP(&opts.AllNamespaces, "all-namespaces", "A", false,
-		"list resources across all namespaces")
 	flags.StringVar(&opts.Show, "show", "",
 		"resource types to display (comma-separated): nodes,deployments,osds,pods")
 

@@ -92,10 +92,8 @@ Key features:
 	// Add subcommands
 	rootCmd.AddCommand(newVersionCmd())
 	rootCmd.AddCommand(newCompletionCmd())
-	rootCmd.AddCommand(newConfigCmd())
 	rootCmd.AddCommand(newDownCmd())
 	rootCmd.AddCommand(newUpCmd())
-	rootCmd.AddCommand(newStateCmd())
 	rootCmd.AddCommand(newLsCmd())
 
 	return rootCmd

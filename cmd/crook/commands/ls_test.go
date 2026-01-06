@@ -48,7 +48,7 @@ func TestLsCmdHasRequiredFlags(t *testing.T) {
 		}
 	}
 
-	expectedFlags := []string{"output", "all-namespaces", "show"}
+	expectedFlags := []string{"output", "show"}
 
 	for _, flagName := range expectedFlags {
 		found := false
@@ -78,14 +78,6 @@ func TestLsCmdShorthandFlags(t *testing.T) {
 				t.Errorf("expected -o to be shorthand for 'output', got %s", outputFlag.Name)
 			}
 
-			// Test -A shorthand for --all-namespaces
-			allNsFlag := subCmd.Flags().ShorthandLookup("A")
-			if allNsFlag == nil {
-				t.Error("expected -A shorthand for --all-namespaces flag")
-			} else if allNsFlag.Name != "all-namespaces" {
-				t.Errorf("expected -A to be shorthand for 'all-namespaces', got %s", allNsFlag.Name)
-			}
-
 			return
 		}
 	}
@@ -106,15 +98,6 @@ func TestLsCmdDefaultValues(t *testing.T) {
 			}
 			if outputFlag.DefValue != "tui" {
 				t.Errorf("expected default output to be 'tui', got %s", outputFlag.DefValue)
-			}
-
-			// Test --all-namespaces default (false)
-			allNsFlag := subCmd.Flags().Lookup("all-namespaces")
-			if allNsFlag == nil {
-				t.Fatal("expected all-namespaces flag to exist")
-			}
-			if allNsFlag.DefValue != "false" {
-				t.Errorf("expected default all-namespaces to be false, got %s", allNsFlag.DefValue)
 			}
 
 			return
@@ -248,10 +231,8 @@ func TestLsCmdHelp(t *testing.T) {
 	// Verify help shows all flags
 	expectedInHelp := []string{
 		"--output",
-		"--all-namespaces",
 		"--show",
 		"-o",
-		"-A",
 	}
 
 	for _, expected := range expectedInHelp {

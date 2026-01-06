@@ -121,25 +121,6 @@ The system SHALL validate configuration values and provide clear error messages.
 - **THEN** system returns warning: "Refresh rate <100ms may cause excessive API calls"
 - **THEN** system continues with warning (non-fatal)
 
-### Requirement: Configuration Display
-
-The system SHALL provide command to display effective configuration.
-
-#### Scenario: Show merged configuration
-
-- **WHEN** user runs `crook config show`
-- **THEN** system displays complete merged configuration from all sources
-- **THEN** system indicates source for each value (default, file, env, flag)
-- **THEN** system masks sensitive values (kubeconfig tokens, if any)
-
-#### Scenario: Validate configuration
-
-- **WHEN** user runs `crook config validate`
-- **THEN** system loads configuration from all sources
-- **THEN** system validates all values
-- **THEN** system displays validation results: OK or list of errors
-- **THEN** system exits with code 0 if valid, 1 if invalid
-
 ### Requirement: Configuration File Format
 
 The system SHALL support YAML configuration file format.
