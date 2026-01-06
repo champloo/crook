@@ -594,7 +594,8 @@ func (m *DashboardModel) renderHealthIssues() string {
 	b.WriteString("\n")
 
 	for _, reason := range summary.Reasons {
-		b.WriteString(styles.StyleSubtle.Render(fmt.Sprintf("  • %s\n", reason)))
+		b.WriteString(styles.StyleSubtle.Render(fmt.Sprintf("  • %s", reason)))
+		b.WriteString("\n")
 	}
 
 	return b.String()

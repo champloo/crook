@@ -609,7 +609,8 @@ func (m *UpModel) renderConfirmation() string {
 	b.WriteString("\n")
 
 	// Restore plan table
-	b.WriteString(styles.StyleStatus.Render("Restore Plan:\n"))
+	b.WriteString(styles.StyleStatus.Render("Restore Plan:"))
+	b.WriteString("\n")
 
 	// Create table
 	table := components.NewSimpleTable("Deployment", "Current", "Target", "Status")
@@ -640,17 +641,21 @@ func (m *UpModel) renderConfirmation() string {
 	// Missing deployments warning
 	if len(m.missingDeploys) > 0 {
 		b.WriteString("\n")
-		b.WriteString(styles.StyleWarning.Render(fmt.Sprintf("%s Warning: %d deployment(s) missing from cluster:\n",
+		b.WriteString(styles.StyleWarning.Render(fmt.Sprintf("%s Warning: %d deployment(s) missing from cluster:",
 			styles.IconWarning, len(m.missingDeploys))))
+		b.WriteString("\n")
 		for _, d := range m.missingDeploys {
-			b.WriteString(styles.StyleWarning.Render(fmt.Sprintf("  - %s\n", d)))
+			b.WriteString(styles.StyleWarning.Render(fmt.Sprintf("  - %s", d)))
+			b.WriteString("\n")
 		}
-		b.WriteString(styles.StyleSubtle.Render("These will be skipped during restoration.\n"))
+		b.WriteString(styles.StyleSubtle.Render("These will be skipped during restoration."))
+		b.WriteString("\n")
 	}
 
 	// What will happen
 	b.WriteString("\n")
-	b.WriteString(styles.StyleStatus.Render("This will:\n"))
+	b.WriteString(styles.StyleStatus.Render("This will:"))
+	b.WriteString("\n")
 	b.WriteString("  1. Uncordon the node to allow pod scheduling\n")
 	b.WriteString(fmt.Sprintf("  2. Scale up %d deployment(s) to original replicas\n", len(m.restorePlan)-len(m.missingDeploys)))
 	if m.loadedState != nil {

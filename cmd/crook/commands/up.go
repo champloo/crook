@@ -168,7 +168,7 @@ func runUpNonInteractive(ctx context.Context, client *k8s.Client, nodeName strin
 	if !opts.Yes {
 		printLine(out, "This will:")
 		printLine(out, "  1. Load state from the down phase state file")
-		printLine(out, "  2. Uncordon the node (mark schedulable)\n")
+		printLine(out, "  2. Uncordon the node (mark schedulable)")
 		printLine(out, "  3. Restore Rook-Ceph deployments to original replicas")
 		printLine(out, "  4. Scale up rook-ceph-operator")
 		printLine(out, "  5. Unset Ceph noout flag")

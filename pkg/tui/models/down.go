@@ -548,16 +548,19 @@ func (m *DownModel) renderConfirmation() string {
 	b.WriteString("\n\n")
 
 	if len(m.discoveredDeployments) > 0 {
-		b.WriteString(styles.StyleStatus.Render("Deployments to scale down:\n"))
+		b.WriteString(styles.StyleStatus.Render("Deployments to scale down:"))
+		b.WriteString("\n")
 		for _, d := range m.discoveredDeployments {
 			b.WriteString(fmt.Sprintf("  %s %s\n", styles.IconArrow, d))
 		}
 	} else {
-		b.WriteString(styles.StyleWarning.Render("No deployments found on this node.\n"))
+		b.WriteString(styles.StyleWarning.Render("No deployments found on this node."))
+		b.WriteString("\n")
 	}
 
 	b.WriteString("\n")
-	b.WriteString(styles.StyleWarning.Render("This will:\n"))
+	b.WriteString(styles.StyleWarning.Render("This will:"))
+	b.WriteString("\n")
 	b.WriteString("  1. Cordon the node (mark unschedulable)\n")
 	b.WriteString("  2. Set Ceph noout flag\n")
 	b.WriteString("  3. Scale down rook-ceph-operator\n")

@@ -243,28 +243,28 @@ func (t *Table) renderRow(cells []string, widths []int, style lipgloss.Style, _ 
 			}
 		}
 
-		// Pad to width
+		// Calculate padding
 		padding := width - len(cell)
 		align := t.Columns[i].Align
 
+		// Get the appropriate style for this cell
+		cellStyle := style
+		if t.Columns[i].Style.Value() != "" {
+			cellStyle = t.Columns[i].Style
+		}
+
+		// Style content only, add padding outside Render() to avoid ANSI escape code issues
 		// lipgloss.Position: Left=0.0, Top=0.0, Center=0.5, Right=1.0, Bottom=1.0
 		switch align { //nolint:exhaustive // only 3 meaningful alignment values (Left, Center, Right) - Top/Bottom are identical to Left/Right
 		case lipgloss.Right:
-			cell = strings.Repeat(" ", padding) + cell
+			paddedCells[i] = strings.Repeat(" ", padding) + cellStyle.Render(cell)
 		case lipgloss.Center:
 			leftPad := padding / 2
 			rightPad := padding - leftPad
-			cell = strings.Repeat(" ", leftPad) + cell + strings.Repeat(" ", rightPad)
+			paddedCells[i] = strings.Repeat(" ", leftPad) + cellStyle.Render(cell) + strings.Repeat(" ", rightPad)
 		default:
 			// Left (0.0) alignment - also covers Top which has same value
-			cell = cell + strings.Repeat(" ", padding)
-		}
-
-		// Apply column-specific style if set
-		if t.Columns[i].Style.Value() != "" {
-			paddedCells[i] = t.Columns[i].Style.Render(cell)
-		} else {
-			paddedCells[i] = style.Render(cell)
+			paddedCells[i] = cellStyle.Render(cell) + strings.Repeat(" ", padding)
 		}
 	}
 
