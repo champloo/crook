@@ -192,7 +192,7 @@ func NewLsModel(cfg LsModelConfig) *LsModel {
 		components.NewPane(components.PaneConfig{Title: "Deployments", ShortcutKey: "2"}),
 		components.NewPane(components.PaneConfig{Title: "OSDs", ShortcutKey: "3"}),
 	}
-	maintenancePane := components.NewPane(components.PaneConfig{Title: "Maintenance", ShortcutKey: ""})
+	maintenancePane := components.NewPane(components.PaneConfig{Title: "Node Maintenance", ShortcutKey: ""})
 
 	// Set first pane as active
 	panes[0].SetActive(true)
