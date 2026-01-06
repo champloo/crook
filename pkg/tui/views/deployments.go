@@ -10,6 +10,17 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+// Column widths for the deployments table
+const (
+	iconPrefixWidth   = 2  // Space for warning icon + padding
+	nameColWidth      = 33 // Deployment name
+	namespaceColWidth = 15 // Namespace
+	readyColWidth     = 8  // Ready status (X/Y)
+	nodeColWidth      = 20 // Node name
+	ageColWidth       = 8  // Age
+	statusColWidth    = 12 // Status text
+)
+
 // DeploymentsView displays Rook-Ceph deployments with node mapping
 type DeploymentsView struct {
 	// deployments is the list of deployments to display
@@ -141,13 +152,15 @@ func (v *DeploymentsView) renderHeader() string {
 		Bold(true).
 		Foreground(styles.ColorPrimary)
 
+	// Reserve space for icon prefix (icon + space)
 	cols := []string{
-		v.padRight("NAME", 35),
-		v.padRight("NAMESPACE", 15),
-		v.padRight("READY", 8),
-		v.padRight("NODE", 20),
-		v.padRight("AGE", 8),
-		v.padRight("STATUS", 12),
+		v.padRight("", iconPrefixWidth),
+		v.padRight("NAME", nameColWidth),
+		v.padRight("NAMESPACE", namespaceColWidth),
+		v.padRight("READY", readyColWidth),
+		v.padRight("NODE", nodeColWidth),
+		v.padRight("AGE", ageColWidth),
+		v.padRight("STATUS", statusColWidth),
 	}
 
 	return headerStyle.Render(strings.Join(cols, " "))
@@ -192,10 +205,15 @@ func (v *DeploymentsView) renderGrouped(startIdx, endIdx int) string {
 			continue
 		}
 
-		// Group header
-		groupHeader := styles.StyleSubtle.Render(fmt.Sprintf("── %s (%d) ", strings.ToUpper(typ), len(indices)))
-		b.WriteString(groupHeader)
-		b.WriteString(styles.StyleSubtle.Render(strings.Repeat("─", max(0, v.getTableWidth()-len(groupHeader)))))
+		// Group header with subtle background
+		headerText := fmt.Sprintf(" %s (%d) ", strings.ToUpper(typ), len(indices))
+		// Pad to full table width for consistent background
+		tableWidth := v.getTableWidth()
+		padding := tableWidth - lipgloss.Width(headerText)
+		if padding > 0 {
+			headerText += strings.Repeat(" ", padding)
+		}
+		b.WriteString(styles.StyleGroupHeader.Render(headerText))
 		b.WriteString("\n")
 
 		// Render items in this group
@@ -247,10 +265,10 @@ func (v *DeploymentsView) renderRow(dep DeploymentInfo, selected bool) string {
 		readyStyle = styles.StyleSuccess
 	}
 
-	// Warning indicator for scaled-down deployments
-	nameDisplay := dep.Name
+	// Icon prefix column - always reserve space, show warning icon if scaled down
+	iconPrefix := "  " // Default: empty space (2 chars to match icon width)
 	if dep.DesiredReplicas == 0 {
-		nameDisplay = styles.IconWarning + " " + dep.Name
+		iconPrefix = styles.IconWarning + " "
 	}
 
 	// Truncate node name if needed
@@ -263,30 +281,37 @@ func (v *DeploymentsView) renderRow(dep DeploymentInfo, selected bool) string {
 	}
 
 	cols := []string{
-		nameStyle.Render(v.padRight(nameDisplay, 35)),
-		styles.StyleSubtle.Render(v.padRight(dep.Namespace, 15)),
-		readyStyle.Render(v.padRight(readyStr, 8)),
-		styles.StyleNormal.Render(v.padRight(nodeName, 20)),
-		styles.StyleSubtle.Render(v.padRight(formatAge(dep.Age), 8)),
-		statusStyle.Render(v.padRight(dep.Status, 12)),
+		styles.StyleWarning.Render(iconPrefix),
+		nameStyle.Render(v.padRight(dep.Name, nameColWidth)),
+		styles.StyleSubtle.Render(v.padRight(dep.Namespace, namespaceColWidth)),
+		readyStyle.Render(v.padRight(readyStr, readyColWidth)),
+		styles.StyleNormal.Render(v.padRight(nodeName, nodeColWidth)),
+		styles.StyleSubtle.Render(v.padRight(formatAge(dep.Age), ageColWidth)),
+		statusStyle.Render(v.padRight(dep.Status, statusColWidth)),
 	}
 
 	return strings.Join(cols, " ")
 }
 
-// padRight pads a string to the specified width
+// padRight pads a string to the specified width using display width
 func (v *DeploymentsView) padRight(s string, width int) string {
-	// Handle ANSI escape codes - get visible length
-	visibleLen := len(s)
-	if len(s) >= width {
-		return s[:width]
+	// Use lipgloss.Width for proper display width calculation
+	// (handles Unicode characters and ANSI escape codes correctly)
+	visibleLen := lipgloss.Width(s)
+	if visibleLen >= width {
+		// Truncate if too long - need to be careful with multi-byte chars
+		if len(s) > width {
+			return s[:width]
+		}
+		return s
 	}
 	return s + strings.Repeat(" ", width-visibleLen)
 }
 
 // getTableWidth returns the total table width
 func (v *DeploymentsView) getTableWidth() int {
-	return 35 + 15 + 8 + 20 + 8 + 12 + 5 // column widths + spacing
+	// icon + name + namespace + ready + node + age + status + spacing between columns
+	return iconPrefixWidth + nameColWidth + namespaceColWidth + readyColWidth + nodeColWidth + ageColWidth + statusColWidth + 6
 }
 
 // SetDeployments updates the deployments list

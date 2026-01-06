@@ -31,10 +31,12 @@ var (
 	ColorFailed     = ColorError   // Red for error
 
 	// UI element colors
-	ColorBorder     = lipgloss.AdaptiveColor{Light: "#B2B2B2", Dark: "#585858"}
-	ColorSubtle     = lipgloss.AdaptiveColor{Light: "#6C6C6C", Dark: "#8A8A8A"}
-	ColorHighlight  = lipgloss.AdaptiveColor{Light: "#000000", Dark: "#FFFFFF"}
-	ColorBackground = lipgloss.AdaptiveColor{Light: "#FFFFFF", Dark: "#000000"}
+	ColorBorder        = lipgloss.AdaptiveColor{Light: "#B2B2B2", Dark: "#585858"}
+	ColorSubtle        = lipgloss.AdaptiveColor{Light: "#6C6C6C", Dark: "#8A8A8A"}
+	ColorHighlight     = lipgloss.AdaptiveColor{Light: "#000000", Dark: "#FFFFFF"}
+	ColorBackground    = lipgloss.AdaptiveColor{Light: "#FFFFFF", Dark: "#000000"}
+	ColorSubtleBg      = lipgloss.AdaptiveColor{Light: "#E8E8E8", Dark: "#303030"} // Subtle background for group headers
+	ColorSubtleBgLight = lipgloss.AdaptiveColor{Light: "#F0F0F0", Dark: "#252525"} // Even lighter variant
 )
 
 // Text styles for various UI elements
@@ -77,6 +79,12 @@ var (
 	StyleHighlight = lipgloss.NewStyle().
 			Foreground(ColorHighlight).
 			Bold(true)
+
+	// StyleGroupHeader is used for group headers in tables/lists
+	StyleGroupHeader = lipgloss.NewStyle().
+				Foreground(ColorSubtle).
+				Background(ColorSubtleBg).
+				Bold(true)
 )
 
 // Border styles for boxes and containers
