@@ -99,6 +99,9 @@ type DownModelConfig struct {
 	// StateFilePath optionally overrides the default state file location
 	StateFilePath string
 
+	// ExitBehavior controls how the flow exits (quit vs message).
+	ExitBehavior FlowExitBehavior
+
 	// Config is the application configuration
 	Config config.Config
 
@@ -375,7 +378,11 @@ func (m *DownModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, m.executeDownPhaseCmd())
 		} else {
 			// User cancelled or declined
-			return m, tea.Quit
+			reason := FlowExitDeclined
+			if msg.Result == components.ConfirmCancelled {
+				reason = FlowExitCancelled
+			}
+			return m, m.exitCmd(reason, nil)
 		}
 	}
 
@@ -403,13 +410,13 @@ func (m *DownModel) handleKeyPress(msg tea.KeyMsg) tea.Cmd {
 			m.startExecution()
 			return m.executeDownPhaseCmd()
 		case "q", "esc":
-			return tea.Quit
+			return m.exitCmd(FlowExitError, m.lastError)
 		}
 
 	case DownStateComplete:
 		switch msg.String() {
 		case "enter", "q", "esc":
-			return tea.Quit
+			return m.exitCmd(FlowExitCompleted, nil)
 		}
 
 	case DownStateConfirm:
@@ -423,11 +430,20 @@ func (m *DownModel) handleKeyPress(msg tea.KeyMsg) tea.Cmd {
 			if m.cancelFunc != nil {
 				m.cancelFunc()
 			}
-			return tea.Quit
+			return m.exitCmd(FlowExitCancelled, nil)
 		}
 	}
 
 	return nil
+}
+
+func (m *DownModel) exitCmd(reason FlowExitReason, err error) tea.Cmd {
+	if m.config.ExitBehavior == FlowExitMessage {
+		return func() tea.Msg {
+			return DownFlowExitMsg{Reason: reason, Err: err}
+		}
+	}
+	return tea.Quit
 }
 
 // startExecution initializes state for operation execution

@@ -327,6 +327,29 @@ func TestUpModel_Update_ConfirmNo(t *testing.T) {
 	}
 }
 
+func TestUpModel_Update_ConfirmNo_Embedded(t *testing.T) {
+	model := NewUpModel(UpModelConfig{
+		NodeName:     "test-node",
+		Context:      context.Background(),
+		ExitBehavior: FlowExitMessage,
+	})
+	model.state = UpStateConfirm
+
+	msg := components.ConfirmResultMsg{Result: components.ConfirmNo}
+	_, cmd := model.Update(msg)
+	if cmd == nil {
+		t.Fatal("should return an exit message command on decline")
+	}
+
+	exitMsg, ok := cmd().(UpFlowExitMsg)
+	if !ok {
+		t.Fatalf("expected UpFlowExitMsg, got %T", cmd())
+	}
+	if exitMsg.Reason != FlowExitDeclined {
+		t.Errorf("Reason = %v, want %v", exitMsg.Reason, FlowExitDeclined)
+	}
+}
+
 func TestUpModel_Update_Tick(t *testing.T) {
 	model := NewUpModel(UpModelConfig{
 		NodeName: "test-node",
@@ -375,6 +398,33 @@ func TestUpModel_handleKeyPress_ErrorState(t *testing.T) {
 	}
 }
 
+func TestUpModel_handleKeyPress_ErrorState_Embedded(t *testing.T) {
+	model := NewUpModel(UpModelConfig{
+		NodeName:     "test-node",
+		Context:      context.Background(),
+		ExitBehavior: FlowExitMessage,
+	})
+	model.state = UpStateError
+	model.lastError = errors.New("test error")
+
+	escMsg := tea.KeyMsg{Type: tea.KeyEsc}
+	cmd := model.handleKeyPress(escMsg)
+	if cmd == nil {
+		t.Fatal("'esc' in error state should return exit message command")
+	}
+
+	exitMsg, ok := cmd().(UpFlowExitMsg)
+	if !ok {
+		t.Fatalf("expected UpFlowExitMsg, got %T", cmd())
+	}
+	if exitMsg.Reason != FlowExitError {
+		t.Errorf("Reason = %v, want %v", exitMsg.Reason, FlowExitError)
+	}
+	if exitMsg.Err == nil {
+		t.Error("Err should be set for error exit")
+	}
+}
+
 func TestUpModel_handleKeyPress_CompleteState(t *testing.T) {
 	model := NewUpModel(UpModelConfig{
 		NodeName: "test-node",
@@ -394,6 +444,29 @@ func TestUpModel_handleKeyPress_CompleteState(t *testing.T) {
 	cmd = model.handleKeyPress(quitMsg)
 	if cmd == nil {
 		t.Error("'q' in complete state should return quit command")
+	}
+}
+
+func TestUpModel_handleKeyPress_CompleteState_Embedded(t *testing.T) {
+	model := NewUpModel(UpModelConfig{
+		NodeName:     "test-node",
+		Context:      context.Background(),
+		ExitBehavior: FlowExitMessage,
+	})
+	model.state = UpStateComplete
+
+	enterMsg := tea.KeyMsg{Type: tea.KeyEnter}
+	cmd := model.handleKeyPress(enterMsg)
+	if cmd == nil {
+		t.Fatal("Enter in complete state should return exit message command")
+	}
+
+	exitMsg, ok := cmd().(UpFlowExitMsg)
+	if !ok {
+		t.Fatalf("expected UpFlowExitMsg, got %T", cmd())
+	}
+	if exitMsg.Reason != FlowExitCompleted {
+		t.Errorf("Reason = %v, want %v", exitMsg.Reason, FlowExitCompleted)
 	}
 }
 
