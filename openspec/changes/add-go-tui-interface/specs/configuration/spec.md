@@ -96,39 +96,6 @@ The system SHALL support environment variables with CROOK_ prefix.
 - **THEN** system converts to lowercase (CROOK_FOO_BAR → foo.bar)
 - **THEN** system replaces hyphens with underscores in env var names
 
-### Requirement: CLI Flag Overrides
-
-The system SHALL provide CLI flags for common configuration options.
-
-#### Scenario: Global flags
-
-- **WHEN** user specifies CLI flags
-- **THEN** system accepts:
-  - `--config <path>` - Config file path
-  - `--kubeconfig <path>` - Kubernetes config file
-  - `--namespace <name>` - Override both operator and cluster namespaces
-  - `--rook-operator-namespace <name>` - Operator namespace
-  - `--rook-cluster-namespace <name>` - Cluster namespace
-  - `--state-file <path>` - State file path (overrides template)
-  - `--log-level <level>` - Log level (debug, info, warn, error)
-  - `--log-file <path>` - Log file path
-
-#### Scenario: Command-specific flags
-
-- **WHEN** user runs `crook down` command
-- **THEN** system accepts:
-  - `--force` - Skip confirmation prompts
-  - `--no-backup` - Disable state file backup
-- **WHEN** user runs `crook up` command
-- **THEN** system accepts:
-  - `--force` - Skip confirmation prompts
-  - `--state-file <path>` - Explicit state file path
-- **WHEN** user runs `crook ls` command
-- **THEN** system accepts:
-  - `--output <format>` or `-o` - Output format: tui (default), table, json, yaml
-  - `--all-namespaces` or `-A` - Show resources across all namespaces (not just configured ones)
-  - `--show <types>` - Comma-separated list of resource types to show: nodes,deployments,osds,pods (default: all)
-
 ### Requirement: Configuration Validation
 
 The system SHALL validate configuration values and provide clear error messages.
