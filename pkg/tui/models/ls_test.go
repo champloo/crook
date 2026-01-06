@@ -360,11 +360,23 @@ func TestLsModel_handleKeyPress_Help(t *testing.T) {
 		t.Error("help should be visible after pressing ?")
 	}
 
-	// Any key should close help
+	// Non-escape keys should not close help
 	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("x")})
+	if !model.helpVisible {
+		t.Error("help should remain visible after pressing non-close key")
+	}
 
+	// ? should toggle help off
+	model.handleKeyPress(msg)
 	if model.helpVisible {
-		t.Error("help should be hidden after pressing any key")
+		t.Error("help should be hidden after pressing ? again")
+	}
+
+	// Esc should close help
+	model.helpVisible = true
+	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyEsc})
+	if model.helpVisible {
+		t.Error("help should be hidden after pressing esc")
 	}
 }
 

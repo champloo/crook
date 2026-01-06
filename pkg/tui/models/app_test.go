@@ -125,6 +125,37 @@ func TestAppModel_Update_GlobalKeys_Quit(t *testing.T) {
 	}
 }
 
+func TestAppModel_Update_GlobalKeys_Q(t *testing.T) {
+	model := NewAppModel(AppConfig{
+		Route:   RouteDown,
+		Context: context.Background(),
+	})
+
+	// When help is open, q should not close help or quit.
+	model.showHelp = true
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}
+	updatedModel, cmd := model.Update(msg)
+	m, _ := updatedModel.(*AppModel)
+
+	if !m.showHelp {
+		t.Error("q should not close help overlay")
+	}
+	if cmd != nil {
+		t.Error("q should not quit while help is open")
+	}
+
+	// When no overlays are open, q should quit.
+	m.showHelp = false
+	updatedModel, cmd = m.Update(msg)
+	m, _ = updatedModel.(*AppModel)
+	if !m.quitting {
+		t.Error("q should set quitting to true when no overlays are open")
+	}
+	if cmd == nil {
+		t.Error("q should return a quit command when no overlays are open")
+	}
+}
+
 func TestAppModel_Update_GlobalKeys_Logs(t *testing.T) {
 	model := NewAppModel(AppConfig{
 		Route:   RouteDown,

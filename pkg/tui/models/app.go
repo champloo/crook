@@ -266,15 +266,12 @@ func (m *AppModel) handleGlobalKeys(msg tea.KeyMsg) tea.Cmd {
 	case "q":
 		// Quit if not in an active operation
 		// Sub-models can prevent this by handling 'q' themselves
+		if m.showHelp || m.showLogs {
+			return nil
+		}
 		if !m.showHelp && !m.showLogs {
 			m.quitting = true
 			return tea.Quit
-		}
-		if m.showHelp {
-			m.showHelp = false
-		}
-		if m.showLogs {
-			m.showLogs = false
 		}
 		return nil
 	}
@@ -352,12 +349,12 @@ func (m *AppModel) renderHelp() string {
   r         Retry failed operation
   l         Toggle log view
 
-%s Global
-  Ctrl+C    Quit immediately
-  ?         Show/hide this help
-  q         Quit (when safe)
+	%s Global
+	  Ctrl+C    Quit immediately
+	  ?         Show/hide this help
+	  q         Quit (when safe)
 
-Press any key to close this help.`,
+Press Esc or ? to close this help.`,
 		styles.StyleHeading.Render("Help"),
 		styles.StyleStatus.Render(""),
 		styles.IconArrow, styles.IconArrow,

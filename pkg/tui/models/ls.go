@@ -591,13 +591,21 @@ func (m *LsModel) handleKeyPress(msg tea.KeyMsg) tea.Cmd {
 		return m.handleFilterInput(msg)
 	}
 
-	// If help is visible, any key closes it
+	key := msg.String()
+
+	// If help is visible, only Esc or ? closes it (Ctrl+C always quits)
 	if m.helpVisible {
-		m.helpVisible = false
+		switch key {
+		case "esc", "?":
+			m.helpVisible = false
+		case "ctrl+c":
+			if m.monitor != nil {
+				m.monitor.Stop()
+			}
+			return tea.Quit
+		}
 		return nil
 	}
-
-	key := msg.String()
 
 	if cmd, ok := m.handleQuitKey(key); ok {
 		return cmd
@@ -636,7 +644,7 @@ func (m *LsModel) handleQuitKey(key string) (tea.Cmd, bool) {
 func (m *LsModel) handleHelpFilterAndPaneNavKey(key string) bool {
 	switch key {
 	case "?":
-		m.helpVisible = true
+		m.helpVisible = !m.helpVisible
 		return true
 	case "/":
 		m.filterActive = true
@@ -1141,7 +1149,7 @@ func (m *LsModel) renderHelp() string {
 │    q, Esc      Quit                     │
 ╰─────────────────────────────────────────╯
 
-Press any key to close
+Press Esc or ? to close
 `
 	return styles.StyleBox.Render(help)
 }
