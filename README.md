@@ -38,19 +38,6 @@ just build
 just install
 ```
 
-### Shell Completions
-
-```bash
-# Bash
-crook completion bash > /etc/bash_completion.d/crook
-
-# Zsh
-crook completion zsh > "${fpath[1]}/_crook"
-
-# Fish
-crook completion fish > ~/.config/fish/completions/crook.fish
-```
-
 ## Quick Start
 
 ### Interactive TUI
@@ -180,25 +167,7 @@ List Rook-Ceph resources in an interactive TUI or formatted output.
 | Flag | Description |
 |------|-------------|
 | `-o, --output` | Output format: tui, table, json, yaml (default: tui) |
-| `-A, --all-namespaces` | List across all namespaces |
 | `--show` | Resource types to display: nodes,deployments,osds,pods |
-
-### `crook config`
-
-Manage configuration.
-
-**Subcommands:**
-- `crook config show` - Show effective configuration
-- `crook config validate [file]` - Validate configuration
-
-### `crook state`
-
-Manage state files.
-
-**Subcommands:**
-- `crook state list` - List state files in current/specified directory
-- `crook state show <file>` - Show details of a state file
-- `crook state clean` - Clean old backup state files
 
 ## Configuration
 
@@ -341,9 +310,6 @@ echo "Maintenance complete for $NODE"
 ```bash
 # Get cluster data as JSON
 crook ls --output json | jq '.nodes[] | select(.schedulable == false)'
-
-# Check state files
-crook state list --format json | jq '.[] | select(.node == "worker-1")'
 ```
 
 ## Troubleshooting
@@ -351,8 +317,7 @@ crook state list --format json | jq '.[] | select(.node == "worker-1")'
 ### Common Issues
 
 **"failed to create kubernetes client"**
-- Verify kubeconfig path: `crook config show`
-- Check cluster connectivity: `kubectl cluster-info`
+- Verify kubeconfig path and cluster connectivity: `kubectl cluster-info`
 - Ensure proper RBAC permissions
 
 **"node not found in cluster"**
@@ -364,7 +329,7 @@ crook state list --format json | jq '.[] | select(.node == "worker-1")'
 - Check namespace configuration
 
 **"state file not found" during up phase**
-- Verify state file exists: `crook state list`
+- Verify state file exists: `ls crook-state-*.json`
 - Check state file template in config
 - Use `--state-file` to specify explicit path
 
@@ -388,7 +353,7 @@ export CROOK_LOGGING_LEVEL=debug
 If the up phase fails partway through:
 
 1. Check current state: `crook ls`
-2. View state file: `crook state show crook-state-worker-1.json`
+2. View state file: `cat crook-state-worker-1.json | jq`
 3. Retry with skip-missing if deployments were removed: `crook up worker-1 --skip-missing`
 
 ## Architecture
