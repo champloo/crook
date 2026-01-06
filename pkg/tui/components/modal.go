@@ -53,6 +53,14 @@ func NewModalWithModel(config ModalConfig, model ModalContent) *Modal {
 	}
 }
 
+// Init implements tea.Model.
+func (m *Modal) Init() tea.Cmd {
+	if m.model == nil {
+		return nil
+	}
+	return m.model.Init()
+}
+
 // SetModel assigns an embedded model to the modal.
 func (m *Modal) SetModel(model ModalContent) {
 	m.model = model

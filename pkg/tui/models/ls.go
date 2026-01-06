@@ -274,7 +274,7 @@ func (m *LsModel) startMonitorCmd() tea.Cmd {
 func (m *LsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
-	switch msg := msg.(type) {
+	switch msg.(type) {
 	case components.ModalCloseMsg:
 		cmds = append(cmds, m.closeMaintenanceModal())
 		return m, tea.Batch(cmds...)
