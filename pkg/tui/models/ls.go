@@ -137,6 +137,10 @@ type LsModel struct {
 	// Error state
 	lastError error
 
+	// Maintenance modal state
+	maintenanceModal    *components.Modal
+	pendingReselectNode string
+
 	// Monitor for background updates
 	monitor        *monitoring.LsMonitor
 	lastUpdateTime time.Time
@@ -271,6 +275,31 @@ func (m *LsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
+	case components.ModalCloseMsg:
+		cmds = append(cmds, m.closeMaintenanceModal())
+		return m, tea.Batch(cmds...)
+	case DownFlowExitMsg:
+		cmds = append(cmds, m.closeMaintenanceModal())
+		return m, tea.Batch(cmds...)
+	case UpFlowExitMsg:
+		cmds = append(cmds, m.closeMaintenanceModal())
+		return m, tea.Batch(cmds...)
+	}
+
+	if m.maintenanceModal != nil {
+		updatedModal, cmd := m.maintenanceModal.Update(msg)
+		if modal, ok := updatedModal.(*components.Modal); ok {
+			m.maintenanceModal = modal
+		}
+		if cmd != nil {
+			cmds = append(cmds, cmd)
+		}
+		if _, ok := msg.(tea.KeyMsg); ok {
+			return m, tea.Batch(cmds...)
+		}
+	}
+
+	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		cmd := m.handleKeyPress(msg)
 		if cmd != nil {
@@ -283,6 +312,9 @@ func (m *LsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.header.SetWidth(msg.Width)
 		m.tabBar.SetWidth(msg.Width)
 		m.updateViewSizes()
+		if m.maintenanceModal != nil {
+			m.maintenanceModal.SetSize(msg.Width, msg.Height)
+		}
 
 	case components.TabSwitchMsg:
 		// Legacy tab switch support - map to pane
@@ -409,6 +441,8 @@ func (m *LsModel) updateFromMonitor(update *monitoring.LsMonitorUpdate) {
 
 	// Store any error
 	m.lastError = update.Error
+
+	m.reselectNodeIfNeeded()
 }
 
 // updateAllCounts updates all pane counts and badges
@@ -562,6 +596,22 @@ func (m *LsModel) handleKeyPress(msg tea.KeyMsg) tea.Cmd {
 
 	case "enter":
 		// Placeholder: will trigger detail view in future
+		return nil
+
+	case "d":
+		if m.activePane == LsPaneNodes {
+			if node := m.nodesView.GetSelectedNode(); node != nil {
+				return m.openMaintenanceModal(node.Name, false)
+			}
+		}
+		return nil
+
+	case "u":
+		if m.activePane == LsPaneNodes {
+			if node := m.nodesView.GetSelectedNode(); node != nil {
+				return m.openMaintenanceModal(node.Name, true)
+			}
+		}
 		return nil
 
 	case "ctrl+c":
@@ -750,6 +800,10 @@ func (m *LsModel) View() string {
 		return m.renderHelp()
 	}
 
+	if m.maintenanceModal != nil {
+		return m.maintenanceModal.View()
+	}
+
 	// Header with cluster summary
 	b.WriteString(m.renderHeader())
 	b.WriteString("\n\n")
@@ -808,6 +862,57 @@ func (m *LsModel) renderAllPanes() string {
 	return b.String()
 }
 
+func (m *LsModel) openMaintenanceModal(nodeName string, isUp bool) tea.Cmd {
+	if m.maintenanceModal != nil {
+		return nil
+	}
+
+	m.pendingReselectNode = nodeName
+
+	var flow components.ModalContent
+	if isUp {
+		flow = NewUpModel(UpModelConfig{
+			NodeName:     nodeName,
+			Config:       m.config.Config,
+			Client:       m.config.Client,
+			Context:      m.config.Context,
+			ExitBehavior: FlowExitMessage,
+		})
+	} else {
+		flow = NewDownModel(DownModelConfig{
+			NodeName:     nodeName,
+			Config:       m.config.Config,
+			Client:       m.config.Client,
+			Context:      m.config.Context,
+			ExitBehavior: FlowExitMessage,
+		})
+	}
+
+	m.maintenanceModal = components.NewModalWithModel(components.ModalConfig{
+		DisableEscClose: true,
+		DisableFrame:    true,
+	}, flow)
+	m.maintenanceModal.SetSize(m.width, m.height)
+
+	return flow.Init()
+}
+
+func (m *LsModel) closeMaintenanceModal() tea.Cmd {
+	m.maintenanceModal = nil
+	return func() tea.Msg {
+		return LsRefreshMsg{Tab: LsTabNodes}
+	}
+}
+
+func (m *LsModel) reselectNodeIfNeeded() {
+	if m.pendingReselectNode == "" {
+		return
+	}
+	if m.nodesView.SetCursorByName(m.pendingReselectNode) {
+		m.pendingReselectNode = ""
+	}
+}
+
 // getPaneContent returns the view content for a specific pane
 func (m *LsModel) getPaneContent(pane LsPane) string {
 	switch pane {
@@ -836,6 +941,9 @@ func (m *LsModel) renderStatusBar() string {
 		hints = append(hints, "Enter: apply", "Esc: cancel")
 	} else {
 		hints = append(hints, "Tab/1-3: pane", "j/k: navigate")
+		if m.activePane == LsPaneNodes {
+			hints = append(hints, "u/d: up/down")
+		}
 		if m.activePane == LsPaneDeployments {
 			hints = append(hints, "[/]: deployments/pods")
 		}
@@ -859,6 +967,7 @@ func (m *LsModel) renderHelp() string {
 │    Enter       View details             │
 │                                         │
 │  Actions                                │
+│    u/d         Up/down selected node    │
 │    r           Refresh data             │
 │    /           Enter filter mode        │
 │                                         │
@@ -882,6 +991,9 @@ func (m *LsModel) SetSize(width, height int) {
 	m.height = height
 	m.tabBar.SetWidth(width)
 	m.updateViewSizes()
+	if m.maintenanceModal != nil {
+		m.maintenanceModal.SetSize(width, height)
+	}
 }
 
 // GetActiveTab returns the currently active tab (legacy)

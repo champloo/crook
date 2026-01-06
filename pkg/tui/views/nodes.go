@@ -285,6 +285,17 @@ func (v *NodesView) SetCursor(cursor int) {
 	}
 }
 
+// SetCursorByName selects the row with the matching node name.
+func (v *NodesView) SetCursorByName(name string) bool {
+	for i, node := range v.filtered {
+		if node.Name == name {
+			v.cursor = i
+			return true
+		}
+	}
+	return false
+}
+
 // Count returns the number of nodes (filtered)
 func (v *NodesView) Count() int {
 	return len(v.filtered)

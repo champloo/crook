@@ -25,6 +25,7 @@ type ModalConfig struct {
 	MaxWidth        int
 	MaxHeight       int
 	DisableEscClose bool
+	DisableFrame    bool
 }
 
 // ModalCloseMsg is emitted when the user requests closing the modal.
@@ -105,7 +106,7 @@ func (m *Modal) View() string {
 	}
 
 	modalWidth, modalHeight := m.modalSize()
-	frameW, frameH := styles.StyleBox.GetFrameSize()
+	frameW, frameH := m.frameSize()
 	if modalWidth < frameW+1 {
 		modalWidth = frameW + 1
 	}
@@ -113,10 +114,7 @@ func (m *Modal) View() string {
 		modalHeight = frameH + 1
 	}
 
-	box := styles.StyleBox.
-		Width(modalWidth).
-		Height(modalHeight).
-		Render(content)
+	box := m.renderFrame(modalWidth, modalHeight, content)
 
 	if m.width == 0 || m.height == 0 {
 		return box
@@ -164,7 +162,7 @@ func (m *Modal) syncContentSize() {
 	}
 
 	modalWidth, modalHeight := m.modalSize()
-	frameW, frameH := styles.StyleBox.GetFrameSize()
+	frameW, frameH := m.frameSize()
 	contentWidth := modalWidth - frameW
 	contentHeight := modalHeight - frameH
 	if contentWidth < 1 {
@@ -175,6 +173,27 @@ func (m *Modal) syncContentSize() {
 	}
 
 	m.model.SetSize(contentWidth, contentHeight)
+}
+
+func (m *Modal) frameSize() (int, int) {
+	if m.config.DisableFrame {
+		return 0, 0
+	}
+	return styles.StyleBox.GetFrameSize()
+}
+
+func (m *Modal) renderFrame(width, height int, content string) string {
+	if m.config.DisableFrame {
+		return lipgloss.NewStyle().
+			Width(width).
+			Height(height).
+			Render(content)
+	}
+
+	return styles.StyleBox.
+		Width(width).
+		Height(height).
+		Render(content)
 }
 
 func min(a, b int) int {
