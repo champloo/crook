@@ -173,6 +173,47 @@ func TestLsModel_View_DoesNotPanicOnTinySize(t *testing.T) {
 	_ = model.View()
 }
 
+func TestLsModel_topRowWidths(t *testing.T) {
+	model := NewLsModel(LsModelConfig{
+		Context: context.Background(),
+	})
+
+	const gap = 1
+	tests := []struct {
+		width                int
+		wantNodes, wantMaint int
+		wantExact            bool
+	}{
+		{width: 120, wantNodes: 79, wantMaint: 40, wantExact: true}, // maintenance uses total/3
+		{width: 80, wantNodes: 44, wantMaint: 35, wantExact: true},  // maintenance uses min
+		{width: 76, wantNodes: 40, wantMaint: 35, wantExact: true},  // exact mins
+		{width: 70, wantNodes: 40, wantMaint: 29, wantExact: true},  // maintenance shrinks to preserve nodes
+		{width: 42, wantNodes: 40, wantMaint: 1, wantExact: true},   // minimum maintenance
+	}
+
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("width=%d", tt.width), func(t *testing.T) {
+			model.width = tt.width
+			nodes, maint := model.topRowWidths()
+
+			if tt.wantExact {
+				if nodes != tt.wantNodes || maint != tt.wantMaint {
+					t.Fatalf("topRowWidths() = (%d,%d), want (%d,%d)", nodes, maint, tt.wantNodes, tt.wantMaint)
+				}
+			}
+
+			if tt.width >= gap+2 {
+				if nodes < 1 || maint < 1 {
+					t.Fatalf("expected positive widths, got (%d,%d)", nodes, maint)
+				}
+				if got := nodes + maint; got != tt.width-gap {
+					t.Fatalf("expected nodes+maintenance == width-gap, got %d want %d", got, tt.width-gap)
+				}
+			}
+		})
+	}
+}
+
 func TestLsModel_Update_TabSwitch(t *testing.T) {
 	model := NewLsModel(LsModelConfig{
 		Context: context.Background(),

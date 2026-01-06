@@ -164,16 +164,9 @@ const (
 	paneContentVerticalPadding   = 3 // pane borders plus typical view chrome
 )
 
-func clampMin(value, min int) int {
-	if value < min {
-		return min
-	}
-	return value
-}
-
 func innerViewSize(paneWidth, paneHeight int) (int, int) {
-	width := clampMin(paneWidth-paneContentHorizontalPadding, 1)
-	height := clampMin(paneHeight-paneContentVerticalPadding, 1)
+	width := max(paneWidth-paneContentHorizontalPadding, 1)
+	height := max(paneHeight-paneContentVerticalPadding, 1)
 	return width, height
 }
 
@@ -1037,28 +1030,28 @@ func (m *LsModel) topRowWidths() (int, int) {
 	const minMaintenance = 35
 
 	total := m.width
-	if total <= gap {
-		return total, 0
+	if total <= 0 {
+		return 0, 0
+	}
+	if total <= gap+1 {
+		return total, 1
 	}
 
+	available := total - gap
 	maintenance := max(minMaintenance, total/3)
-	nodes := total - gap - maintenance
+	maintenance = min(maintenance, available-1)
+	nodes := available - maintenance
 
 	if nodes < minNodes {
-		nodes = minNodes
-		maintenance = total - gap - nodes
-	}
-	if maintenance < minMaintenance {
-		maintenance = minMaintenance
-		nodes = total - gap - maintenance
+		maintenance = available - minNodes
+		if maintenance < 1 {
+			maintenance = 1
+		}
+		nodes = available - maintenance
 	}
 
-	if nodes < 1 {
-		nodes = 1
-	}
-	if maintenance < 1 {
-		maintenance = 1
-	}
+	nodes = max(nodes, 1)
+	maintenance = max(available-nodes, 1)
 	return nodes, maintenance
 }
 
