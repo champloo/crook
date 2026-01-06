@@ -182,7 +182,6 @@
   - [ ] Initialize TUI or run headless based on flag
   - [ ] Execute up phase
 - [ ] 8.4 Create `crook version` command
-- [ ] 8.7 Add shell completion generation (bash, zsh, fish)
 
 ## 9. Integration and Testing
 

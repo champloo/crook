@@ -76,8 +76,9 @@ Key features:
   - Maintains cluster state across reboots and maintenance windows
   - Interactive TUI with real-time feedback
   - Pre-flight validation and health monitoring`,
-		SilenceUsage:  true,
-		SilenceErrors: true,
+		SilenceUsage:      true,
+		SilenceErrors:     true,
+		CompletionOptions: cobra.CompletionOptions{DisableDefaultCmd: true},
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 			return initializeGlobals(cmd)
 		},
@@ -91,7 +92,6 @@ Key features:
 
 	// Add subcommands
 	rootCmd.AddCommand(newVersionCmd())
-	rootCmd.AddCommand(newCompletionCmd())
 	rootCmd.AddCommand(newDownCmd())
 	rootCmd.AddCommand(newUpCmd())
 	rootCmd.AddCommand(newLsCmd())
