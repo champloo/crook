@@ -47,42 +47,6 @@ func TestOSDsView_SetOSDs(t *testing.T) {
 	}
 }
 
-func TestOSDsView_SetFilter(t *testing.T) {
-	v := NewOSDsView()
-
-	osds := []OSDInfo{
-		{ID: 0, Name: "osd.0", Hostname: "worker-1", DeviceClass: "ssd"},
-		{ID: 1, Name: "osd.1", Hostname: "worker-1", DeviceClass: "ssd"},
-		{ID: 2, Name: "osd.2", Hostname: "worker-2", DeviceClass: "hdd"},
-	}
-
-	v.SetOSDs(osds)
-
-	// Filter by hostname
-	v.SetFilter("worker-1")
-	if v.Count() != 2 {
-		t.Errorf("Count() with filter 'worker-1' = %d, want 2", v.Count())
-	}
-
-	// Filter by device class
-	v.SetFilter("hdd")
-	if v.Count() != 1 {
-		t.Errorf("Count() with filter 'hdd' = %d, want 1", v.Count())
-	}
-
-	// Filter by OSD name
-	v.SetFilter("osd.0")
-	if v.Count() != 1 {
-		t.Errorf("Count() with filter 'osd.0' = %d, want 1", v.Count())
-	}
-
-	// Clear filter
-	v.SetFilter("")
-	if v.Count() != 3 {
-		t.Errorf("Count() with empty filter = %d, want 3", v.Count())
-	}
-}
-
 func TestOSDsView_CursorNavigation(t *testing.T) {
 	v := NewOSDsView()
 	v.SetSize(100, 50)
@@ -283,30 +247,5 @@ func TestOSDsView_CountDownOut(t *testing.T) {
 
 	if v.CountOut() != 2 {
 		t.Errorf("CountOut() = %d, want 2", v.CountOut())
-	}
-}
-
-func TestOSDsView_FilterResetsCursor(t *testing.T) {
-	v := NewOSDsView()
-
-	osds := []OSDInfo{
-		{ID: 0, Name: "osd.0", Hostname: "worker-1"},
-		{ID: 1, Name: "osd.1", Hostname: "worker-1"},
-		{ID: 2, Name: "osd.2", Hostname: "worker-2"},
-	}
-	v.SetOSDs(osds)
-
-	// Move cursor to last item
-	v.SetCursor(2)
-	if v.cursor != 2 {
-		t.Fatalf("cursor should be 2, got %d", v.cursor)
-	}
-
-	// Apply filter that reduces results
-	v.SetFilter("worker-1")
-
-	// Cursor should be clamped to valid range
-	if v.cursor >= v.Count() {
-		t.Errorf("cursor %d should be less than count %d after filter", v.cursor, v.Count())
 	}
 }

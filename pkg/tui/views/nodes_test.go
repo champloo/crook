@@ -44,42 +44,6 @@ func TestNodesView_SetNodes(t *testing.T) {
 	}
 }
 
-func TestNodesView_SetFilter(t *testing.T) {
-	v := NewNodesView()
-
-	nodes := []NodeInfo{
-		{Name: "worker-1", Status: "Ready"},
-		{Name: "worker-2", Status: "Ready"},
-		{Name: "control-plane-1", Status: "Ready"},
-	}
-
-	v.SetNodes(nodes)
-
-	// Filter for worker
-	v.SetFilter("worker")
-	if v.Count() != 2 {
-		t.Errorf("Count() with filter 'worker' = %d, want 2", v.Count())
-	}
-
-	// Filter for control
-	v.SetFilter("control")
-	if v.Count() != 1 {
-		t.Errorf("Count() with filter 'control' = %d, want 1", v.Count())
-	}
-
-	// Clear filter
-	v.SetFilter("")
-	if v.Count() != 3 {
-		t.Errorf("Count() with empty filter = %d, want 3", v.Count())
-	}
-
-	// Case-insensitive filter
-	v.SetFilter("WORKER")
-	if v.Count() != 2 {
-		t.Errorf("Count() with filter 'WORKER' (case-insensitive) = %d, want 2", v.Count())
-	}
-}
-
 func TestNodesView_CursorNavigation(t *testing.T) {
 	v := NewNodesView()
 	v.SetSize(100, 50)
@@ -277,31 +241,6 @@ func TestNodesView_GetSelectedNode(t *testing.T) {
 	selected = v.GetSelectedNode()
 	if selected.Name != "node-2" {
 		t.Errorf("selected node = %s, want node-2", selected.Name)
-	}
-}
-
-func TestNodesView_FilterResetsCursor(t *testing.T) {
-	v := NewNodesView()
-
-	nodes := []NodeInfo{
-		{Name: "worker-1"},
-		{Name: "worker-2"},
-		{Name: "control-plane-1"},
-	}
-	v.SetNodes(nodes)
-
-	// Move cursor to last item
-	v.SetCursor(2)
-	if v.cursor != 2 {
-		t.Fatalf("cursor should be 2, got %d", v.cursor)
-	}
-
-	// Apply filter that reduces results
-	v.SetFilter("worker")
-
-	// Cursor should be clamped to valid range
-	if v.cursor >= v.Count() {
-		t.Errorf("cursor %d should be less than count %d after filter", v.cursor, v.Count())
 	}
 }
 

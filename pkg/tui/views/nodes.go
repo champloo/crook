@@ -20,12 +20,6 @@ type NodesView struct {
 	// cursor is the currently selected row
 	cursor int
 
-	// filter is the current filter string
-	filter string
-
-	// filtered is the filtered nodes list
-	filtered []NodeInfo
-
 	// width is the terminal width
 	width int
 
@@ -48,8 +42,7 @@ type nodesColumnLayout struct {
 // NewNodesView creates a new nodes view
 func NewNodesView() *NodesView {
 	return &NodesView{
-		nodes:    make([]NodeInfo, 0),
-		filtered: make([]NodeInfo, 0),
+		nodes: make([]NodeInfo, 0),
 	}
 }
 
@@ -69,7 +62,7 @@ func (v *NodesView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "j", "down":
-			if v.cursor < len(v.filtered)-1 {
+			if v.cursor < len(v.nodes)-1 {
 				v.cursor++
 			}
 		case "k", "up":
@@ -79,13 +72,13 @@ func (v *NodesView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "g":
 			v.cursor = 0
 		case "G":
-			if len(v.filtered) > 0 {
-				v.cursor = len(v.filtered) - 1
+			if len(v.nodes) > 0 {
+				v.cursor = len(v.nodes) - 1
 			}
 		case "enter":
-			if v.cursor >= 0 && v.cursor < len(v.filtered) {
+			if v.cursor >= 0 && v.cursor < len(v.nodes) {
 				return v, func() tea.Msg {
-					return NodeSelectedMsg{Node: v.filtered[v.cursor]}
+					return NodeSelectedMsg{Node: v.nodes[v.cursor]}
 				}
 			}
 		}
@@ -95,7 +88,7 @@ func (v *NodesView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // View implements tea.Model
 func (v *NodesView) View() string {
-	if len(v.filtered) == 0 {
+	if len(v.nodes) == 0 {
 		return styles.StyleSubtle.Render("No nodes found")
 	}
 
@@ -119,21 +112,21 @@ func (v *NodesView) View() string {
 		startIdx = v.cursor - visibleRows + 1
 	}
 	endIdx := startIdx + visibleRows
-	if endIdx > len(v.filtered) {
-		endIdx = len(v.filtered)
+	if endIdx > len(v.nodes) {
+		endIdx = len(v.nodes)
 	}
 
 	// Rows
 	for i := startIdx; i < endIdx; i++ {
-		node := v.filtered[i]
+		node := v.nodes[i]
 		row := v.renderRow(node, i == v.cursor)
 		b.WriteString(row)
 		b.WriteString("\n")
 	}
 
 	// Scroll indicator
-	if len(v.filtered) > visibleRows {
-		scrollInfo := styles.StyleSubtle.Render(fmt.Sprintf("(%d/%d)", v.cursor+1, len(v.filtered)))
+	if len(v.nodes) > visibleRows {
+		scrollInfo := styles.StyleSubtle.Render(fmt.Sprintf("(%d/%d)", v.cursor+1, len(v.nodes)))
 		b.WriteString(scrollInfo)
 	}
 
@@ -333,32 +326,9 @@ func (v *NodesView) getTableWidth() int {
 // SetNodes updates the nodes list
 func (v *NodesView) SetNodes(nodes []NodeInfo) {
 	v.nodes = nodes
-	v.applyFilter()
-}
-
-// SetFilter sets the filter string and applies it
-func (v *NodesView) SetFilter(filter string) {
-	v.filter = filter
-	v.applyFilter()
-}
-
-// applyFilter filters nodes based on the current filter
-func (v *NodesView) applyFilter() {
-	if v.filter == "" {
-		v.filtered = v.nodes
-	} else {
-		filterLower := strings.ToLower(v.filter)
-		v.filtered = make([]NodeInfo, 0)
-		for _, node := range v.nodes {
-			if strings.Contains(strings.ToLower(node.Name), filterLower) {
-				v.filtered = append(v.filtered, node)
-			}
-		}
-	}
-
 	// Reset cursor if out of bounds
-	if v.cursor >= len(v.filtered) {
-		v.cursor = len(v.filtered) - 1
+	if v.cursor >= len(v.nodes) {
+		v.cursor = len(v.nodes) - 1
 	}
 	if v.cursor < 0 {
 		v.cursor = 0
@@ -378,14 +348,14 @@ func (v *NodesView) GetCursor() int {
 
 // SetCursor sets the cursor position
 func (v *NodesView) SetCursor(cursor int) {
-	if cursor >= 0 && cursor < len(v.filtered) {
+	if cursor >= 0 && cursor < len(v.nodes) {
 		v.cursor = cursor
 	}
 }
 
 // SetCursorByName selects the row with the matching node name.
 func (v *NodesView) SetCursorByName(name string) bool {
-	for i, node := range v.filtered {
+	for i, node := range v.nodes {
 		if node.Name == name {
 			v.cursor = i
 			return true
@@ -394,20 +364,15 @@ func (v *NodesView) SetCursorByName(name string) bool {
 	return false
 }
 
-// Count returns the number of nodes (filtered)
+// Count returns the number of nodes
 func (v *NodesView) Count() int {
-	return len(v.filtered)
-}
-
-// TotalCount returns the total number of nodes (unfiltered)
-func (v *NodesView) TotalCount() int {
 	return len(v.nodes)
 }
 
 // GetSelectedNode returns the currently selected node
 func (v *NodesView) GetSelectedNode() *NodeInfo {
-	if v.cursor >= 0 && v.cursor < len(v.filtered) {
-		return &v.filtered[v.cursor]
+	if v.cursor >= 0 && v.cursor < len(v.nodes) {
+		return &v.nodes[v.cursor]
 	}
 	return nil
 }

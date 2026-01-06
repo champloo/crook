@@ -160,66 +160,6 @@ func TestDeploymentsPodsView_Count_DelegatesToActiveView(t *testing.T) {
 	}
 }
 
-func TestDeploymentsPodsView_TotalCount_DelegatesToActiveView(t *testing.T) {
-	v := views.NewDeploymentsPodsView()
-
-	deployments := []views.DeploymentInfo{
-		{Name: "dep1", Namespace: "ns", Status: "Ready"},
-		{Name: "dep2", Namespace: "ns", Status: "Ready"},
-		{Name: "dep3", Namespace: "ns", Status: "Ready"},
-		{Name: "dep4", Namespace: "ns", Status: "Ready"},
-	}
-	v.SetDeployments(deployments)
-
-	pods := []views.PodInfo{
-		{Name: "pod1", Namespace: "ns", Status: "Running"},
-	}
-	v.SetPods(pods)
-
-	// Check deployments total count
-	if v.TotalCount() != 4 {
-		t.Errorf("deployments TotalCount() = %d, want 4", v.TotalCount())
-	}
-
-	// Switch to pods and check total count
-	v.ShowPods()
-	if v.TotalCount() != 1 {
-		t.Errorf("pods TotalCount() = %d, want 1", v.TotalCount())
-	}
-}
-
-func TestDeploymentsPodsView_SetFilter_ApplesToBothViews(t *testing.T) {
-	v := views.NewDeploymentsPodsView()
-
-	deployments := []views.DeploymentInfo{
-		{Name: "rook-ceph-osd-0", Namespace: "rook-ceph", Status: "Ready"},
-		{Name: "rook-ceph-mon-a", Namespace: "rook-ceph", Status: "Ready"},
-		{Name: "other-deployment", Namespace: "default", Status: "Ready"},
-	}
-	v.SetDeployments(deployments)
-
-	pods := []views.PodInfo{
-		{Name: "rook-ceph-osd-0-abc", Namespace: "rook-ceph", Status: "Running"},
-		{Name: "rook-ceph-mon-a-xyz", Namespace: "rook-ceph", Status: "Running"},
-		{Name: "other-pod", Namespace: "default", Status: "Running"},
-	}
-	v.SetPods(pods)
-
-	// Apply filter
-	v.SetFilter("osd")
-
-	// Check deployments view is filtered
-	if v.Count() != 1 {
-		t.Errorf("deployments filtered Count() = %d, want 1", v.Count())
-	}
-
-	// Check pods view is also filtered
-	v.ShowPods()
-	if v.Count() != 1 {
-		t.Errorf("pods filtered Count() = %d, want 1", v.Count())
-	}
-}
-
 func TestDeploymentsPodsView_SetSize_ApplesToBothViews(t *testing.T) {
 	v := views.NewDeploymentsPodsView()
 

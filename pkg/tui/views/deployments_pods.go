@@ -67,12 +67,6 @@ func (v *DeploymentsPodsView) SetSize(width, height int) {
 	v.podsView.SetSize(width, height)
 }
 
-// SetFilter forwards the filter to both sub-views.
-func (v *DeploymentsPodsView) SetFilter(filter string) {
-	v.deploymentsView.SetFilter(filter)
-	v.podsView.SetFilter(filter)
-}
-
 // GetCursor returns the cursor position from the active sub-view.
 func (v *DeploymentsPodsView) GetCursor() int {
 	if v.showPods {
@@ -90,20 +84,12 @@ func (v *DeploymentsPodsView) SetCursor(pos int) {
 	}
 }
 
-// Count returns the count from the active sub-view (filtered items).
+// Count returns the count from the active sub-view.
 func (v *DeploymentsPodsView) Count() int {
 	if v.showPods {
 		return v.podsView.Count()
 	}
 	return v.deploymentsView.Count()
-}
-
-// TotalCount returns the total count from the active sub-view (unfiltered items).
-func (v *DeploymentsPodsView) TotalCount() int {
-	if v.showPods {
-		return v.podsView.TotalCount()
-	}
-	return v.deploymentsView.TotalCount()
 }
 
 // SetDeployments updates the deployments in the deployments sub-view.
@@ -131,19 +117,9 @@ func (v *DeploymentsPodsView) DeploymentsCount() int {
 	return v.deploymentsView.Count()
 }
 
-// DeploymentsTotalCount returns the total count from deployments view.
-func (v *DeploymentsPodsView) DeploymentsTotalCount() int {
-	return v.deploymentsView.TotalCount()
-}
-
 // PodsCount returns the count from pods view (useful for badges).
 func (v *DeploymentsPodsView) PodsCount() int {
 	return v.podsView.Count()
-}
-
-// PodsTotalCount returns the total count from pods view.
-func (v *DeploymentsPodsView) PodsTotalCount() int {
-	return v.podsView.TotalCount()
 }
 
 // GetSelectedDeployment returns the selected deployment if showing deployments.

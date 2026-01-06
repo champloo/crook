@@ -30,12 +30,6 @@ type DeploymentsView struct {
 	// cursor is the currently selected row
 	cursor int
 
-	// filter is the current filter string
-	filter string
-
-	// filtered is the filtered deployments list
-	filtered []DeploymentInfo
-
 	// groupByType controls whether to group deployments by type
 	groupByType bool
 
@@ -50,7 +44,6 @@ type DeploymentsView struct {
 func NewDeploymentsView() *DeploymentsView {
 	return &DeploymentsView{
 		deployments: make([]DeploymentInfo, 0),
-		filtered:    make([]DeploymentInfo, 0),
 		groupByType: true,
 	}
 }
@@ -71,7 +64,7 @@ func (v *DeploymentsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "j", "down":
-			if v.cursor < len(v.filtered)-1 {
+			if v.cursor < len(v.deployments)-1 {
 				v.cursor++
 			}
 		case "k", "up":
@@ -81,13 +74,13 @@ func (v *DeploymentsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "g":
 			v.cursor = 0
 		case "G":
-			if len(v.filtered) > 0 {
-				v.cursor = len(v.filtered) - 1
+			if len(v.deployments) > 0 {
+				v.cursor = len(v.deployments) - 1
 			}
 		case "enter":
-			if v.cursor >= 0 && v.cursor < len(v.filtered) {
+			if v.cursor >= 0 && v.cursor < len(v.deployments) {
 				return v, func() tea.Msg {
-					return DeploymentSelectedMsg{Deployment: v.filtered[v.cursor]}
+					return DeploymentSelectedMsg{Deployment: v.deployments[v.cursor]}
 				}
 			}
 		}
@@ -97,7 +90,7 @@ func (v *DeploymentsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // View implements tea.Model
 func (v *DeploymentsView) View() string {
-	if len(v.filtered) == 0 {
+	if len(v.deployments) == 0 {
 		return styles.StyleSubtle.Render("No deployments found")
 	}
 
@@ -115,7 +108,7 @@ func (v *DeploymentsView) View() string {
 	// Calculate visible rows
 	visibleRows := v.height - 4
 	if visibleRows < 1 {
-		visibleRows = len(v.filtered)
+		visibleRows = len(v.deployments)
 	}
 
 	// Calculate scroll offset
@@ -124,8 +117,8 @@ func (v *DeploymentsView) View() string {
 		startIdx = v.cursor - visibleRows + 1
 	}
 	endIdx := startIdx + visibleRows
-	if endIdx > len(v.filtered) {
-		endIdx = len(v.filtered)
+	if endIdx > len(v.deployments) {
+		endIdx = len(v.deployments)
 	}
 
 	// Group and render
@@ -133,14 +126,14 @@ func (v *DeploymentsView) View() string {
 		b.WriteString(v.renderGrouped(startIdx, endIdx))
 	} else {
 		for i := startIdx; i < endIdx; i++ {
-			b.WriteString(v.renderRow(v.filtered[i], i == v.cursor))
+			b.WriteString(v.renderRow(v.deployments[i], i == v.cursor))
 			b.WriteString("\n")
 		}
 	}
 
 	// Scroll indicator
-	if len(v.filtered) > visibleRows {
-		scrollInfo := styles.StyleSubtle.Render(fmt.Sprintf("(%d/%d)", v.cursor+1, len(v.filtered)))
+	if len(v.deployments) > visibleRows {
+		scrollInfo := styles.StyleSubtle.Render(fmt.Sprintf("(%d/%d)", v.cursor+1, len(v.deployments)))
 		b.WriteString(scrollInfo)
 	}
 
@@ -175,7 +168,7 @@ func (v *DeploymentsView) renderGrouped(startIdx, endIdx int) string {
 	groups := make(map[string][]int)
 	typeOrder := []string{"osd", "mon", "mgr", "mds", "rgw", "exporter", "crashcollector", "other"}
 
-	for i, d := range v.filtered {
+	for i, d := range v.deployments {
 		typ := d.Type
 		if typ == "" {
 			typ = "other"
@@ -220,7 +213,7 @@ func (v *DeploymentsView) renderGrouped(startIdx, endIdx int) string {
 		// Render items in this group
 		for _, idx := range indices {
 			if idx >= startIdx && idx < endIdx {
-				b.WriteString(v.renderRow(v.filtered[idx], idx == v.cursor))
+				b.WriteString(v.renderRow(v.deployments[idx], idx == v.cursor))
 				b.WriteString("\n")
 			}
 			displayIdx++
@@ -301,44 +294,23 @@ func (v *DeploymentsView) getTableWidth() int {
 // SetDeployments updates the deployments list
 func (v *DeploymentsView) SetDeployments(deployments []DeploymentInfo) {
 	v.deployments = deployments
-	v.applyFilter()
+	v.sortDeployments()
 }
 
-// SetFilter sets the filter string and applies it
-func (v *DeploymentsView) SetFilter(filter string) {
-	v.filter = filter
-	v.applyFilter()
-}
-
-// applyFilter filters deployments based on the current filter
-func (v *DeploymentsView) applyFilter() {
-	if v.filter == "" {
-		v.filtered = v.deployments
-	} else {
-		filterLower := strings.ToLower(v.filter)
-		v.filtered = make([]DeploymentInfo, 0)
-		for _, dep := range v.deployments {
-			if strings.Contains(strings.ToLower(dep.Name), filterLower) ||
-				strings.Contains(strings.ToLower(dep.NodeName), filterLower) ||
-				strings.Contains(strings.ToLower(dep.Type), filterLower) {
-				v.filtered = append(v.filtered, dep)
-			}
-		}
-	}
-
-	// Sort by type then name for consistent grouping
+// sortDeployments sorts deployments by type then name for consistent grouping
+func (v *DeploymentsView) sortDeployments() {
 	if v.groupByType {
-		sort.Slice(v.filtered, func(i, j int) bool {
-			if v.filtered[i].Type != v.filtered[j].Type {
-				return typeOrder(v.filtered[i].Type) < typeOrder(v.filtered[j].Type)
+		sort.Slice(v.deployments, func(i, j int) bool {
+			if v.deployments[i].Type != v.deployments[j].Type {
+				return typeOrder(v.deployments[i].Type) < typeOrder(v.deployments[j].Type)
 			}
-			return v.filtered[i].Name < v.filtered[j].Name
+			return v.deployments[i].Name < v.deployments[j].Name
 		})
 	}
 
 	// Reset cursor if out of bounds
-	if v.cursor >= len(v.filtered) {
-		v.cursor = len(v.filtered) - 1
+	if v.cursor >= len(v.deployments) {
+		v.cursor = len(v.deployments) - 1
 	}
 	if v.cursor < 0 {
 		v.cursor = 0
@@ -375,25 +347,20 @@ func (v *DeploymentsView) GetCursor() int {
 
 // SetCursor sets the cursor position
 func (v *DeploymentsView) SetCursor(cursor int) {
-	if cursor >= 0 && cursor < len(v.filtered) {
+	if cursor >= 0 && cursor < len(v.deployments) {
 		v.cursor = cursor
 	}
 }
 
-// Count returns the number of deployments (filtered)
+// Count returns the number of deployments
 func (v *DeploymentsView) Count() int {
-	return len(v.filtered)
-}
-
-// TotalCount returns the total number of deployments (unfiltered)
-func (v *DeploymentsView) TotalCount() int {
 	return len(v.deployments)
 }
 
 // GetSelectedDeployment returns the currently selected deployment
 func (v *DeploymentsView) GetSelectedDeployment() *DeploymentInfo {
-	if v.cursor >= 0 && v.cursor < len(v.filtered) {
-		return &v.filtered[v.cursor]
+	if v.cursor >= 0 && v.cursor < len(v.deployments) {
+		return &v.deployments[v.cursor]
 	}
 	return nil
 }
@@ -401,5 +368,5 @@ func (v *DeploymentsView) GetSelectedDeployment() *DeploymentInfo {
 // SetGroupByType enables or disables grouping by type
 func (v *DeploymentsView) SetGroupByType(group bool) {
 	v.groupByType = group
-	v.applyFilter() // Re-sort
+	v.sortDeployments()
 }

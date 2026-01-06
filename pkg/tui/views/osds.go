@@ -18,12 +18,6 @@ type OSDsView struct {
 	// cursor is the currently selected row
 	cursor int
 
-	// filter is the current filter string
-	filter string
-
-	// filtered is the filtered OSDs list
-	filtered []OSDInfo
-
 	// nooutSet indicates if the cluster noout flag is set
 	nooutSet bool
 
@@ -37,8 +31,7 @@ type OSDsView struct {
 // NewOSDsView creates a new OSDs view
 func NewOSDsView() *OSDsView {
 	return &OSDsView{
-		osds:     make([]OSDInfo, 0),
-		filtered: make([]OSDInfo, 0),
+		osds: make([]OSDInfo, 0),
 	}
 }
 
@@ -58,7 +51,7 @@ func (v *OSDsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "j", "down":
-			if v.cursor < len(v.filtered)-1 {
+			if v.cursor < len(v.osds)-1 {
 				v.cursor++
 			}
 		case "k", "up":
@@ -68,13 +61,13 @@ func (v *OSDsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "g":
 			v.cursor = 0
 		case "G":
-			if len(v.filtered) > 0 {
-				v.cursor = len(v.filtered) - 1
+			if len(v.osds) > 0 {
+				v.cursor = len(v.osds) - 1
 			}
 		case "enter":
-			if v.cursor >= 0 && v.cursor < len(v.filtered) {
+			if v.cursor >= 0 && v.cursor < len(v.osds) {
 				return v, func() tea.Msg {
-					return OSDSelectedMsg{OSD: v.filtered[v.cursor]}
+					return OSDSelectedMsg{OSD: v.osds[v.cursor]}
 				}
 			}
 		}
@@ -84,7 +77,7 @@ func (v *OSDsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // View implements tea.Model
 func (v *OSDsView) View() string {
-	if len(v.filtered) == 0 {
+	if len(v.osds) == 0 {
 		return styles.StyleSubtle.Render("No OSDs found")
 	}
 
@@ -109,7 +102,7 @@ func (v *OSDsView) View() string {
 	// Calculate visible rows
 	visibleRows := v.height - 6 // Account for header, separator, banner, and padding
 	if visibleRows < 1 {
-		visibleRows = len(v.filtered)
+		visibleRows = len(v.osds)
 	}
 
 	// Calculate scroll offset
@@ -118,21 +111,21 @@ func (v *OSDsView) View() string {
 		startIdx = v.cursor - visibleRows + 1
 	}
 	endIdx := startIdx + visibleRows
-	if endIdx > len(v.filtered) {
-		endIdx = len(v.filtered)
+	if endIdx > len(v.osds) {
+		endIdx = len(v.osds)
 	}
 
 	// Rows
 	for i := startIdx; i < endIdx; i++ {
-		osd := v.filtered[i]
+		osd := v.osds[i]
 		row := v.renderRow(osd, i == v.cursor)
 		b.WriteString(row)
 		b.WriteString("\n")
 	}
 
 	// Scroll indicator
-	if len(v.filtered) > visibleRows {
-		scrollInfo := styles.StyleSubtle.Render(fmt.Sprintf("(%d/%d)", v.cursor+1, len(v.filtered)))
+	if len(v.osds) > visibleRows {
+		scrollInfo := styles.StyleSubtle.Render(fmt.Sprintf("(%d/%d)", v.cursor+1, len(v.osds)))
 		b.WriteString(scrollInfo)
 	}
 
@@ -234,44 +227,18 @@ func (v *OSDsView) getTableWidth() int {
 // SetOSDs updates the OSDs list
 func (v *OSDsView) SetOSDs(osds []OSDInfo) {
 	v.osds = osds
-	v.applyFilter()
+	// Reset cursor if out of bounds
+	if v.cursor >= len(v.osds) {
+		v.cursor = len(v.osds) - 1
+	}
+	if v.cursor < 0 {
+		v.cursor = 0
+	}
 }
 
 // SetNooutFlag sets the noout flag status
 func (v *OSDsView) SetNooutFlag(set bool) {
 	v.nooutSet = set
-}
-
-// SetFilter sets the filter string and applies it
-func (v *OSDsView) SetFilter(filter string) {
-	v.filter = filter
-	v.applyFilter()
-}
-
-// applyFilter filters OSDs based on the current filter
-func (v *OSDsView) applyFilter() {
-	if v.filter == "" {
-		v.filtered = v.osds
-	} else {
-		filterLower := strings.ToLower(v.filter)
-		v.filtered = make([]OSDInfo, 0)
-		for _, osd := range v.osds {
-			if strings.Contains(strings.ToLower(osd.Name), filterLower) ||
-				strings.Contains(strings.ToLower(osd.Hostname), filterLower) ||
-				strings.Contains(strings.ToLower(osd.DeviceClass), filterLower) ||
-				strings.Contains(strings.ToLower(osd.Status), filterLower) {
-				v.filtered = append(v.filtered, osd)
-			}
-		}
-	}
-
-	// Reset cursor if out of bounds
-	if v.cursor >= len(v.filtered) {
-		v.cursor = len(v.filtered) - 1
-	}
-	if v.cursor < 0 {
-		v.cursor = 0
-	}
 }
 
 // SetSize sets the view dimensions
@@ -287,25 +254,20 @@ func (v *OSDsView) GetCursor() int {
 
 // SetCursor sets the cursor position
 func (v *OSDsView) SetCursor(cursor int) {
-	if cursor >= 0 && cursor < len(v.filtered) {
+	if cursor >= 0 && cursor < len(v.osds) {
 		v.cursor = cursor
 	}
 }
 
-// Count returns the number of OSDs (filtered)
+// Count returns the number of OSDs
 func (v *OSDsView) Count() int {
-	return len(v.filtered)
-}
-
-// TotalCount returns the total number of OSDs (unfiltered)
-func (v *OSDsView) TotalCount() int {
 	return len(v.osds)
 }
 
 // GetSelectedOSD returns the currently selected OSD
 func (v *OSDsView) GetSelectedOSD() *OSDInfo {
-	if v.cursor >= 0 && v.cursor < len(v.filtered) {
-		return &v.filtered[v.cursor]
+	if v.cursor >= 0 && v.cursor < len(v.osds) {
+		return &v.osds[v.cursor]
 	}
 	return nil
 }

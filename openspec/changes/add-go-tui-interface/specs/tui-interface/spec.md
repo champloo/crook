@@ -258,7 +258,6 @@ The system SHALL provide a `crook ls` command to display Ceph-related Kubernetes
   - `g` / `G` → Go to top/bottom of active pane
   - `Enter` → Show detailed view of selected resource
   - `r` → Refresh data immediately
-  - `/` → Filter/search (applies to all panes)
   - `q` or `Esc` → Exit ls mode
   - `?` → Show help overlay
 
@@ -270,14 +269,6 @@ The system SHALL provide a `crook ls` command to display Ceph-related Kubernetes
   - Resource-specific details (node conditions, deployment status, OSD stats)
   - Related resources (pods on node, deployment's pods, etc.)
 - **THEN** user can press `Esc` or `q` to return to list view
-
-#### Scenario: Filter resources
-
-- **WHEN** user presses `/` and types filter text
-- **THEN** system filters current view to show only matching resources
-- **THEN** filter matches against resource name (case-insensitive)
-- **THEN** user can press `Esc` to clear filter
-- **THEN** filter indicator shows "Filtered: <query>" in status bar
 
 #### Scenario: ls with node argument
 

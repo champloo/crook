@@ -37,26 +37,6 @@ func TestPodsView_SetPods(t *testing.T) {
 	}
 }
 
-func TestPodsView_SetFilter(t *testing.T) {
-	v := NewPodsView()
-
-	pods := []PodInfo{
-		{Name: "rook-ceph-osd-0-abc", Status: "Running", NodeName: "node-1"},
-		{Name: "rook-ceph-mon-a-xyz", Status: "Running", NodeName: "node-2"},
-		{Name: "rook-ceph-osd-1-def", Status: "Pending", NodeName: "node-1"},
-	}
-
-	v.SetPods(pods)
-	v.SetFilter("osd")
-
-	if v.Count() != 2 {
-		t.Errorf("expected 2 pods matching 'osd', got %d", v.Count())
-	}
-	if v.TotalCount() != 3 {
-		t.Errorf("expected TotalCount=3, got %d", v.TotalCount())
-	}
-}
-
 func TestPodsView_SetNodeFilter(t *testing.T) {
 	v := NewPodsView()
 
@@ -71,26 +51,6 @@ func TestPodsView_SetNodeFilter(t *testing.T) {
 
 	if v.Count() != 2 {
 		t.Errorf("expected 2 pods on node-1, got %d", v.Count())
-	}
-}
-
-func TestPodsView_CombinedFilters(t *testing.T) {
-	v := NewPodsView()
-
-	pods := []PodInfo{
-		{Name: "rook-ceph-osd-0-abc", Status: "Running", NodeName: "node-1"},
-		{Name: "rook-ceph-mon-a-xyz", Status: "Running", NodeName: "node-2"},
-		{Name: "rook-ceph-osd-1-def", Status: "Pending", NodeName: "node-1"},
-		{Name: "rook-ceph-mon-b-ghi", Status: "Running", NodeName: "node-1"},
-	}
-
-	v.SetPods(pods)
-	v.SetNodeFilter("node-1")
-	v.SetFilter("osd")
-
-	// Should filter to only OSD pods on node-1
-	if v.Count() != 2 {
-		t.Errorf("expected 2 osd pods on node-1, got %d", v.Count())
 	}
 }
 
@@ -238,38 +198,5 @@ func TestPodsView_CountHighRestarts(t *testing.T) {
 
 	if v.CountHighRestarts() != 2 {
 		t.Errorf("expected 2 pods with high restarts, got %d", v.CountHighRestarts())
-	}
-}
-
-func TestPodsView_FilterCaseInsensitive(t *testing.T) {
-	v := NewPodsView()
-
-	pods := []PodInfo{
-		{Name: "rook-ceph-OSD-0", Status: "Running"},
-		{Name: "rook-ceph-mon-a", Status: "Running"},
-	}
-
-	v.SetPods(pods)
-	v.SetFilter("osd") // lowercase filter should match uppercase OSD
-
-	if v.Count() != 1 {
-		t.Errorf("expected 1 pod matching case-insensitive 'osd', got %d", v.Count())
-	}
-}
-
-func TestPodsView_FilterByStatus(t *testing.T) {
-	v := NewPodsView()
-
-	pods := []PodInfo{
-		{Name: "pod-1", Status: "Running"},
-		{Name: "pod-2", Status: "Pending"},
-		{Name: "pod-3", Status: "CrashLoopBackOff"},
-	}
-
-	v.SetPods(pods)
-	v.SetFilter("pending")
-
-	if v.Count() != 1 {
-		t.Errorf("expected 1 pod matching status 'pending', got %d", v.Count())
 	}
 }

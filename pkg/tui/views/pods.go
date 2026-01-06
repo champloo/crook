@@ -12,17 +12,14 @@ import (
 
 // PodsView displays Rook-Ceph pods with ownership information
 type PodsView struct {
-	// pods is the list of pods to display
+	// pods is the list of pods to display (may be filtered by node)
 	pods []PodInfo
+
+	// allPods stores all pods before node filtering
+	allPods []PodInfo
 
 	// cursor is the currently selected row
 	cursor int
-
-	// filter is the current filter string
-	filter string
-
-	// filtered is the filtered pods list
-	filtered []PodInfo
 
 	// nodeFilter filters pods to a specific node
 	nodeFilter string
@@ -37,8 +34,8 @@ type PodsView struct {
 // NewPodsView creates a new pods view
 func NewPodsView() *PodsView {
 	return &PodsView{
-		pods:     make([]PodInfo, 0),
-		filtered: make([]PodInfo, 0),
+		pods:    make([]PodInfo, 0),
+		allPods: make([]PodInfo, 0),
 	}
 }
 
@@ -58,7 +55,7 @@ func (v *PodsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "j", "down":
-			if v.cursor < len(v.filtered)-1 {
+			if v.cursor < len(v.pods)-1 {
 				v.cursor++
 			}
 		case "k", "up":
@@ -68,13 +65,13 @@ func (v *PodsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "g":
 			v.cursor = 0
 		case "G":
-			if len(v.filtered) > 0 {
-				v.cursor = len(v.filtered) - 1
+			if len(v.pods) > 0 {
+				v.cursor = len(v.pods) - 1
 			}
 		case "enter":
-			if v.cursor >= 0 && v.cursor < len(v.filtered) {
+			if v.cursor >= 0 && v.cursor < len(v.pods) {
 				return v, func() tea.Msg {
-					return PodSelectedMsg{Pod: v.filtered[v.cursor]}
+					return PodSelectedMsg{Pod: v.pods[v.cursor]}
 				}
 			}
 		}
@@ -84,7 +81,7 @@ func (v *PodsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // View implements tea.Model
 func (v *PodsView) View() string {
-	if len(v.filtered) == 0 {
+	if len(v.pods) == 0 {
 		return styles.StyleSubtle.Render("No pods found")
 	}
 
@@ -102,7 +99,7 @@ func (v *PodsView) View() string {
 	// Calculate visible rows
 	visibleRows := v.height - 4
 	if visibleRows < 1 {
-		visibleRows = len(v.filtered)
+		visibleRows = len(v.pods)
 	}
 
 	// Calculate scroll offset
@@ -111,21 +108,21 @@ func (v *PodsView) View() string {
 		startIdx = v.cursor - visibleRows + 1
 	}
 	endIdx := startIdx + visibleRows
-	if endIdx > len(v.filtered) {
-		endIdx = len(v.filtered)
+	if endIdx > len(v.pods) {
+		endIdx = len(v.pods)
 	}
 
 	// Rows
 	for i := startIdx; i < endIdx; i++ {
-		pod := v.filtered[i]
+		pod := v.pods[i]
 		row := v.renderRow(pod, i == v.cursor)
 		b.WriteString(row)
 		b.WriteString("\n")
 	}
 
 	// Scroll indicator
-	if len(v.filtered) > visibleRows {
-		scrollInfo := styles.StyleSubtle.Render(fmt.Sprintf("(%d/%d)", v.cursor+1, len(v.filtered)))
+	if len(v.pods) > visibleRows {
+		scrollInfo := styles.StyleSubtle.Render(fmt.Sprintf("(%d/%d)", v.cursor+1, len(v.pods)))
 		b.WriteString(scrollInfo)
 	}
 
@@ -249,49 +246,32 @@ func (v *PodsView) getTableWidth() int {
 
 // SetPods updates the pods list
 func (v *PodsView) SetPods(pods []PodInfo) {
-	v.pods = pods
-	v.applyFilter()
-}
-
-// SetFilter sets the filter string and applies it
-func (v *PodsView) SetFilter(filter string) {
-	v.filter = filter
-	v.applyFilter()
+	v.allPods = pods
+	v.applyNodeFilter()
 }
 
 // SetNodeFilter sets the node filter for filtering pods by node
 func (v *PodsView) SetNodeFilter(nodeFilter string) {
 	v.nodeFilter = nodeFilter
-	v.applyFilter()
+	v.applyNodeFilter()
 }
 
-// applyFilter filters pods based on the current filter and node filter
-func (v *PodsView) applyFilter() {
-	v.filtered = make([]PodInfo, 0, len(v.pods))
-
-	for _, pod := range v.pods {
-		// Apply node filter first
-		if v.nodeFilter != "" && pod.NodeName != v.nodeFilter {
-			continue
-		}
-
-		// Apply text filter
-		if v.filter != "" {
-			filterLower := strings.ToLower(v.filter)
-			if !strings.Contains(strings.ToLower(pod.Name), filterLower) &&
-				!strings.Contains(strings.ToLower(pod.NodeName), filterLower) &&
-				!strings.Contains(strings.ToLower(pod.Status), filterLower) &&
-				!strings.Contains(strings.ToLower(pod.Type), filterLower) {
-				continue
+// applyNodeFilter filters pods based on the node filter
+func (v *PodsView) applyNodeFilter() {
+	if v.nodeFilter == "" {
+		v.pods = v.allPods
+	} else {
+		v.pods = make([]PodInfo, 0, len(v.allPods))
+		for _, pod := range v.allPods {
+			if pod.NodeName == v.nodeFilter {
+				v.pods = append(v.pods, pod)
 			}
 		}
-
-		v.filtered = append(v.filtered, pod)
 	}
 
 	// Reset cursor if out of bounds
-	if v.cursor >= len(v.filtered) {
-		v.cursor = len(v.filtered) - 1
+	if v.cursor >= len(v.pods) {
+		v.cursor = len(v.pods) - 1
 	}
 	if v.cursor < 0 {
 		v.cursor = 0
@@ -311,25 +291,25 @@ func (v *PodsView) GetCursor() int {
 
 // SetCursor sets the cursor position
 func (v *PodsView) SetCursor(cursor int) {
-	if cursor >= 0 && cursor < len(v.filtered) {
+	if cursor >= 0 && cursor < len(v.pods) {
 		v.cursor = cursor
 	}
 }
 
-// Count returns the number of pods (filtered)
+// Count returns the number of pods (may be filtered by node)
 func (v *PodsView) Count() int {
-	return len(v.filtered)
+	return len(v.pods)
 }
 
-// TotalCount returns the total number of pods (unfiltered)
+// TotalCount returns the total number of pods (before node filtering)
 func (v *PodsView) TotalCount() int {
-	return len(v.pods)
+	return len(v.allPods)
 }
 
 // GetSelectedPod returns the currently selected pod
 func (v *PodsView) GetSelectedPod() *PodInfo {
-	if v.cursor >= 0 && v.cursor < len(v.filtered) {
-		return &v.filtered[v.cursor]
+	if v.cursor >= 0 && v.cursor < len(v.pods) {
+		return &v.pods[v.cursor]
 	}
 	return nil
 }

@@ -48,42 +48,6 @@ func TestDeploymentsView_SetDeployments(t *testing.T) {
 	}
 }
 
-func TestDeploymentsView_SetFilter(t *testing.T) {
-	v := NewDeploymentsView()
-
-	deployments := []DeploymentInfo{
-		{Name: "rook-ceph-osd-0", Type: "osd"},
-		{Name: "rook-ceph-osd-1", Type: "osd"},
-		{Name: "rook-ceph-mon-a", Type: "mon"},
-	}
-
-	v.SetDeployments(deployments)
-
-	// Filter for osd
-	v.SetFilter("osd")
-	if v.Count() != 2 {
-		t.Errorf("Count() with filter 'osd' = %d, want 2", v.Count())
-	}
-
-	// Filter for mon
-	v.SetFilter("mon")
-	if v.Count() != 1 {
-		t.Errorf("Count() with filter 'mon' = %d, want 1", v.Count())
-	}
-
-	// Clear filter
-	v.SetFilter("")
-	if v.Count() != 3 {
-		t.Errorf("Count() with empty filter = %d, want 3", v.Count())
-	}
-
-	// Case-insensitive filter
-	v.SetFilter("OSD")
-	if v.Count() != 2 {
-		t.Errorf("Count() with filter 'OSD' (case-insensitive) = %d, want 2", v.Count())
-	}
-}
-
 func TestDeploymentsView_CursorNavigation(t *testing.T) {
 	v := NewDeploymentsView()
 	v.SetSize(100, 50)

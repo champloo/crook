@@ -308,28 +308,6 @@ func TestLsModel_Update_DataUpdate(t *testing.T) {
 	}
 }
 
-func TestLsModel_Update_FilterMsg(t *testing.T) {
-	model := NewLsModel(LsModelConfig{
-		Context: context.Background(),
-	})
-	model.cursor = 3
-
-	msg := LsFilterMsg{Query: "osd"}
-	updatedModel, _ := model.Update(msg)
-	m, ok := updatedModel.(*LsModel)
-	if !ok {
-		t.Fatal("expected *LsModel type")
-	}
-
-	if m.filter != "osd" {
-		t.Errorf("filter = %q, want %q", m.filter, "osd")
-	}
-
-	if m.cursor != 0 {
-		t.Errorf("cursor should reset to 0 on filter change, got %d", m.cursor)
-	}
-}
-
 func TestLsModel_handleKeyPress_Quit(t *testing.T) {
 	model := NewLsModel(LsModelConfig{
 		Context: context.Background(),
@@ -439,19 +417,6 @@ func TestLsModel_Update_Help_WhileMaintenanceFlowActive(t *testing.T) {
 	_, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
 	if !flow.updated {
 		t.Error("embedded flow should receive non-help keys")
-	}
-}
-
-func TestLsModel_handleKeyPress_Filter(t *testing.T) {
-	model := NewLsModel(LsModelConfig{
-		Context: context.Background(),
-	})
-
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("/")}
-	model.handleKeyPress(msg)
-
-	if !model.filterActive {
-		t.Error("filter mode should be active after pressing /")
 	}
 }
 
@@ -744,66 +709,6 @@ func TestLsModel_reselectNodeAfterUpdate(t *testing.T) {
 	}
 }
 
-func TestLsModel_handleFilterInput(t *testing.T) {
-	model := NewLsModel(LsModelConfig{
-		Context: context.Background(),
-	})
-	model.filterActive = true
-
-	// Test typing
-	model.handleFilterInput(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("o")})
-	model.handleFilterInput(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("s")})
-	model.handleFilterInput(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("d")})
-
-	if model.filter != "osd" {
-		t.Errorf("filter = %q, want %q", model.filter, "osd")
-	}
-
-	// Test backspace
-	model.handleFilterInput(tea.KeyMsg{Type: tea.KeyBackspace})
-
-	if model.filter != "os" {
-		t.Errorf("filter after backspace = %q, want %q", model.filter, "os")
-	}
-
-	// Test escape
-	model.handleFilterInput(tea.KeyMsg{Type: tea.KeyEsc})
-
-	if model.filterActive {
-		t.Error("filter should be inactive after Esc")
-	}
-
-	if model.filter != "" {
-		t.Errorf("filter should be cleared after Esc, got %q", model.filter)
-	}
-}
-
-func TestLsModel_handleFilterInput_Enter(t *testing.T) {
-	model := NewLsModel(LsModelConfig{
-		Context: context.Background(),
-	})
-	model.filterActive = true
-	model.filter = "test-filter"
-
-	cmd := model.handleFilterInput(tea.KeyMsg{Type: tea.KeyEnter})
-
-	if model.filterActive {
-		t.Error("filter mode should be inactive after Enter")
-	}
-
-	if cmd == nil {
-		t.Error("Enter should return a command")
-	}
-
-	// Execute the command and verify it's a FilterMsg
-	result := cmd()
-	if filterMsg, ok := result.(LsFilterMsg); !ok {
-		t.Error("Enter should produce LsFilterMsg")
-	} else if filterMsg.Query != "test-filter" {
-		t.Errorf("FilterMsg.Query = %q, want %q", filterMsg.Query, "test-filter")
-	}
-}
-
 func TestLsModel_getMaxCursor(t *testing.T) {
 	model := NewLsModel(LsModelConfig{
 		Context: context.Background(),
@@ -931,26 +836,6 @@ func TestLsModel_View_Help(t *testing.T) {
 	}
 }
 
-func TestLsModel_View_FilterActive(t *testing.T) {
-	model := NewLsModel(LsModelConfig{
-		Context: context.Background(),
-	})
-	model.width = 80
-	model.height = 40
-	model.filterActive = true
-	model.filter = "test"
-
-	view := model.View()
-
-	if !contains(view, "test") {
-		t.Error("View should show filter input")
-	}
-
-	if !contains(view, "Enter: apply") {
-		t.Error("View should show filter mode hints")
-	}
-}
-
 func TestLsModel_View_StatusBarShowsToggleHint(t *testing.T) {
 	model := NewLsModel(LsModelConfig{
 		Context: context.Background(),
@@ -1003,8 +888,6 @@ func TestLsModel_Getters(t *testing.T) {
 	model.activePane = LsPaneOSDs
 	model.activeTab = LsTabOSDs
 	model.cursor = 5
-	model.filter = "test"
-	model.filterActive = true
 	model.helpVisible = true
 
 	if model.GetActiveTab() != LsTabOSDs {
@@ -1017,14 +900,6 @@ func TestLsModel_Getters(t *testing.T) {
 
 	if model.GetCursor() != 5 {
 		t.Errorf("GetCursor() = %d, want 5", model.GetCursor())
-	}
-
-	if model.GetFilter() != "test" {
-		t.Errorf("GetFilter() = %q, want %q", model.GetFilter(), "test")
-	}
-
-	if !model.IsFilterActive() {
-		t.Error("IsFilterActive() should return true")
 	}
 
 	if !model.IsHelpVisible() {

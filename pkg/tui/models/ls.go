@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/andri/crook/pkg/config"
 	"github.com/andri/crook/pkg/k8s"
@@ -107,10 +106,8 @@ type LsModel struct {
 	// Legacy cursor field (kept for backwards compatibility with tests)
 	cursor int
 
-	// Filter state
-	filter       string
-	filterActive bool
-	helpVisible  bool
+	// Help overlay state
+	helpVisible bool
 
 	// Terminal dimensions
 	width  int
@@ -127,12 +124,6 @@ type LsModel struct {
 	deploymentCount int
 	osdCount        int
 	podCount        int
-
-	// Total counts (unfiltered, for displaying filtered/total format)
-	nodeTotalCount       int
-	deploymentTotalCount int
-	osdTotalCount        int
-	podTotalCount        int
 
 	// Cluster state (for OSD view noout flag)
 	nooutSet bool
@@ -220,14 +211,8 @@ type lsLayout struct {
 
 // LsDataUpdateMsg is sent when data is updated
 type LsDataUpdateMsg struct {
-	Tab        LsTab
-	Count      int
-	TotalCount int // TotalCount is the unfiltered count (for displaying X/Y format)
-}
-
-// LsFilterMsg is sent when the filter changes
-type LsFilterMsg struct {
-	Query string
+	Tab   LsTab
+	Count int
 }
 
 // LsRefreshMsg triggers a data refresh
@@ -409,16 +394,6 @@ func (m *LsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case LsDataUpdateMsg:
 		m.updateDataCount(msg)
 
-	case LsFilterMsg:
-		m.filter = msg.Query
-		m.cursor = 0
-		// Apply filter to all views
-		m.nodesView.SetFilter(msg.Query)
-		m.deploymentsPodsView.SetFilter(msg.Query)
-		m.osdsView.SetFilter(msg.Query)
-		// Update counts after filtering
-		m.updateAllCounts()
-
 	case LsRefreshMsg:
 		// Manual refresh - force update from monitor's latest data
 		if m.monitor != nil {
@@ -516,11 +491,7 @@ func (m *LsModel) updateViewSizes() {
 func (m *LsModel) paneHeights() (int, int) {
 	headerHeight := 4
 	statusBarHeight := 2
-	filterBarHeight := 0
-	if m.filterActive {
-		filterBarHeight = 2
-	}
-	availableHeight := m.height - headerHeight - statusBarHeight - filterBarHeight
+	availableHeight := m.height - headerHeight - statusBarHeight
 
 	// Height distribution: active pane gets 50%, inactive get 25% each.
 	activeHeight := availableHeight / 2
@@ -573,59 +544,42 @@ func (m *LsModel) updateFromMonitor(update *monitoring.LsMonitorUpdate) {
 func (m *LsModel) updateAllCounts() {
 	// Nodes
 	m.nodeCount = m.nodesView.Count()
-	m.nodeTotalCount = m.nodesView.TotalCount()
-	m.updatePaneBadge(LsPaneNodes, m.nodeCount, m.nodeTotalCount)
-	m.updateBadge(0, m.nodeCount, m.nodeTotalCount)
+	m.updatePaneBadge(LsPaneNodes, m.nodeCount)
+	m.updateBadge(0, m.nodeCount)
 
 	// Deployments/Pods - show count from currently active sub-view
 	m.deploymentCount = m.deploymentsPodsView.DeploymentsCount()
-	m.deploymentTotalCount = m.deploymentsPodsView.DeploymentsTotalCount()
 	m.podCount = m.deploymentsPodsView.PodsCount()
-	m.podTotalCount = m.deploymentsPodsView.PodsTotalCount()
 
 	// Update deployments pane badge based on which view is showing
 	if m.deploymentsPodsView.IsShowingPods() {
-		m.updatePaneBadge(LsPaneDeployments, m.podCount, m.podTotalCount)
+		m.updatePaneBadge(LsPaneDeployments, m.podCount)
 		m.panes[LsPaneDeployments].SetTitle("Pods")
 	} else {
-		m.updatePaneBadge(LsPaneDeployments, m.deploymentCount, m.deploymentTotalCount)
+		m.updatePaneBadge(LsPaneDeployments, m.deploymentCount)
 		m.panes[LsPaneDeployments].SetTitle("Deployments")
 	}
-	m.updateBadge(1, m.deploymentCount, m.deploymentTotalCount)
-	m.updateBadge(3, m.podCount, m.podTotalCount)
+	m.updateBadge(1, m.deploymentCount)
+	m.updateBadge(3, m.podCount)
 
 	// OSDs
 	m.osdCount = m.osdsView.Count()
-	m.osdTotalCount = m.osdsView.TotalCount()
-	m.updatePaneBadge(LsPaneOSDs, m.osdCount, m.osdTotalCount)
-	m.updateBadge(2, m.osdCount, m.osdTotalCount)
+	m.updatePaneBadge(LsPaneOSDs, m.osdCount)
+	m.updateBadge(2, m.osdCount)
 }
 
 // updatePaneBadge updates a pane badge with count information
-func (m *LsModel) updatePaneBadge(pane LsPane, count, totalCount int) {
-	badge := fmt.Sprintf("%d", count)
-	if totalCount > 0 && count != totalCount {
-		badge = fmt.Sprintf("%d/%d", count, totalCount)
-	}
-	m.panes[pane].SetBadge(badge)
+func (m *LsModel) updatePaneBadge(pane LsPane, count int) {
+	m.panes[pane].SetBadge(fmt.Sprintf("%d", count))
 }
 
 // updateBadge updates a tab badge with count information (legacy)
-func (m *LsModel) updateBadge(tabIndex, count, totalCount int) {
-	badge := fmt.Sprintf("%d", count)
-	if totalCount > 0 && count != totalCount {
-		badge = fmt.Sprintf("%d/%d", count, totalCount)
-	}
-	m.tabBar.SetBadge(tabIndex, badge)
+func (m *LsModel) updateBadge(tabIndex, count int) {
+	m.tabBar.SetBadge(tabIndex, fmt.Sprintf("%d", count))
 }
 
 // handleKeyPress processes keyboard input
 func (m *LsModel) handleKeyPress(msg tea.KeyMsg) tea.Cmd {
-	// If filter mode is active, handle filter input
-	if m.filterActive {
-		return m.handleFilterInput(msg)
-	}
-
 	key := msg.String()
 
 	// If help is visible, only Esc or ? closes it (Ctrl+C always quits)
@@ -645,7 +599,7 @@ func (m *LsModel) handleKeyPress(msg tea.KeyMsg) tea.Cmd {
 	if cmd, ok := m.handleQuitKey(key); ok {
 		return cmd
 	}
-	if m.handleHelpFilterAndPaneNavKey(key) {
+	if m.handleHelpAndPaneNavKey(key) {
 		return nil
 	}
 	if cmd, ok := m.handlePaneSwitchKey(key, msg); ok {
@@ -676,14 +630,10 @@ func (m *LsModel) handleQuitKey(key string) (tea.Cmd, bool) {
 	}
 }
 
-func (m *LsModel) handleHelpFilterAndPaneNavKey(key string) bool {
+func (m *LsModel) handleHelpAndPaneNavKey(key string) bool {
 	switch key {
 	case "?":
 		m.helpVisible = !m.helpVisible
-		return true
-	case "/":
-		m.filterActive = true
-		m.updateViewSizes()
 		return true
 	case "tab":
 		m.nextPane()
@@ -789,39 +739,6 @@ func (m *LsModel) handleActionKey(key string) (tea.Cmd, bool) {
 	}
 }
 
-// handleFilterInput handles input during filter mode
-func (m *LsModel) handleFilterInput(msg tea.KeyMsg) tea.Cmd {
-	switch msg.Type { //nolint:exhaustive // Only handling specific filter-mode keys
-	case tea.KeyEsc:
-		m.filterActive = false
-		m.filter = ""
-		m.updateViewSizes()
-		return func() tea.Msg {
-			return LsFilterMsg{Query: ""}
-		}
-
-	case tea.KeyEnter:
-		m.filterActive = false
-		m.updateViewSizes()
-		return func() tea.Msg {
-			return LsFilterMsg{Query: m.filter}
-		}
-
-	case tea.KeyBackspace:
-		if len(m.filter) > 0 {
-			_, size := utf8.DecodeLastRuneInString(m.filter)
-			m.filter = m.filter[:len(m.filter)-size]
-		}
-		return nil
-
-	case tea.KeyRunes:
-		m.filter += string(msg.Runes)
-		return nil
-	}
-
-	return nil
-}
-
 // nextPane cycles to the next pane
 func (m *LsModel) nextPane() {
 	newPane := (m.activePane + 1) % 3
@@ -882,32 +799,23 @@ func (m *LsModel) updateActiveTab(index int) {
 func (m *LsModel) updateDataCount(msg LsDataUpdateMsg) {
 	badge := fmt.Sprintf("%d", msg.Count)
 
-	// Show filtered/total format if filtering and counts differ
-	if msg.TotalCount > 0 && msg.Count != msg.TotalCount {
-		badge = fmt.Sprintf("%d/%d", msg.Count, msg.TotalCount)
-	}
-
 	switch msg.Tab {
 	case LsTabNodes:
 		m.nodeCount = msg.Count
-		m.nodeTotalCount = msg.TotalCount
 		m.tabBar.SetBadge(0, badge)
 		m.panes[LsPaneNodes].SetBadge(badge)
 	case LsTabDeployments:
 		m.deploymentCount = msg.Count
-		m.deploymentTotalCount = msg.TotalCount
 		m.tabBar.SetBadge(1, badge)
 		if !m.deploymentsPodsView.IsShowingPods() {
 			m.panes[LsPaneDeployments].SetBadge(badge)
 		}
 	case LsTabOSDs:
 		m.osdCount = msg.Count
-		m.osdTotalCount = msg.TotalCount
 		m.tabBar.SetBadge(2, badge)
 		m.panes[LsPaneOSDs].SetBadge(badge)
 	case LsTabPods:
 		m.podCount = msg.Count
-		m.podTotalCount = msg.TotalCount
 		m.tabBar.SetBadge(3, badge)
 		if m.deploymentsPodsView.IsShowingPods() {
 			m.panes[LsPaneDeployments].SetBadge(badge)
@@ -977,12 +885,6 @@ func (m *LsModel) View() string {
 	// Render all three panes (title is now in the border)
 	b.WriteString(m.renderAllPanes())
 	b.WriteString("\n")
-
-	// Filter bar (if active)
-	if m.filterActive {
-		b.WriteString(m.renderFilterBar())
-		b.WriteString("\n")
-	}
 
 	// Status bar
 	b.WriteString(m.renderStatusBar())
@@ -1127,29 +1029,18 @@ func (m *LsModel) topRowWidths() (int, int) {
 	return nodes, maintenance
 }
 
-// renderFilterBar renders the filter input bar
-func (m *LsModel) renderFilterBar() string {
-	prompt := styles.StyleStatus.Render("/")
-	input := styles.StyleNormal.Render(m.filter + "\u2588")
-	return prompt + input
-}
-
 // renderStatusBar renders the bottom status bar with help hints
 func (m *LsModel) renderStatusBar() string {
 	var hints []string
 
-	if m.filterActive {
-		hints = append(hints, "Enter: apply", "Esc: cancel")
-	} else {
-		hints = append(hints, "Tab/1-3: pane", "j/k: navigate")
-		if m.activePane == LsPaneNodes {
-			hints = append(hints, "u/d: up/down")
-		}
-		if m.activePane == LsPaneDeployments {
-			hints = append(hints, "[/]: deployments/pods")
-		}
-		hints = append(hints, "/: filter", "r: refresh", "?: help", "q: quit")
+	hints = append(hints, "Tab/1-3: pane", "j/k: navigate")
+	if m.activePane == LsPaneNodes {
+		hints = append(hints, "u/d: up/down")
 	}
+	if m.activePane == LsPaneDeployments {
+		hints = append(hints, "[/]: deployments/pods")
+	}
+	hints = append(hints, "r: refresh", "?: help", "q: quit")
 
 	status := styles.StyleSubtle.Render(strings.Join(hints, "  "))
 	if m.lastError == nil {
@@ -1176,11 +1067,6 @@ func (m *LsModel) renderHelp() string {
 │  Actions                                │
 │    u/d         Up/down selected node    │
 │    r           Refresh data             │
-│    /           Enter filter mode        │
-│                                         │
-│  Filter Mode                            │
-│    Enter       Apply filter             │
-│    Esc         Cancel filter            │
 │                                         │
 │  General                                │
 │    ?           Toggle this help         │
@@ -1213,16 +1099,6 @@ func (m *LsModel) GetActivePane() LsPane {
 // GetCursor returns the current cursor position (legacy)
 func (m *LsModel) GetCursor() int {
 	return m.cursor
-}
-
-// GetFilter returns the current filter string
-func (m *LsModel) GetFilter() string {
-	return m.filter
-}
-
-// IsFilterActive returns whether filter mode is active
-func (m *LsModel) IsFilterActive() bool {
-	return m.filterActive
 }
 
 // IsHelpVisible returns whether help overlay is visible
