@@ -159,6 +159,33 @@ type sizedModel interface {
 	SetSize(width, height int)
 }
 
+func (m *LsModel) handleHelpKeyMsg(msg tea.KeyMsg) (bool, tea.Cmd) {
+	key := msg.String()
+
+	// When help is visible, consume key presses so underlying models don't receive input.
+	if m.helpVisible {
+		switch key {
+		case "esc", "?":
+			m.helpVisible = false
+			return true, nil
+		case "ctrl+c":
+			if m.monitor != nil {
+				m.monitor.Stop()
+			}
+			return true, tea.Quit
+		default:
+			return true, nil
+		}
+	}
+
+	if key == "?" {
+		m.helpVisible = true
+		return true, nil
+	}
+
+	return false, nil
+}
+
 const (
 	paneContentHorizontalPadding = 4 // 2 borders + 2 padding (see components.Pane)
 	paneContentVerticalPadding   = 3 // pane borders plus typical view chrome
@@ -329,6 +356,12 @@ func (m *LsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		cmds = append(cmds, m.closeMaintenanceFlow())
 		return m, tea.Batch(cmds...)
+	}
+
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		if handled, cmd := m.handleHelpKeyMsg(keyMsg); handled {
+			return m, cmd
+		}
 	}
 
 	if m.maintenanceFlow != nil {

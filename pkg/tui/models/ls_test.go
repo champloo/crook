@@ -12,6 +12,21 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+type stubSizedModel struct {
+	updated bool
+}
+
+func (m *stubSizedModel) Init() tea.Cmd { return nil }
+
+func (m *stubSizedModel) Update(tea.Msg) (tea.Model, tea.Cmd) {
+	m.updated = true
+	return m, nil
+}
+
+func (m *stubSizedModel) View() string { return "" }
+
+func (m *stubSizedModel) SetSize(width, height int) {}
+
 func TestLsTab_String(t *testing.T) {
 	tests := []struct {
 		tab      LsTab
@@ -377,6 +392,53 @@ func TestLsModel_handleKeyPress_Help(t *testing.T) {
 	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyEsc})
 	if model.helpVisible {
 		t.Error("help should be hidden after pressing esc")
+	}
+}
+
+func TestLsModel_Update_Help_WhileMaintenanceFlowActive(t *testing.T) {
+	model := NewLsModel(LsModelConfig{
+		Context: context.Background(),
+	})
+
+	flow := &stubSizedModel{}
+	model.maintenanceFlow = flow
+
+	// Help key should be handled by the container model, not the embedded flow.
+	msgHelp := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}}
+	updatedModel, _ := model.Update(msgHelp)
+	m, _ := updatedModel.(*LsModel)
+	if !m.helpVisible {
+		t.Error("help should be visible after pressing ? even while flow is active")
+	}
+	if flow.updated {
+		t.Error("embedded flow should not receive key input while help is opening")
+	}
+
+	// While help is visible, keys should not be routed to the embedded flow.
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x'}})
+	m, _ = updatedModel.(*LsModel)
+	if !m.helpVisible {
+		t.Error("help should remain visible after pressing non-close key while flow is active")
+	}
+	if flow.updated {
+		t.Error("embedded flow should not receive key input while help is visible")
+	}
+
+	// Esc should close help without routing to the embedded flow.
+	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	m, _ = updatedModel.(*LsModel)
+	if m.helpVisible {
+		t.Error("help should be hidden after pressing esc while flow is active")
+	}
+	if flow.updated {
+		t.Error("embedded flow should not receive key input when closing help")
+	}
+
+	// Non-help keys should continue to be routed to the embedded flow.
+	flow.updated = false
+	_, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	if !flow.updated {
+		t.Error("embedded flow should receive non-help keys")
 	}
 }
 
