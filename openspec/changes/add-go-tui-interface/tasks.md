@@ -193,8 +193,7 @@
 - [ ] 9.3 Test TUI in various terminals (xterm, tmux, screen)
 - [ ] 9.4 Test configuration loading from all sources
 - [ ] 9.5 Test state file backward compatibility with bash script files
-- [ ] 9.6 Add benchmark tests for performance-critical operations
-- [ ] 9.7 Test cancellation handling (Ctrl+C during operations)
+- [ ] 9.6 Test cancellation handling (Ctrl+C during operations)
 
 ## 10. Documentation and Polish
 
