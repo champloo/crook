@@ -25,6 +25,18 @@ func Truncate(s string, width int) string {
 	return ansi.Truncate(s, width, "")
 }
 
+// TruncateWithEllipsis truncates a string to a maximum display width and adds "..." if truncated.
+// ANSI escape codes are preserved and not broken.
+func TruncateWithEllipsis(s string, width int) string {
+	if width <= 3 {
+		return Truncate(s, width)
+	}
+	if DisplayWidth(s) <= width {
+		return s
+	}
+	return Truncate(s, width-3) + "..."
+}
+
 // PadRight pads a string on the right to the target display width.
 func PadRight(s string, width int) string {
 	if width <= 0 {

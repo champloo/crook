@@ -191,14 +191,12 @@ func (v *OSDsView) renderRow(osd OSDInfo, selected bool) string {
 	// Weight formatting
 	weightStr := fmt.Sprintf("%.3f", osd.Weight)
 
-	// Deployment name with truncation
+	// Deployment name with truncation (using display width for proper Unicode handling)
 	deploymentName := osd.DeploymentName
 	if deploymentName == "" {
 		deploymentName = "<none>"
 	}
-	if len(deploymentName) > 28 {
-		deploymentName = deploymentName[:25] + "..."
-	}
+	deploymentName = format.TruncateWithEllipsis(deploymentName, 28)
 
 	// Build columns
 	cols := []string{

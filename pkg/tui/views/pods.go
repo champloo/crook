@@ -205,20 +205,15 @@ func (v *PodsView) renderRow(pod PodInfo, selected bool) string {
 	// Warning indicators
 	hasWarning := pod.Status != "Running" || pod.Restarts > 5
 
-	// Truncate name if needed
-	nameDisplay := pod.Name
-	if len(nameDisplay) > 38 {
-		nameDisplay = nameDisplay[:35] + "..."
-	}
+	// Truncate name if needed (using display width for proper Unicode handling)
+	nameDisplay := format.TruncateWithEllipsis(pod.Name, 38)
 
-	// Truncate node name if needed
+	// Truncate node name if needed (using display width for proper Unicode handling)
 	nodeName := pod.NodeName
 	if nodeName == "" {
 		nodeName = "<none>"
 	}
-	if len(nodeName) > 18 {
-		nodeName = nodeName[:15] + "..."
-	}
+	nodeName = format.TruncateWithEllipsis(nodeName, 18)
 
 	cols := []string{
 		nameStyle.Render(format.PadRight(nameDisplay, 40)),

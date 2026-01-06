@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/andri/crook/pkg/tui/format"
 	"github.com/andri/crook/pkg/tui/styles"
 	"github.com/andri/crook/pkg/tui/views"
 	tea "github.com/charmbracelet/bubbletea"
@@ -521,10 +522,8 @@ func (d *DetailPanel) renderPanel() string {
 	// Render visible content
 	for i := startLine; i < endLine; i++ {
 		line := d.content[i]
-		// Truncate if too wide
-		if len(line) > contentWidth {
-			line = line[:contentWidth-3] + "..."
-		}
+		// Truncate if too wide (using display width for proper Unicode handling)
+		line = format.TruncateWithEllipsis(line, contentWidth)
 		b.WriteString(line)
 		b.WriteString("\n")
 	}

@@ -794,7 +794,9 @@ func (m *LsModel) handleFilterInput(msg tea.KeyMsg) tea.Cmd {
 		m.filterActive = false
 		m.filter = ""
 		m.updateViewSizes()
-		return nil
+		return func() tea.Msg {
+			return LsFilterMsg{Query: ""}
+		}
 
 	case tea.KeyEnter:
 		m.filterActive = false

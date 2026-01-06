@@ -80,6 +80,7 @@ type LsMonitor struct {
 	ctx      context.Context
 	cancel   context.CancelFunc
 	updates  chan *LsMonitorUpdate
+	errors   chan error
 	stopOnce sync.Once
 	wg       sync.WaitGroup
 	mu       sync.RWMutex
@@ -99,6 +100,7 @@ func NewLsMonitor(config *LsMonitorConfig) *LsMonitor {
 		ctx:     ctx,
 		cancel:  cancel,
 		updates: make(chan *LsMonitorUpdate, 10),
+		errors:  make(chan error, 10),
 		latest: &LsMonitorUpdate{
 			UpdateTime: time.Now(),
 		},
@@ -159,7 +161,10 @@ func (m *LsMonitor) startNodesPoller() <-chan []views.NodeInfo {
 		defer ticker.Stop()
 
 		// Initial fetch
-		if nodes, err := m.fetchNodes(); err == nil {
+		nodes, err := m.fetchNodes()
+		if err != nil {
+			m.sendError(err)
+		} else {
 			select {
 			case updates <- nodes:
 			case <-m.ctx.Done():
@@ -173,9 +178,12 @@ func (m *LsMonitor) startNodesPoller() <-chan []views.NodeInfo {
 			case <-m.ctx.Done():
 				return
 			case <-ticker.C:
-				if nodes, err := m.fetchNodes(); err == nil {
+				n, fetchErr := m.fetchNodes()
+				if fetchErr != nil {
+					m.sendError(fetchErr)
+				} else {
 					select {
-					case updates <- nodes:
+					case updates <- n:
 					case <-m.ctx.Done():
 						return
 					default:
@@ -223,7 +231,10 @@ func (m *LsMonitor) startDeploymentsPoller() <-chan []views.DeploymentInfo {
 		defer ticker.Stop()
 
 		// Initial fetch
-		if deployments, err := m.fetchDeployments(); err == nil {
+		deployments, err := m.fetchDeployments()
+		if err != nil {
+			m.sendError(err)
+		} else {
 			select {
 			case updates <- deployments:
 			case <-m.ctx.Done():
@@ -237,9 +248,12 @@ func (m *LsMonitor) startDeploymentsPoller() <-chan []views.DeploymentInfo {
 			case <-m.ctx.Done():
 				return
 			case <-ticker.C:
-				if deployments, err := m.fetchDeployments(); err == nil {
+				d, fetchErr := m.fetchDeployments()
+				if fetchErr != nil {
+					m.sendError(fetchErr)
+				} else {
 					select {
-					case updates <- deployments:
+					case updates <- d:
 					case <-m.ctx.Done():
 						return
 					default:
@@ -292,7 +306,10 @@ func (m *LsMonitor) startPodsPoller() <-chan []views.PodInfo {
 		defer ticker.Stop()
 
 		// Initial fetch
-		if pods, err := m.fetchPods(); err == nil {
+		pods, err := m.fetchPods()
+		if err != nil {
+			m.sendError(err)
+		} else {
 			select {
 			case updates <- pods:
 			case <-m.ctx.Done():
@@ -306,9 +323,12 @@ func (m *LsMonitor) startPodsPoller() <-chan []views.PodInfo {
 			case <-m.ctx.Done():
 				return
 			case <-ticker.C:
-				if pods, err := m.fetchPods(); err == nil {
+				p, fetchErr := m.fetchPods()
+				if fetchErr != nil {
+					m.sendError(fetchErr)
+				} else {
 					select {
-					case updates <- pods:
+					case updates <- p:
 					case <-m.ctx.Done():
 						return
 					default:
@@ -360,7 +380,10 @@ func (m *LsMonitor) startOSDsPoller() <-chan []views.OSDInfo {
 		defer ticker.Stop()
 
 		// Initial fetch
-		if osds, err := m.fetchOSDs(); err == nil {
+		osds, err := m.fetchOSDs()
+		if err != nil {
+			m.sendError(err)
+		} else {
 			select {
 			case updates <- osds:
 			case <-m.ctx.Done():
@@ -374,9 +397,12 @@ func (m *LsMonitor) startOSDsPoller() <-chan []views.OSDInfo {
 			case <-m.ctx.Done():
 				return
 			case <-ticker.C:
-				if osds, err := m.fetchOSDs(); err == nil {
+				o, fetchErr := m.fetchOSDs()
+				if fetchErr != nil {
+					m.sendError(fetchErr)
+				} else {
 					select {
-					case updates <- osds:
+					case updates <- o:
 					case <-m.ctx.Done():
 						return
 					default:
@@ -429,7 +455,10 @@ func (m *LsMonitor) startHeaderPoller() <-chan *components.ClusterHeaderData {
 		defer ticker.Stop()
 
 		// Initial fetch
-		if header, err := m.fetchHeader(); err == nil {
+		header, err := m.fetchHeader()
+		if err != nil {
+			m.sendError(err)
+		} else {
 			select {
 			case updates <- header:
 			case <-m.ctx.Done():
@@ -443,9 +472,12 @@ func (m *LsMonitor) startHeaderPoller() <-chan *components.ClusterHeaderData {
 			case <-m.ctx.Done():
 				return
 			case <-ticker.C:
-				if header, err := m.fetchHeader(); err == nil {
+				h, fetchErr := m.fetchHeader()
+				if fetchErr != nil {
+					m.sendError(fetchErr)
+				} else {
 					select {
-					case updates <- header:
+					case updates <- h:
 					case <-m.ctx.Done():
 						return
 					default:
@@ -510,6 +542,10 @@ func (m *LsMonitor) aggregator(
 		select {
 		case <-m.ctx.Done():
 			return
+
+		case err := <-m.errors:
+			m.updateError(err)
+			m.sendUpdate()
 
 		case nodes, ok := <-nodesCh:
 			if !ok {
@@ -599,6 +635,24 @@ func (m *LsMonitor) updateHeader(header *components.ClusterHeaderData) {
 	m.latest.UpdateTime = time.Now()
 }
 
+// updateError updates the error in the latest cache
+func (m *LsMonitor) updateError(err error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.latest.Error = err
+	m.latest.UpdateTime = time.Now()
+}
+
+// sendError sends an error to the errors channel (non-blocking)
+func (m *LsMonitor) sendError(err error) {
+	select {
+	case m.errors <- err:
+	case <-m.ctx.Done():
+	default:
+		// Channel full, skip this error
+	}
+}
+
 // sendUpdate sends the current state to the updates channel
 func (m *LsMonitor) sendUpdate() {
 	m.mu.RLock()
@@ -609,6 +663,7 @@ func (m *LsMonitor) sendUpdate() {
 		OSDs:        m.latest.OSDs,
 		Header:      m.latest.Header,
 		UpdateTime:  m.latest.UpdateTime,
+		Error:       m.latest.Error,
 	}
 	m.mu.RUnlock()
 
