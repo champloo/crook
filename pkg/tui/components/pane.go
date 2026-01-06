@@ -133,8 +133,8 @@ func (p *Pane) View(content string) string {
 	topLeft := borderStyle.Render("╭─")
 	renderedTitle := titleStyle.Render(titleText)
 	titleWidth := lipgloss.Width(titleText)
-	// Calculate remaining dashes needed (subtract title width, corners, and some padding)
-	remainingWidth := borderWidth - 4 - titleWidth // 4 for ╭─ and ─╮
+	// Calculate remaining dashes needed (subtract title width and corners)
+	remainingWidth := borderWidth - 3 - titleWidth // 3 for ╭─ and ╮
 	if remainingWidth < 1 {
 		remainingWidth = 1
 	}
@@ -208,8 +208,12 @@ func (p *Pane) clipContent(content string, width, height int) string {
 
 		if visibleWidth > width {
 			// Need to truncate - this is tricky with ANSI codes
-			// Use a simple approach: try to cut at width and add ellipsis
-			line = truncateWithWidth(line, width-3) + "..."
+			// Use a simple approach: try to cut at width and add ellipsis if it fits
+			if width <= 3 {
+				line = truncateWithWidth(line, width)
+			} else {
+				line = truncateWithWidth(line, width-3) + "..."
+			}
 		} else if visibleWidth < width {
 			// Pad with spaces to fill width
 			line = line + strings.Repeat(" ", width-visibleWidth)

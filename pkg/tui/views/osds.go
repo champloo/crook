@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/andri/crook/pkg/tui/format"
 	"github.com/andri/crook/pkg/tui/styles"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -145,13 +146,13 @@ func (v *OSDsView) renderHeader() string {
 		Foreground(styles.ColorPrimary)
 
 	cols := []string{
-		v.padRight("OSD", 10),
-		v.padRight("HOST", 20),
-		v.padRight("STATUS", 8),
-		v.padRight("IN/OUT", 8),
-		v.padRight("WEIGHT", 10),
-		v.padRight("CLASS", 8),
-		v.padRight("DEPLOYMENT", 30),
+		format.PadRight("OSD", 10),
+		format.PadRight("HOST", 20),
+		format.PadRight("STATUS", 8),
+		format.PadRight("IN/OUT", 8),
+		format.PadRight("WEIGHT", 10),
+		format.PadRight("CLASS", 8),
+		format.PadRight("DEPLOYMENT", 30),
 	}
 
 	return headerStyle.Render(strings.Join(cols, " "))
@@ -201,13 +202,13 @@ func (v *OSDsView) renderRow(osd OSDInfo, selected bool) string {
 
 	// Build columns
 	cols := []string{
-		nameStyle.Render(v.padRight(osd.Name, 10)),
-		v.renderWithWarning(v.padRight(osd.Hostname, 20), rowWarning, selected),
-		statusStyle.Render(v.padRight(osd.Status, 8)),
-		inOutStyle.Render(v.padRight(osd.InOut, 8)),
-		styles.StyleSubtle.Render(v.padRight(weightStr, 10)),
-		styles.StyleSubtle.Render(v.padRight(osd.DeviceClass, 8)),
-		v.renderWithWarning(v.padRight(deploymentName, 30), rowWarning, selected),
+		nameStyle.Render(format.PadRight(osd.Name, 10)),
+		v.renderWithWarning(format.PadRight(osd.Hostname, 20), rowWarning, selected),
+		statusStyle.Render(format.PadRight(osd.Status, 8)),
+		inOutStyle.Render(format.PadRight(osd.InOut, 8)),
+		styles.StyleSubtle.Render(format.PadRight(weightStr, 10)),
+		styles.StyleSubtle.Render(format.PadRight(osd.DeviceClass, 8)),
+		v.renderWithWarning(format.PadRight(deploymentName, 30), rowWarning, selected),
 	}
 
 	return strings.Join(cols, " ")
@@ -225,14 +226,6 @@ func (v *OSDsView) renderWithWarning(s string, warning, selected bool) string {
 		return styles.StyleWarning.Render(s)
 	}
 	return styles.StyleNormal.Render(s)
-}
-
-// padRight pads a string to the specified width
-func (v *OSDsView) padRight(s string, width int) string {
-	if len(s) >= width {
-		return s[:width]
-	}
-	return s + strings.Repeat(" ", width-len(s))
 }
 
 // getTableWidth returns the total table width

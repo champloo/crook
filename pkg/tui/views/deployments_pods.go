@@ -7,8 +7,6 @@ type DeploymentsPodsView struct {
 	deploymentsView *DeploymentsView
 	podsView        *PodsView
 	showPods        bool // false = deployments (default), true = pods
-	width           int
-	height          int
 }
 
 // NewDeploymentsPodsView creates a new composite view containing both
@@ -65,8 +63,6 @@ func (v *DeploymentsPodsView) View() string {
 
 // SetSize forwards the size to both sub-views.
 func (v *DeploymentsPodsView) SetSize(width, height int) {
-	v.width = width
-	v.height = height
 	v.deploymentsView.SetSize(width, height)
 	v.podsView.SetSize(width, height)
 }

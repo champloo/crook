@@ -337,26 +337,9 @@ func (m *LsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-// updateViewSizes updates view dimensions based on the multi-pane layout
+// updateViewSizes updates view dimensions based on the multi-pane layout.
 func (m *LsModel) updateViewSizes() {
-	// Calculate available height for panes
-	// Header: ~4 lines, Nav bar: 2 lines, Status bar: 2 lines
-	headerHeight := 4
-	navBarHeight := 2
-	statusBarHeight := 2
-	availableHeight := m.height - headerHeight - navBarHeight - statusBarHeight
-
-	// Calculate height distribution: active pane gets 50%, inactive get 25% each
-	activeHeight := availableHeight / 2
-	inactiveHeight := availableHeight / 4
-
-	// Ensure minimum heights
-	if activeHeight < 8 {
-		activeHeight = 8
-	}
-	if inactiveHeight < 4 {
-		inactiveHeight = 4
-	}
+	activeHeight, inactiveHeight := m.paneHeights()
 
 	// Set sizes for each pane and view
 	for i, pane := range m.panes {
@@ -371,6 +354,31 @@ func (m *LsModel) updateViewSizes() {
 	m.nodesView.SetSize(m.width-4, activeHeight-3)
 	m.deploymentsPodsView.SetSize(m.width-4, activeHeight-3)
 	m.osdsView.SetSize(m.width-4, activeHeight-3)
+}
+
+// paneHeights calculates the active/inactive pane heights based on layout chrome.
+func (m *LsModel) paneHeights() (int, int) {
+	headerHeight := 4
+	statusBarHeight := 2
+	filterBarHeight := 0
+	if m.filterActive {
+		filterBarHeight = 2
+	}
+	availableHeight := m.height - headerHeight - statusBarHeight - filterBarHeight
+
+	// Height distribution: active pane gets 50%, inactive get 25% each.
+	activeHeight := availableHeight / 2
+	inactiveHeight := availableHeight / 4
+
+	// Ensure minimum heights.
+	if activeHeight < 8 {
+		activeHeight = 8
+	}
+	if inactiveHeight < 4 {
+		inactiveHeight = 4
+	}
+
+	return activeHeight, inactiveHeight
 }
 
 // updateFromMonitor updates the model from a monitor update
@@ -776,26 +784,7 @@ func (m *LsModel) renderHeader() string {
 func (m *LsModel) renderAllPanes() string {
 	var b strings.Builder
 
-	// Calculate heights
-	headerHeight := 4
-	statusBarHeight := 2
-	filterBarHeight := 0
-	if m.filterActive {
-		filterBarHeight = 2
-	}
-	availableHeight := m.height - headerHeight - statusBarHeight - filterBarHeight
-
-	// Height distribution: active pane gets 50%, inactive get 25% each
-	activeHeight := availableHeight / 2
-	inactiveHeight := availableHeight / 4
-
-	// Ensure minimum heights
-	if activeHeight < 8 {
-		activeHeight = 8
-	}
-	if inactiveHeight < 4 {
-		inactiveHeight = 4
-	}
+	activeHeight, inactiveHeight := m.paneHeights()
 
 	// Render each pane
 	for i, pane := range m.panes {
@@ -848,7 +837,7 @@ func (m *LsModel) renderStatusBar() string {
 	} else {
 		hints = append(hints, "Tab/1-3: pane", "j/k: navigate")
 		if m.activePane == LsPaneDeployments {
-			hints = append(hints, "[/]: deps/pods")
+			hints = append(hints, "[/]: deployments/pods")
 		}
 		hints = append(hints, "/: filter", "r: refresh", "?: help", "q: quit")
 	}

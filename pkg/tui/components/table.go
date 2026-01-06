@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/andri/crook/pkg/tui/format"
 	"github.com/andri/crook/pkg/tui/styles"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -186,15 +187,18 @@ func (t *Table) calculateWidths() []int {
 		if col.Width > 0 {
 			widths[i] = col.Width
 		} else {
-			widths[i] = len(col.Title)
+			widths[i] = format.DisplayWidth(col.Title)
 		}
 	}
 
 	// Expand to fit content only for auto-width columns (Width == 0)
 	for _, row := range t.Rows {
 		for i, cell := range row.Cells {
-			if i < len(widths) && t.Columns[i].Width == 0 && len(cell) > widths[i] {
-				widths[i] = len(cell)
+			if i < len(widths) && t.Columns[i].Width == 0 {
+				cellWidth := format.DisplayWidth(cell)
+				if cellWidth > widths[i] {
+					widths[i] = cellWidth
+				}
 			}
 		}
 	}
@@ -235,16 +239,16 @@ func (t *Table) renderRow(cells []string, widths []int, style lipgloss.Style, _ 
 
 		// Truncate if needed
 		width := widths[i]
-		if len(cell) > width {
+		if format.DisplayWidth(cell) > width {
 			if width > 3 {
-				cell = cell[:width-3] + "..."
+				cell = format.Truncate(cell, width-3) + "..."
 			} else {
-				cell = cell[:width]
+				cell = format.Truncate(cell, width)
 			}
 		}
 
 		// Calculate padding
-		padding := width - len(cell)
+		padding := width - format.DisplayWidth(cell)
 		align := t.Columns[i].Align
 
 		// Get the appropriate style for this cell
@@ -405,8 +409,9 @@ func (kv *KeyValueTable) View() string {
 	// Find max key length
 	maxKeyLen := 0
 	for _, item := range kv.items {
-		if len(item.key) > maxKeyLen {
-			maxKeyLen = len(item.key)
+		keyWidth := format.DisplayWidth(item.key)
+		if keyWidth > maxKeyLen {
+			maxKeyLen = keyWidth
 		}
 	}
 
@@ -414,7 +419,7 @@ func (kv *KeyValueTable) View() string {
 	keyStyle := styles.StyleSubtle
 	for _, item := range kv.items {
 		// Pad key to align values
-		paddedKey := item.key + strings.Repeat(" ", maxKeyLen-len(item.key))
+		paddedKey := format.PadRight(item.key, maxKeyLen)
 
 		// Get value style based on type
 		valueStyle := kv.getValueStyle(item.valueType)

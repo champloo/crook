@@ -679,8 +679,8 @@ func TestLsModel_View_Help(t *testing.T) {
 		t.Error("Help should mention pane switching")
 	}
 
-	if !contains(view, "deps/pods") {
-		t.Error("Help should mention deps/pods toggle")
+	if !contains(view, "deployments/pods") {
+		t.Error("Help should mention deployments/pods toggle")
 	}
 }
 
@@ -722,7 +722,7 @@ func TestLsModel_View_StatusBarShowsToggleHint(t *testing.T) {
 	// On Deployments pane - should show toggle hint
 	model.setActivePane(LsPaneDeployments)
 	view = model.View()
-	if !contains(view, "[/]: deps/pods") {
+	if !contains(view, "[/]: deployments/pods") {
 		t.Error("View should contain toggle hint when on Deployments pane")
 	}
 }

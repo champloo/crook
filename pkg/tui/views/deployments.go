@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/andri/crook/pkg/tui/format"
 	"github.com/andri/crook/pkg/tui/styles"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -154,13 +155,13 @@ func (v *DeploymentsView) renderHeader() string {
 
 	// Reserve space for icon prefix (icon + space)
 	cols := []string{
-		v.padRight("", iconPrefixWidth),
-		v.padRight("NAME", nameColWidth),
-		v.padRight("NAMESPACE", namespaceColWidth),
-		v.padRight("READY", readyColWidth),
-		v.padRight("NODE", nodeColWidth),
-		v.padRight("AGE", ageColWidth),
-		v.padRight("STATUS", statusColWidth),
+		format.PadRight("", iconPrefixWidth),
+		format.PadRight("NAME", nameColWidth),
+		format.PadRight("NAMESPACE", namespaceColWidth),
+		format.PadRight("READY", readyColWidth),
+		format.PadRight("NODE", nodeColWidth),
+		format.PadRight("AGE", ageColWidth),
+		format.PadRight("STATUS", statusColWidth),
 	}
 
 	return headerStyle.Render(strings.Join(cols, " "))
@@ -282,30 +283,15 @@ func (v *DeploymentsView) renderRow(dep DeploymentInfo, selected bool) string {
 
 	cols := []string{
 		styles.StyleWarning.Render(iconPrefix),
-		nameStyle.Render(v.padRight(dep.Name, nameColWidth)),
-		styles.StyleSubtle.Render(v.padRight(dep.Namespace, namespaceColWidth)),
-		readyStyle.Render(v.padRight(readyStr, readyColWidth)),
-		styles.StyleNormal.Render(v.padRight(nodeName, nodeColWidth)),
-		styles.StyleSubtle.Render(v.padRight(formatAge(dep.Age), ageColWidth)),
-		statusStyle.Render(v.padRight(dep.Status, statusColWidth)),
+		nameStyle.Render(format.PadRight(dep.Name, nameColWidth)),
+		styles.StyleSubtle.Render(format.PadRight(dep.Namespace, namespaceColWidth)),
+		readyStyle.Render(format.PadRight(readyStr, readyColWidth)),
+		styles.StyleNormal.Render(format.PadRight(nodeName, nodeColWidth)),
+		styles.StyleSubtle.Render(format.PadRight(formatAge(dep.Age), ageColWidth)),
+		statusStyle.Render(format.PadRight(dep.Status, statusColWidth)),
 	}
 
 	return strings.Join(cols, " ")
-}
-
-// padRight pads a string to the specified width using display width
-func (v *DeploymentsView) padRight(s string, width int) string {
-	// Use lipgloss.Width for proper display width calculation
-	// (handles Unicode characters and ANSI escape codes correctly)
-	visibleLen := lipgloss.Width(s)
-	if visibleLen >= width {
-		// Truncate if too long - need to be careful with multi-byte chars
-		if len(s) > width {
-			return s[:width]
-		}
-		return s
-	}
-	return s + strings.Repeat(" ", width-visibleLen)
 }
 
 // getTableWidth returns the total table width

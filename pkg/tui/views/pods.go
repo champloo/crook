@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/andri/crook/pkg/tui/format"
 	"github.com/andri/crook/pkg/tui/styles"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -138,13 +139,13 @@ func (v *PodsView) renderHeader() string {
 		Foreground(styles.ColorPrimary)
 
 	cols := []string{
-		v.padRight("NAME", 40),
-		v.padRight("NAMESPACE", 15),
-		v.padRight("NODE", 20),
-		v.padRight("STATUS", 12),
-		v.padRight("READY", 8),
-		v.padRight("RESTARTS", 10),
-		v.padRight("AGE", 8),
+		format.PadRight("NAME", 40),
+		format.PadRight("NAMESPACE", 15),
+		format.PadRight("NODE", 20),
+		format.PadRight("STATUS", 12),
+		format.PadRight("READY", 8),
+		format.PadRight("RESTARTS", 10),
+		format.PadRight("AGE", 8),
 	}
 
 	return headerStyle.Render(strings.Join(cols, " "))
@@ -220,13 +221,13 @@ func (v *PodsView) renderRow(pod PodInfo, selected bool) string {
 	}
 
 	cols := []string{
-		nameStyle.Render(v.padRight(nameDisplay, 40)),
-		styles.StyleSubtle.Render(v.padRight(pod.Namespace, 15)),
-		v.renderWithWarning(v.padRight(nodeName, 20), hasWarning, selected),
-		statusStyle.Render(v.padRight(pod.Status, 12)),
-		readyStyle.Render(v.padRight(readyStr, 8)),
-		restartStyle.Render(v.padRight(restartStr, 10)),
-		styles.StyleSubtle.Render(v.padRight(formatAge(pod.Age), 8)),
+		nameStyle.Render(format.PadRight(nameDisplay, 40)),
+		styles.StyleSubtle.Render(format.PadRight(pod.Namespace, 15)),
+		v.renderWithWarning(format.PadRight(nodeName, 20), hasWarning, selected),
+		statusStyle.Render(format.PadRight(pod.Status, 12)),
+		readyStyle.Render(format.PadRight(readyStr, 8)),
+		restartStyle.Render(format.PadRight(restartStr, 10)),
+		styles.StyleSubtle.Render(format.PadRight(formatAge(pod.Age), 8)),
 	}
 
 	return strings.Join(cols, " ")
@@ -244,14 +245,6 @@ func (v *PodsView) renderWithWarning(s string, warning, selected bool) string {
 		return styles.StyleWarning.Render(s)
 	}
 	return styles.StyleNormal.Render(s)
-}
-
-// padRight pads a string to the specified width
-func (v *PodsView) padRight(s string, width int) string {
-	if len(s) >= width {
-		return s[:width]
-	}
-	return s + strings.Repeat(" ", width-len(s))
 }
 
 // getTableWidth returns the total table width

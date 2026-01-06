@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/andri/crook/pkg/tui/format"
 	"github.com/andri/crook/pkg/tui/styles"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -137,12 +138,12 @@ func (v *NodesView) renderHeader() string {
 		Foreground(styles.ColorPrimary)
 
 	cols := []string{
-		v.padRight("NAME", 30),
-		v.padRight("STATUS", 10),
-		v.padRight("ROLES", 20),
-		v.padRight("SCHEDULE", 12),
-		v.padRight("CEPH PODS", 10),
-		v.padRight("AGE", 10),
+		format.PadRight("NAME", 30),
+		format.PadRight("STATUS", 10),
+		format.PadRight("ROLES", 20),
+		format.PadRight("SCHEDULE", 12),
+		format.PadRight("CEPH PODS", 10),
+		format.PadRight("AGE", 10),
 	}
 
 	return headerStyle.Render(strings.Join(cols, " "))
@@ -196,12 +197,12 @@ func (v *NodesView) renderRow(node NodeInfo, selected bool) string {
 	}
 
 	cols := []string{
-		nameStyle.Render(v.padRight(node.Name, 30)),
-		statusStyle.Render(v.padRight(node.Status, 10)),
-		styles.StyleNormal.Render(v.padRight(rolesText, 20)),
-		scheduleStyle.Render(v.padRight(scheduleText, 12)),
+		nameStyle.Render(format.PadRight(node.Name, 30)),
+		statusStyle.Render(format.PadRight(node.Status, 10)),
+		styles.StyleNormal.Render(format.PadRight(rolesText, 20)),
+		scheduleStyle.Render(format.PadRight(scheduleText, 12)),
 		v.renderCephPodCount(node.CephPodCount, selected),
-		styles.StyleSubtle.Render(v.padRight(formatAge(node.Age), 10)),
+		styles.StyleSubtle.Render(format.PadRight(formatAge(node.Age), 10)),
 	}
 
 	return strings.Join(cols, " ")
@@ -223,15 +224,7 @@ func (v *NodesView) renderCephPodCount(count int, selected bool) string {
 		style = styles.StyleSubtle
 	}
 
-	return style.Render(v.padRight(countStr, 10))
-}
-
-// padRight pads a string to the specified width
-func (v *NodesView) padRight(s string, width int) string {
-	if len(s) >= width {
-		return s[:width]
-	}
-	return s + strings.Repeat(" ", width-len(s))
+	return style.Render(format.PadRight(countStr, 10))
 }
 
 // getTableWidth returns the total table width
