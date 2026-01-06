@@ -159,6 +159,24 @@ type sizedModel interface {
 	SetSize(width, height int)
 }
 
+const (
+	paneContentHorizontalPadding = 4 // 2 borders + 2 padding (see components.Pane)
+	paneContentVerticalPadding   = 3 // pane borders plus typical view chrome
+)
+
+func clampMin(value, min int) int {
+	if value < min {
+		return min
+	}
+	return value
+}
+
+func innerViewSize(paneWidth, paneHeight int) (int, int) {
+	width := clampMin(paneWidth-paneContentHorizontalPadding, 1)
+	height := clampMin(paneHeight-paneContentVerticalPadding, 1)
+	return width, height
+}
+
 // LsDataUpdateMsg is sent when data is updated
 type LsDataUpdateMsg struct {
 	Tab        LsTab
@@ -411,12 +429,18 @@ func (m *LsModel) updateViewSizes() {
 	m.maintenancePane.SetSize(maintenanceWidth, nodesHeight)
 	m.maintenancePane.SetActive(m.maintenanceFlow != nil)
 
-	m.nodesView.SetSize(nodesWidth-4, nodesHeight-3)
-	m.deploymentsPodsView.SetSize(m.width-4, deploymentsHeight-3)
-	m.osdsView.SetSize(m.width-4, osdsHeight-3)
+	nodesInnerWidth, nodesInnerHeight := innerViewSize(nodesWidth, nodesHeight)
+	m.nodesView.SetSize(nodesInnerWidth, nodesInnerHeight)
+
+	deploymentsInnerWidth, deploymentsInnerHeight := innerViewSize(m.width, deploymentsHeight)
+	m.deploymentsPodsView.SetSize(deploymentsInnerWidth, deploymentsInnerHeight)
+
+	osdsInnerWidth, osdsInnerHeight := innerViewSize(m.width, osdsHeight)
+	m.osdsView.SetSize(osdsInnerWidth, osdsInnerHeight)
 
 	if m.maintenanceFlow != nil {
-		m.maintenanceFlow.SetSize(maintenanceWidth-4, nodesHeight-3)
+		maintenanceInnerWidth, maintenanceInnerHeight := innerViewSize(maintenanceWidth, nodesHeight)
+		m.maintenanceFlow.SetSize(maintenanceInnerWidth, maintenanceInnerHeight)
 	}
 }
 

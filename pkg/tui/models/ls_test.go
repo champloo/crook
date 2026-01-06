@@ -158,6 +158,21 @@ func TestLsModel_Update_WindowSize(t *testing.T) {
 	}
 }
 
+func TestLsModel_View_DoesNotPanicOnTinySize(t *testing.T) {
+	model := NewLsModel(LsModelConfig{
+		Context: context.Background(),
+	})
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("View panicked on tiny size: %v", r)
+		}
+	}()
+
+	_, _ = model.Update(tea.WindowSizeMsg{Width: 10, Height: 6})
+	_ = model.View()
+}
+
 func TestLsModel_Update_TabSwitch(t *testing.T) {
 	model := NewLsModel(LsModelConfig{
 		Context: context.Background(),
