@@ -203,17 +203,3 @@ func (m *Modal) renderFrame(width, height int, content string) string {
 		Height(height).
 		Render(content)
 }
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}

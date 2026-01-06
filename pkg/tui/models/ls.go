@@ -170,7 +170,9 @@ type LsRefreshMsg struct {
 }
 
 // LsMonitorStartedMsg is sent when the monitor is ready
-type LsMonitorStartedMsg struct{}
+type LsMonitorStartedMsg struct {
+	Monitor *monitoring.LsMonitor
+}
 
 // LsRefreshTickMsg triggers checking for monitor updates
 type LsRefreshTickMsg struct{}
@@ -264,9 +266,9 @@ func (m *LsModel) startMonitorCmd() tea.Cmd {
 			OSDsRefreshInterval:        getInterval(m.config.Config.UI.LsRefreshOSDsMS, config.DefaultLsRefreshOSDsMS),
 			HeaderRefreshInterval:      getInterval(m.config.Config.UI.LsRefreshHeaderMS, config.DefaultLsRefreshHeaderMS),
 		}
-		m.monitor = monitoring.NewLsMonitor(cfg)
-		m.monitor.Start()
-		return LsMonitorStartedMsg{}
+		monitor := monitoring.NewLsMonitor(cfg)
+		monitor.Start()
+		return LsMonitorStartedMsg{Monitor: monitor}
 	}
 }
 
@@ -274,14 +276,20 @@ func (m *LsModel) startMonitorCmd() tea.Cmd {
 func (m *LsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
-	switch msg.(type) {
+	switch msg := msg.(type) {
 	case components.ModalCloseMsg:
 		cmds = append(cmds, m.closeMaintenanceModal())
 		return m, tea.Batch(cmds...)
 	case DownFlowExitMsg:
+		if msg.Err != nil {
+			m.lastError = msg.Err
+		}
 		cmds = append(cmds, m.closeMaintenanceModal())
 		return m, tea.Batch(cmds...)
 	case UpFlowExitMsg:
+		if msg.Err != nil {
+			m.lastError = msg.Err
+		}
 		cmds = append(cmds, m.closeMaintenanceModal())
 		return m, tea.Batch(cmds...)
 	}
@@ -352,7 +360,7 @@ func (m *LsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case LsMonitorStartedMsg:
-		// Monitor is ready, nothing special to do
+		m.monitor = msg.Monitor
 
 	case LsRefreshTickMsg:
 		// Check for new data from monitor
@@ -510,118 +518,150 @@ func (m *LsModel) handleKeyPress(msg tea.KeyMsg) tea.Cmd {
 
 	key := msg.String()
 
+	if cmd, ok := m.handleQuitKey(key); ok {
+		return cmd
+	}
+	if m.handleHelpFilterAndPaneNavKey(key) {
+		return nil
+	}
+	if cmd, ok := m.handlePaneSwitchKey(key, msg); ok {
+		return cmd
+	}
+	if m.handleDeploymentsToggleKey(key) {
+		return nil
+	}
+	if m.handleCursorKey(key) {
+		return nil
+	}
+	if cmd, ok := m.handleActionKey(key); ok {
+		return cmd
+	}
+
+	return nil
+}
+
+func (m *LsModel) handleQuitKey(key string) (tea.Cmd, bool) {
 	switch key {
-	case "q", "esc":
+	case "q", "esc", "ctrl+c":
 		if m.monitor != nil {
 			m.monitor.Stop()
 		}
-		return tea.Quit
+		return tea.Quit, true
+	default:
+		return nil, false
+	}
+}
 
+func (m *LsModel) handleHelpFilterAndPaneNavKey(key string) bool {
+	switch key {
 	case "?":
 		m.helpVisible = true
-		return nil
-
+		return true
 	case "/":
 		m.filterActive = true
-		return nil
-
+		return true
 	case "tab":
 		m.nextPane()
-		return nil
-
+		return true
 	case "shift+tab":
 		m.prevPane()
-		return nil
+		return true
+	default:
+		return false
+	}
+}
 
+func (m *LsModel) handlePaneSwitchKey(key string, msg tea.KeyMsg) (tea.Cmd, bool) {
+	switch key {
 	case "1":
 		m.setActivePane(LsPaneNodes)
-		// Also update legacy tab bar
 		_, cmd := m.tabBar.Update(msg)
-		return cmd
-
+		return cmd, true
 	case "2":
 		m.setActivePane(LsPaneDeployments)
 		_, cmd := m.tabBar.Update(msg)
-		return cmd
-
+		return cmd, true
 	case "3":
 		m.setActivePane(LsPaneOSDs)
 		_, cmd := m.tabBar.Update(msg)
-		return cmd
+		return cmd, true
+	default:
+		if len(key) == 1 && key[0] >= '4' && key[0] <= '9' {
+			_, cmd := m.tabBar.Update(msg)
+			return cmd, true
+		}
+		return nil, false
+	}
+}
 
-	case "4", "5", "6", "7", "8", "9":
-		// Delegate to tab bar for backward compatibility
-		_, cmd := m.tabBar.Update(msg)
-		return cmd
-
+func (m *LsModel) handleDeploymentsToggleKey(key string) bool {
+	switch key {
 	case "[":
-		// Toggle to deployments view in middle pane
 		if m.activePane == LsPaneDeployments {
 			m.deploymentsPodsView.ShowDeployments()
 			m.panes[LsPaneDeployments].SetTitle("Deployments")
 			m.updateAllCounts()
 		}
-		return nil
-
+		return true
 	case "]":
-		// Toggle to pods view in middle pane
 		if m.activePane == LsPaneDeployments {
 			m.deploymentsPodsView.ShowPods()
 			m.panes[LsPaneDeployments].SetTitle("Pods")
 			m.updateAllCounts()
 		}
-		return nil
+		return true
+	default:
+		return false
+	}
+}
 
+func (m *LsModel) handleCursorKey(key string) bool {
+	switch key {
 	case "j", "down":
 		m.updateActiveViewCursor(1)
-		return nil
-
+		return true
 	case "k", "up":
 		m.updateActiveViewCursor(-1)
-		return nil
-
+		return true
 	case "g":
 		m.setActiveViewCursor(0)
-		return nil
-
+		return true
 	case "G":
-		// Go to end - actual max will depend on current view
 		m.setActiveViewCursor(m.getMaxCursor())
-		return nil
-
-	case "r":
-		return func() tea.Msg {
-			return LsRefreshMsg{Tab: m.activeTab}
-		}
-
-	case "enter":
-		// Placeholder: will trigger detail view in future
-		return nil
-
-	case "d":
-		if m.activePane == LsPaneNodes {
-			if node := m.nodesView.GetSelectedNode(); node != nil {
-				return m.openMaintenanceModal(node.Name, false)
-			}
-		}
-		return nil
-
-	case "u":
-		if m.activePane == LsPaneNodes {
-			if node := m.nodesView.GetSelectedNode(); node != nil {
-				return m.openMaintenanceModal(node.Name, true)
-			}
-		}
-		return nil
-
-	case "ctrl+c":
-		if m.monitor != nil {
-			m.monitor.Stop()
-		}
-		return tea.Quit
+		return true
+	default:
+		return false
 	}
+}
 
-	return nil
+func (m *LsModel) handleActionKey(key string) (tea.Cmd, bool) {
+	switch key {
+	case "r":
+		tab := m.activeTab
+		return func() tea.Msg { return LsRefreshMsg{Tab: tab} }, true
+	case "enter":
+		return nil, true
+	case "d":
+		if m.activePane != LsPaneNodes {
+			return nil, true
+		}
+		node := m.nodesView.GetSelectedNode()
+		if node == nil {
+			return nil, true
+		}
+		return m.openMaintenanceModal(node.Name, false), true
+	case "u":
+		if m.activePane != LsPaneNodes {
+			return nil, true
+		}
+		node := m.nodesView.GetSelectedNode()
+		if node == nil {
+			return nil, true
+		}
+		return m.openMaintenanceModal(node.Name, true), true
+	default:
+		return nil, false
+	}
 }
 
 // handleFilterInput handles input during filter mode
@@ -950,7 +990,13 @@ func (m *LsModel) renderStatusBar() string {
 		hints = append(hints, "/: filter", "r: refresh", "?: help", "q: quit")
 	}
 
-	return styles.StyleSubtle.Render(strings.Join(hints, "  "))
+	status := styles.StyleSubtle.Render(strings.Join(hints, "  "))
+	if m.lastError == nil {
+		return status
+	}
+
+	errText := styles.StyleError.Render(fmt.Sprintf("error: %v", m.lastError))
+	return errText + "  " + status
 }
 
 // renderHelp renders the help overlay

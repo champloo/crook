@@ -7,12 +7,12 @@ import (
 	"github.com/mattn/go-runewidth"
 )
 
-// DisplayWidth returns the visible width of a string.
+// DisplayWidth returns the visible width of an unstyled string (no ANSI escape codes).
 func DisplayWidth(s string) int {
 	return runewidth.StringWidth(s)
 }
 
-// Truncate trims a string to a maximum display width.
+// Truncate trims an unstyled string (no ANSI escape codes) to a maximum display width.
 func Truncate(s string, width int) string {
 	if width <= 0 {
 		return ""

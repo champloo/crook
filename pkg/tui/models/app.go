@@ -508,11 +508,3 @@ func (p *placeholderModel) SetSize(width, height int) {
 	p.width = width
 	p.height = height
 }
-
-// min returns the smaller of two integers
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}

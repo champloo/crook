@@ -554,8 +554,10 @@ func TestLsModel_Update_MaintenanceExitClosesModal(t *testing.T) {
 	if cmd == nil {
 		t.Fatal("expected refresh command after closing modal")
 	}
-	if msg, ok := cmd().(LsRefreshMsg); !ok || msg.Tab != LsTabNodes {
-		t.Fatalf("expected LsRefreshMsg for nodes, got %T", cmd())
+	got := cmd()
+	refreshMsg, okRefresh := got.(LsRefreshMsg)
+	if !okRefresh || refreshMsg.Tab != LsTabNodes {
+		t.Fatalf("expected LsRefreshMsg for nodes, got %T", got)
 	}
 }
 

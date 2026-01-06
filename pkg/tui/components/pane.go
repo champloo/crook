@@ -7,6 +7,7 @@ import (
 
 	"github.com/andri/crook/pkg/tui/styles"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/mattn/go-runewidth"
 )
 
 // PaneConfig holds configuration for a Pane component.
@@ -257,8 +258,8 @@ func truncateWithWidth(s string, width int) string {
 			continue
 		}
 
-		// Count this rune's width (simplified: assume 1 for most chars)
-		runeWidth := 1
+		// Count this rune's width (best-effort; matches lipgloss width for most cases)
+		runeWidth := runewidth.RuneWidth(r)
 		if currentWidth+runeWidth > width {
 			break
 		}
