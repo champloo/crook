@@ -645,18 +645,15 @@ func TestLsModel_View_AllPanesVisible(t *testing.T) {
 
 	view := model.View()
 
-	// All three pane titles should be visible
-	if !contains(view, "1:Nodes") {
-		t.Error("View should contain '1:Nodes' in nav bar")
+	// All three pane titles should be visible in their borders (new format: [1] Nodes)
+	if !contains(view, "[1] Nodes") {
+		t.Error("View should contain '[1] Nodes' in pane border")
 	}
-	if !contains(view, "2:Deployments") || !contains(view, "2:Pods") {
-		// Either Deployments or Pods depending on toggle state
-		if !contains(view, "2:") {
-			t.Error("View should contain '2:' prefix in nav bar")
-		}
+	if !contains(view, "[2] Deployments") && !contains(view, "[2] Pods") {
+		t.Error("View should contain '[2] Deployments' or '[2] Pods' in pane border")
 	}
-	if !contains(view, "3:OSDs") {
-		t.Error("View should contain '3:OSDs' in nav bar")
+	if !contains(view, "[3] OSDs") {
+		t.Error("View should contain '[3] OSDs' in pane border")
 	}
 }
 

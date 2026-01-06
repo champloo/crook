@@ -86,29 +86,25 @@ func (p *Pane) GetShortcutKey() string {
 	return p.config.ShortcutKey
 }
 
-// View wraps the given content with a styled border and title bar.
+// View wraps the given content with a styled border and title in the top border.
+// The title is rendered as: ╭─[1] Nodes (3)───────────────╮
 // The styling depends on whether the pane is active or inactive.
 func (p *Pane) View(content string) string {
-	// Select styles based on active state
-	var borderStyle lipgloss.Style
+	// Select border color based on active state
+	var borderColor lipgloss.AdaptiveColor
 	var titleStyle lipgloss.Style
 
 	if p.active {
-		borderStyle = styles.StylePaneActive
+		borderColor = styles.ColorPrimary
 		titleStyle = styles.StylePaneTitleActive
 	} else {
-		borderStyle = styles.StylePaneInactive
+		borderColor = styles.ColorBorder
 		titleStyle = styles.StylePaneTitleInactive
 	}
 
-	// Build title bar: [1:Nodes (6)] or [2:Deployments (12/15)]
-	titleText := p.buildTitleText()
-	renderedTitle := titleStyle.Render(titleText)
-
 	// Calculate content dimensions
-	// Border takes 2 chars on each side (border + padding)
-	// We need to account for the border characters themselves
-	contentWidth := p.width - 4   // 2 for left border+padding, 2 for right border+padding
+	// Border takes 1 char on each side, padding adds 1 more on each side
+	contentWidth := p.width - 4   // 2 for borders, 2 for padding
 	contentHeight := p.height - 2 // 2 for top and bottom borders
 
 	if contentWidth < 1 {
@@ -118,37 +114,64 @@ func (p *Pane) View(content string) string {
 		contentHeight = 1
 	}
 
+	// Build the title text: [1] Nodes (3)
+	titleText := p.buildTitleText()
+
 	// Clip/pad content to fit within pane dimensions
 	clippedContent := p.clipContent(content, contentWidth, contentHeight)
 
-	// Combine title and content
+	// Build the box manually with title in top border
+	borderStyle := lipgloss.NewStyle().Foreground(borderColor)
+
+	// Top border with title: ╭─[1] Nodes (3)─────────╮
+	topLeft := borderStyle.Render("╭─")
+	renderedTitle := titleStyle.Render(titleText)
+	titleWidth := lipgloss.Width(titleText)
+	// Calculate remaining dashes needed (subtract title width, corners, and some padding)
+	remainingWidth := p.width - 4 - titleWidth // 4 for ╭─ and ─╮
+	if remainingWidth < 1 {
+		remainingWidth = 1
+	}
+	topRight := borderStyle.Render(strings.Repeat("─", remainingWidth) + "╮")
+	topBorder := topLeft + renderedTitle + topRight
+
+	// Side borders
+	leftBorder := borderStyle.Render("│ ")
+	rightBorder := borderStyle.Render(" │")
+
+	// Bottom border: ╰────────────────────────╯
+	bottomBorder := borderStyle.Render("╰" + strings.Repeat("─", p.width-2) + "╯")
+
+	// Build the complete box
 	var b strings.Builder
-	b.WriteString(renderedTitle)
+	b.WriteString(topBorder)
 	b.WriteString("\n")
-	b.WriteString(clippedContent)
 
-	// Apply border style with dimensions
-	styled := borderStyle.
-		Width(contentWidth).
-		Height(contentHeight + 1). // +1 for title line
-		Render(b.String())
-
-	return styled
-}
-
-// buildTitleText creates the title bar text with shortcut, title, and badge.
-func (p *Pane) buildTitleText() string {
-	var parts []string
-
-	// Add shortcut key if present
-	if p.config.ShortcutKey != "" {
-		parts = append(parts, p.config.ShortcutKey+":")
+	// Add content lines with side borders
+	lines := strings.Split(clippedContent, "\n")
+	for _, line := range lines {
+		b.WriteString(leftBorder)
+		b.WriteString(line)
+		b.WriteString(rightBorder)
+		b.WriteString("\n")
 	}
 
-	// Add title
-	parts = append(parts, p.config.Title)
+	b.WriteString(bottomBorder)
 
-	title := strings.Join(parts, "")
+	return b.String()
+}
+
+// buildTitleText creates the title text with shortcut, title, and badge.
+// Format: [1] Nodes (3) or just Nodes (3) if no shortcut key.
+func (p *Pane) buildTitleText() string {
+	var title string
+
+	// Add shortcut key in brackets if present
+	if p.config.ShortcutKey != "" {
+		title = fmt.Sprintf("[%s] %s", p.config.ShortcutKey, p.config.Title)
+	} else {
+		title = p.config.Title
+	}
 
 	// Add badge in parentheses if present
 	if p.badge != "" {

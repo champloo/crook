@@ -14,7 +14,6 @@ import (
 	"github.com/andri/crook/pkg/tui/styles"
 	"github.com/andri/crook/pkg/tui/views"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
 // LsPane represents the available panes in the multi-pane ls view
@@ -747,11 +746,7 @@ func (m *LsModel) View() string {
 	b.WriteString(m.renderHeader())
 	b.WriteString("\n\n")
 
-	// Pane navigation bar
-	b.WriteString(m.renderPaneNavBar())
-	b.WriteString("\n\n")
-
-	// Render all three panes
+	// Render all three panes (title is now in the border)
 	b.WriteString(m.renderAllPanes())
 	b.WriteString("\n")
 
@@ -777,53 +772,18 @@ func (m *LsModel) renderHeader() string {
 	return header.String()
 }
 
-// renderPaneNavBar renders the navigation bar showing pane names with badges
-func (m *LsModel) renderPaneNavBar() string {
-	var parts []string
-
-	for i, pane := range m.panes {
-		name := pane.GetTitle()
-		badge := pane.GetBadge()
-		shortcut := pane.GetShortcutKey()
-
-		// Format: [1:Nodes (6)]
-		text := fmt.Sprintf("%s:%s", shortcut, name)
-		if badge != "" {
-			text = fmt.Sprintf("%s (%s)", text, badge)
-		}
-
-		var style lipgloss.Style
-		if LsPane(i) == m.activePane {
-			style = styles.StylePaneTitleActive
-		} else {
-			style = styles.StylePaneTitleInactive
-		}
-
-		parts = append(parts, style.Render(text))
-	}
-
-	// Add toggle hint if on deployments pane
-	if m.activePane == LsPaneDeployments {
-		toggleHint := styles.StyleSubtle.Render(" [/]: deps/pods")
-		parts = append(parts, toggleHint)
-	}
-
-	return strings.Join(parts, "  ")
-}
-
 // renderAllPanes renders all three panes stacked vertically
 func (m *LsModel) renderAllPanes() string {
 	var b strings.Builder
 
 	// Calculate heights
 	headerHeight := 4
-	navBarHeight := 2
 	statusBarHeight := 2
 	filterBarHeight := 0
 	if m.filterActive {
 		filterBarHeight = 2
 	}
-	availableHeight := m.height - headerHeight - navBarHeight - statusBarHeight - filterBarHeight
+	availableHeight := m.height - headerHeight - statusBarHeight - filterBarHeight
 
 	// Height distribution: active pane gets 50%, inactive get 25% each
 	activeHeight := availableHeight / 2

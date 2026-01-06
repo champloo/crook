@@ -119,9 +119,9 @@ func TestPane_View_Active(t *testing.T) {
 
 	view := pane.View("Test content")
 
-	// Should contain title with shortcut and badge
-	if !strings.Contains(view, "1:Nodes") {
-		t.Error("view should contain '1:Nodes'")
+	// Should contain title with shortcut and badge in new format: [1] Nodes (6)
+	if !strings.Contains(view, "[1] Nodes") {
+		t.Error("view should contain '[1] Nodes'")
 	}
 	if !strings.Contains(view, "(6)") {
 		t.Error("view should contain badge '(6)'")
@@ -143,9 +143,9 @@ func TestPane_View_Inactive(t *testing.T) {
 
 	view := pane.View("Deployment list")
 
-	// Should contain title with shortcut and badge
-	if !strings.Contains(view, "2:Deployments") {
-		t.Error("view should contain '2:Deployments'")
+	// Should contain title with shortcut and badge in new format: [2] Deployments (12)
+	if !strings.Contains(view, "[2] Deployments") {
+		t.Error("view should contain '[2] Deployments'")
 	}
 	if !strings.Contains(view, "(12)") {
 		t.Error("view should contain badge '(12)'")
@@ -169,9 +169,9 @@ func TestPane_View_WithoutShortcutKey(t *testing.T) {
 	if !strings.Contains(view, "OSDs") {
 		t.Error("view should contain 'OSDs'")
 	}
-	// Should NOT contain colon prefix pattern
-	if strings.Contains(view, ":OSDs") {
-		t.Error("view should not contain ':OSDs' when no shortcut key")
+	// Should NOT contain bracket prefix pattern when no shortcut key
+	if strings.Contains(view, "[") && strings.Contains(view, "] OSDs") {
+		t.Error("view should not contain '[X] OSDs' when no shortcut key")
 	}
 }
 
@@ -186,9 +186,9 @@ func TestPane_View_WithoutBadge(t *testing.T) {
 
 	view := pane.View("Content")
 
-	// Should contain title
-	if !strings.Contains(view, "1:Nodes") {
-		t.Error("view should contain '1:Nodes'")
+	// Should contain title in new format: [1] Nodes
+	if !strings.Contains(view, "[1] Nodes") {
+		t.Error("view should contain '[1] Nodes'")
 	}
 	// Should NOT contain parentheses (no badge)
 	// Note: The border uses box-drawing characters, but badge would show as (X)
