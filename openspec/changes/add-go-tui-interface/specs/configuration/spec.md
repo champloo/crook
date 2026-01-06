@@ -67,8 +67,11 @@ The system SHALL support configuration options for all operational parameters.
 - **THEN** system reads:
   - `theme` (default: "default")
   - `progress-refresh-ms` (default: 100)
-  - `dashboard-refresh-node-ms` (default: 2000)
-  - `dashboard-refresh-ceph-ms` (default: 5000)
+  - `ls-refresh-nodes-ms` (default: 2000)
+  - `ls-refresh-deployments-ms` (default: 2000)
+  - `ls-refresh-pods-ms` (default: 2000)
+  - `ls-refresh-osds-ms` (default: 5000)
+  - `ls-refresh-header-ms` (default: 5000)
 
 #### Scenario: Timeout configuration
 

@@ -16,8 +16,8 @@ deployment-filters:
 ui:
   theme: neon
   progress-refresh-ms: 150
-  dashboard-refresh-node-ms: 2500
-  dashboard-refresh-ceph-ms: 4500
+  ls-refresh-nodes-ms: 2500
+  ls-refresh-header-ms: 4500
 
 timeouts:
   api-call-timeout-seconds: 10

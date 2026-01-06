@@ -215,8 +215,11 @@ deployment-filters:
 ui:
   theme: default
   progress-refresh-ms: 100
-  dashboard-refresh-node-ms: 2000
-  dashboard-refresh-ceph-ms: 5000
+  ls-refresh-nodes-ms: 2000
+  ls-refresh-deployments-ms: 2000
+  ls-refresh-pods-ms: 2000
+  ls-refresh-osds-ms: 5000
+  ls-refresh-header-ms: 5000
 
 # Operation timeouts
 timeouts:

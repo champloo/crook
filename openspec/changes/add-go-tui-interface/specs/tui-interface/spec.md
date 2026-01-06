@@ -11,7 +11,6 @@ The system SHALL provide an interactive TUI for the down phase with state transi
 #### Scenario: Down phase state machine progression
 
 - **WHEN** user launches `crook down <node>` command
-- **THEN** system displays cluster health dashboard (initial state)
 - **THEN** system prompts for confirmation showing node and impacted deployments
 - **THEN** system transitions through states: Cordoning → SettingNoOut → ScalingOperator → DiscoveringDeployments → ScalingDeployments → Complete
 - **THEN** system displays current state name and description at top of screen
@@ -89,37 +88,6 @@ The system SHALL display live progress bars for all asynchronous operations.
 - **THEN** system shows percentage number on right side
 - **THEN** system uses color coding: blue for in-progress, green for complete, red for error
 - **THEN** system ensures bar fits within terminal width (responsive)
-
-### Requirement: Cluster Health Dashboard
-
-The system SHALL display cluster health information before initiating maintenance operations.
-
-#### Scenario: Dashboard initial view
-
-- **WHEN** TUI launches for down phase
-- **THEN** system displays dashboard showing:
-  - Target node name and status (Ready/NotReady/SchedulingDisabled)
-  - Rook operator deployment status (replicas, ready replicas)
-  - Ceph cluster health (HEALTH_OK, HEALTH_WARN, HEALTH_ERR)
-  - Number of OSDs and their status
-  - Pods running on target node (count and list of deployment names)
-- **THEN** system refreshes data every 2 seconds while in dashboard view
-- **THEN** system allows user to proceed with 'Enter' or cancel with 'Esc'
-
-#### Scenario: Dashboard health warning indicators
-
-- **WHEN** cluster health is not HEALTH_OK
-- **THEN** system displays health status in yellow (WARN) or red (ERR)
-- **THEN** system shows warning icon next to health status
-- **THEN** system displays additional confirmation: "Cluster health is not OK. Are you sure you want to proceed?"
-
-#### Scenario: Dashboard live updates
-
-- **WHEN** dashboard is visible
-- **THEN** system polls Kubernetes API every 2 seconds for node status
-- **THEN** system executes `ceph status` command every 5 seconds for cluster health
-- **THEN** system updates display without flickering (efficient rendering)
-- **THEN** system shows timestamp of last update in bottom corner
 
 ### Requirement: Keyboard Navigation
 
@@ -252,7 +220,7 @@ The system SHALL provide a `crook ls` command to display Ceph-related Kubernetes
 - **THEN** refresh intervals are configurable via config file
 - **THEN** user can force immediate refresh with 'r' key
 
-#### Scenario: Multi-pane dashboard layout
+#### Scenario: Multi-pane ls layout
 
 - **WHEN** user runs `crook ls`
 - **THEN** system displays all three resource panes simultaneously in stacked rows:
@@ -263,7 +231,7 @@ The system SHALL provide a `crook ls` command to display Ceph-related Kubernetes
 - **THEN** active pane receives 50% of available height with highlighted border (primary color)
 - **THEN** inactive panes receive 25% each with muted border (subtle color)
 - **THEN** all panes display their full table columns (same as single-view mode)
-- **THEN** cluster health header remains visible at top of screen
+- **THEN** cluster header remains visible at top of screen
 - **THEN** status bar shows context-sensitive keyboard hints at bottom
 
 #### Scenario: Deployments/Pods toggle in middle pane

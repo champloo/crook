@@ -77,15 +77,13 @@ ui:
   # Default: 100
   progress-refresh-ms: 100
 
-  # Dashboard refresh rate for node status in milliseconds
-  # How often to poll Kubernetes for node status updates
-  # Default: 2000 (2 seconds)
-  dashboard-refresh-node-ms: 2000
-
-  # Dashboard refresh rate for Ceph health in milliseconds
-  # How often to check Ceph cluster health status
-  # Default: 5000 (5 seconds)
-  dashboard-refresh-ceph-ms: 5000
+  # crook ls refresh intervals (milliseconds)
+  # Default: nodes/pods/deployments 2000ms, osds/header 5000ms
+  ls-refresh-nodes-ms: 2000
+  ls-refresh-deployments-ms: 2000
+  ls-refresh-pods-ms: 2000
+  ls-refresh-osds-ms: 5000
+  ls-refresh-header-ms: 5000
 
 # Operation timeouts
 timeouts:

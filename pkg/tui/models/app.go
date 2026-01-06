@@ -16,10 +16,8 @@ import (
 type Route int
 
 const (
-	// RouteDashboard displays the cluster health dashboard
-	RouteDashboard Route = iota
 	// RouteDown executes the down phase workflow
-	RouteDown
+	RouteDown Route = iota
 	// RouteUp executes the up phase workflow
 	RouteUp
 )
@@ -27,8 +25,6 @@ const (
 // String returns the string representation of the route
 func (r Route) String() string {
 	switch r {
-	case RouteDashboard:
-		return "dashboard"
 	case RouteDown:
 		return "down"
 	case RouteUp:
@@ -79,9 +75,8 @@ type AppModel struct {
 	height int
 
 	// Sub-models for each route
-	dashboardModel SubModel
-	downModel      SubModel
-	upModel        SubModel
+	downModel SubModel
+	upModel   SubModel
 
 	// Global state
 	showHelp       bool
@@ -111,20 +106,14 @@ func NewAppModel(cfg AppConfig) *AppModel {
 // This message is returned by initializeSubModels() and processed in Update()
 // to avoid mutating model state inside tea.Cmd closures.
 type SubModelsInitializedMsg struct {
-	DashboardModel SubModel
-	DownModel      SubModel
-	UpModel        SubModel
-	Route          Route
+	DownModel SubModel
+	UpModel   SubModel
+	Route     Route
 }
 
 // InitErrorMsg signals an initialization error
 type InitErrorMsg struct {
 	Err error
-}
-
-// RouteChangeMsg requests a route change
-type RouteChangeMsg struct {
-	Route Route
 }
 
 // TerminalSizeMsg updates terminal dimensions
@@ -153,9 +142,6 @@ func (m *AppModel) initializeSubModels() tea.Msg {
 	msg := SubModelsInitializedMsg{Route: m.route}
 
 	switch m.route {
-	case RouteDashboard:
-		// Dashboard is not yet implemented
-		msg.DashboardModel = newPlaceholderModel("Dashboard", "Cluster health dashboard coming soon...")
 	case RouteDown:
 		msg.DownModel = NewDownModel(DownModelConfig{
 			NodeName:      m.config.NodeName,
@@ -198,8 +184,6 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Assign sub-models from the initialization message
 		// This is where model state mutation happens, safely in Update()
 		switch msg.Route {
-		case RouteDashboard:
-			m.dashboardModel = msg.DashboardModel
 		case RouteDown:
 			m.downModel = msg.DownModel
 		case RouteUp:
@@ -222,11 +206,6 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case InitErrorMsg:
 		m.initError = msg.Err
-
-	case RouteChangeMsg:
-		m.route = msg.Route
-		// Initialize the new route's model if needed
-		cmds = append(cmds, m.initializeSubModels)
 
 	case QuitMsg:
 		m.quitting = true
@@ -419,8 +398,6 @@ func (m *AppModel) renderLoading() string {
 // currentSubModel returns the sub-model for the current route
 func (m *AppModel) currentSubModel() SubModel {
 	switch m.route {
-	case RouteDashboard:
-		return m.dashboardModel
 	case RouteDown:
 		return m.downModel
 	case RouteUp:
@@ -433,8 +410,6 @@ func (m *AppModel) currentSubModel() SubModel {
 // setCurrentSubModel updates the sub-model for the current route
 func (m *AppModel) setCurrentSubModel(model SubModel) {
 	switch m.route {
-	case RouteDashboard:
-		m.dashboardModel = model
 	case RouteDown:
 		m.downModel = model
 	case RouteUp:
@@ -444,9 +419,6 @@ func (m *AppModel) setCurrentSubModel(model SubModel) {
 
 // propagateSizeToSubModels updates all sub-models with current terminal size
 func (m *AppModel) propagateSizeToSubModels() {
-	if m.dashboardModel != nil {
-		m.dashboardModel.SetSize(m.width, m.height)
-	}
 	if m.downModel != nil {
 		m.downModel.SetSize(m.width, m.height)
 	}
@@ -468,43 +440,4 @@ func (m *AppModel) GetTerminalSize() (width, height int) {
 // IsInitialized returns whether the app has completed initialization
 func (m *AppModel) IsInitialized() bool {
 	return m.initialized
-}
-
-// placeholder model for routes that aren't yet implemented
-
-type placeholderModel struct {
-	title       string
-	description string
-	width       int
-	height      int
-}
-
-func newPlaceholderModel(title, description string) *placeholderModel {
-	return &placeholderModel{
-		title:       title,
-		description: description,
-	}
-}
-
-func (p *placeholderModel) Init() tea.Cmd {
-	return nil
-}
-
-func (p *placeholderModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	return p, nil
-}
-
-func (p *placeholderModel) View() string {
-	content := fmt.Sprintf("%s\n\n%s\n\nPress 'q' to quit or '?' for help.",
-		styles.StyleHeading.Render(p.title),
-		styles.StyleSubtle.Render(p.description))
-
-	return styles.StyleBox.
-		Width(min(60, p.width-4)).
-		Render(content)
-}
-
-func (p *placeholderModel) SetSize(width, height int) {
-	p.width = width
-	p.height = height
 }

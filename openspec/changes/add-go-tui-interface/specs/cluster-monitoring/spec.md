@@ -133,13 +133,13 @@ The system SHALL monitor Rook-Ceph deployment status in configured namespaces.
 - **WHEN** deployment has 0 ready replicas but >0 desired
 - **THEN** system displays status as "Unavailable" in red
 
-### Requirement: Health Dashboard Refresh
+### Requirement: Background Monitoring Refresh
 
 The system SHALL refresh monitoring data at configurable intervals without blocking user interaction.
 
 #### Scenario: Background data refresh
 
-- **WHEN** dashboard is visible
+- **WHEN** monitoring is active
 - **THEN** system spawns goroutine for each monitor type (node, Ceph, deployments)
 - **THEN** system refreshes node status every 2 seconds
 - **THEN** system refreshes Ceph health every 5 seconds
@@ -175,7 +175,7 @@ The system SHALL aggregate individual statuses into overall health assessment.
   - Operator available: warning if not available
   - OSDs up: warning if any down
 - **THEN** system determines overall status: Healthy, Degraded, Critical
-- **THEN** system displays overall status prominently in dashboard header
+- **THEN** system displays overall status prominently in the UI header
 
 #### Scenario: Healthy state
 

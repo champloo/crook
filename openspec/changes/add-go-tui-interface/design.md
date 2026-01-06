@@ -32,7 +32,6 @@ We're building a Go application with TUI to provide:
 
 - Replace bash script with feature-equivalent Go application
 - Add TUI with real-time progress tracking
-- Add cluster health dashboard view
 - Add resource listing command (`crook ls`) for cluster inspection
 - Implement proper error handling and validation
 - Support configuration via file + CLI flags
@@ -73,7 +72,6 @@ pkg/
   tui/               # Bubble Tea components
     models/
       app.go          # Main app model
-      dashboard.go    # Health dashboard model
       down.go         # Down phase model
       up.go           # Up phase model
       ls.go           # Resource list model (ls command)
@@ -94,7 +92,6 @@ internal/            # Internal utilities
 
 **Alternatives considered**:
 - **tview**: More widgets out-of-box but less flexible for custom layouts
-- **termui**: Better for dashboards but worse for interactive workflows
 - **Pure CLI (no TUI)**: Simpler but loses visual feedback benefits
 
 **Rationale**: Bubble Tea provides best balance of flexibility, maintainability, and user experience for interactive workflows with real-time updates.
@@ -193,7 +190,7 @@ ui:
 **Decision**: Model each phase (down/up) as a state machine
 
 **Down Phase States**:
-1. `Init` - Show cluster health dashboard
+1. `Init` - Validate inputs and load initial state
 2. `Confirm` - Confirm node and show impact
 3. `Cordoning` - Cordon node with progress
 4. `SettingNoOut` - Set Ceph noout flag
@@ -266,8 +263,7 @@ ui:
 ### Phase 3: TUI (Week 3)
 1. Build Bubble Tea models for each phase
 2. Implement progress tracking components
-3. Add cluster health dashboard
-4. Implement confirmation prompts
+3. Implement confirmation prompts
 
 ### Phase 4: Polish (Week 4)
 1. Add configuration loading (Viper)

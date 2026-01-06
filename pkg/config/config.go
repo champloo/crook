@@ -13,8 +13,6 @@ const (
 	DefaultStateBackupDirectory         = "~/.local/state/crook/backups"
 	DefaultTheme                        = "default"
 	DefaultProgressRefreshMS            = 100
-	DefaultDashboardRefreshNodeMS       = 2000
-	DefaultDashboardRefreshCephMS       = 5000
 	DefaultLsRefreshNodesMS             = 2000
 	DefaultLsRefreshDeploymentsMS       = 2000
 	DefaultLsRefreshPodsMS              = 2000
@@ -66,10 +64,8 @@ type DeploymentFilterConfig struct {
 
 // UIConfig holds terminal UI settings.
 type UIConfig struct {
-	Theme                  string `mapstructure:"theme" yaml:"theme" json:"theme" validate:"required"`
-	ProgressRefreshMS      int    `mapstructure:"progress-refresh-ms" yaml:"progress-refresh-ms" json:"progress-refresh-ms"`
-	DashboardRefreshNodeMS int    `mapstructure:"dashboard-refresh-node-ms" yaml:"dashboard-refresh-node-ms" json:"dashboard-refresh-node-ms"`
-	DashboardRefreshCephMS int    `mapstructure:"dashboard-refresh-ceph-ms" yaml:"dashboard-refresh-ceph-ms" json:"dashboard-refresh-ceph-ms"`
+	Theme             string `mapstructure:"theme" yaml:"theme" json:"theme" validate:"required"`
+	ProgressRefreshMS int    `mapstructure:"progress-refresh-ms" yaml:"progress-refresh-ms" json:"progress-refresh-ms"`
 
 	// Ls refresh intervals (independent per resource type)
 	LsRefreshNodesMS       int `mapstructure:"ls-refresh-nodes-ms" yaml:"ls-refresh-nodes-ms" json:"ls-refresh-nodes-ms"`
@@ -116,8 +112,6 @@ func DefaultConfig() Config {
 		UI: UIConfig{
 			Theme:                  DefaultTheme,
 			ProgressRefreshMS:      DefaultProgressRefreshMS,
-			DashboardRefreshNodeMS: DefaultDashboardRefreshNodeMS,
-			DashboardRefreshCephMS: DefaultDashboardRefreshCephMS,
 			LsRefreshNodesMS:       DefaultLsRefreshNodesMS,
 			LsRefreshDeploymentsMS: DefaultLsRefreshDeploymentsMS,
 			LsRefreshPodsMS:        DefaultLsRefreshPodsMS,

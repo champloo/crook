@@ -119,8 +119,11 @@ func setDefaults(v *viper.Viper) {
 
 	v.SetDefault("ui.theme", defaults.UI.Theme)
 	v.SetDefault("ui.progress-refresh-ms", defaults.UI.ProgressRefreshMS)
-	v.SetDefault("ui.dashboard-refresh-node-ms", defaults.UI.DashboardRefreshNodeMS)
-	v.SetDefault("ui.dashboard-refresh-ceph-ms", defaults.UI.DashboardRefreshCephMS)
+	v.SetDefault("ui.ls-refresh-nodes-ms", defaults.UI.LsRefreshNodesMS)
+	v.SetDefault("ui.ls-refresh-deployments-ms", defaults.UI.LsRefreshDeploymentsMS)
+	v.SetDefault("ui.ls-refresh-pods-ms", defaults.UI.LsRefreshPodsMS)
+	v.SetDefault("ui.ls-refresh-osds-ms", defaults.UI.LsRefreshOSDsMS)
+	v.SetDefault("ui.ls-refresh-header-ms", defaults.UI.LsRefreshHeaderMS)
 
 	v.SetDefault("timeouts.api-call-timeout-seconds", defaults.Timeouts.APICallTimeoutSeconds)
 	v.SetDefault("timeouts.wait-deployment-timeout-seconds", defaults.Timeouts.WaitDeploymentTimeoutSeconds)
@@ -223,8 +226,11 @@ func knownConfigKeys() map[string]bool {
 		// ui section
 		"ui.theme":                     true,
 		"ui.progress-refresh-ms":       true,
-		"ui.dashboard-refresh-node-ms": true,
-		"ui.dashboard-refresh-ceph-ms": true,
+		"ui.ls-refresh-nodes-ms":       true,
+		"ui.ls-refresh-deployments-ms": true,
+		"ui.ls-refresh-pods-ms":        true,
+		"ui.ls-refresh-osds-ms":        true,
+		"ui.ls-refresh-header-ms":      true,
 
 		// timeouts section
 		"timeouts.api-call-timeout-seconds":        true,

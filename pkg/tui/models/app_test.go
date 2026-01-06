@@ -8,12 +8,29 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+type testSubModel struct {
+	width  int
+	height int
+}
+
+func (m *testSubModel) Init() tea.Cmd { return nil }
+
+func (m *testSubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	return m, nil
+}
+
+func (m *testSubModel) View() string { return "test submodel" }
+
+func (m *testSubModel) SetSize(width, height int) {
+	m.width = width
+	m.height = height
+}
+
 func TestRouteString(t *testing.T) {
 	tests := []struct {
 		route    Route
 		expected string
 	}{
-		{RouteDashboard, "dashboard"},
 		{RouteDown, "down"},
 		{RouteUp, "up"},
 		{Route(99), "unknown"},
@@ -57,7 +74,7 @@ func TestNewAppModel(t *testing.T) {
 
 func TestAppModel_Init(t *testing.T) {
 	model := NewAppModel(AppConfig{
-		Route:   RouteDashboard,
+		Route:   RouteDown,
 		Context: context.Background(),
 	})
 
@@ -70,7 +87,7 @@ func TestAppModel_Init(t *testing.T) {
 
 func TestAppModel_Update_WindowSize(t *testing.T) {
 	model := NewAppModel(AppConfig{
-		Route:   RouteDashboard,
+		Route:   RouteDown,
 		Context: context.Background(),
 	})
 
@@ -90,7 +107,7 @@ func TestAppModel_Update_WindowSize(t *testing.T) {
 
 func TestAppModel_Update_GlobalKeys_Quit(t *testing.T) {
 	model := NewAppModel(AppConfig{
-		Route:   RouteDashboard,
+		Route:   RouteDown,
 		Context: context.Background(),
 	})
 
@@ -110,7 +127,7 @@ func TestAppModel_Update_GlobalKeys_Quit(t *testing.T) {
 
 func TestAppModel_Update_GlobalKeys_Logs(t *testing.T) {
 	model := NewAppModel(AppConfig{
-		Route:   RouteDashboard,
+		Route:   RouteDown,
 		Context: context.Background(),
 	})
 
@@ -134,7 +151,7 @@ func TestAppModel_Update_GlobalKeys_Logs(t *testing.T) {
 
 func TestAppModel_Update_GlobalKeys_LogsNotWhileHelp(t *testing.T) {
 	model := NewAppModel(AppConfig{
-		Route:   RouteDashboard,
+		Route:   RouteDown,
 		Context: context.Background(),
 	})
 	model.showHelp = true
@@ -151,7 +168,7 @@ func TestAppModel_Update_GlobalKeys_LogsNotWhileHelp(t *testing.T) {
 
 func TestAppModel_Update_EscapeClosesLogs(t *testing.T) {
 	model := NewAppModel(AppConfig{
-		Route:   RouteDashboard,
+		Route:   RouteDown,
 		Context: context.Background(),
 	})
 	model.showLogs = true
@@ -168,7 +185,7 @@ func TestAppModel_Update_EscapeClosesLogs(t *testing.T) {
 
 func TestAppModel_View_Logs(t *testing.T) {
 	model := NewAppModel(AppConfig{
-		Route:   RouteDashboard,
+		Route:   RouteDown,
 		Context: context.Background(),
 	})
 	model.showLogs = true
@@ -184,7 +201,7 @@ func TestAppModel_View_Logs(t *testing.T) {
 
 func TestAppModel_View_SizeWarning(t *testing.T) {
 	model := NewAppModel(AppConfig{
-		Route:   RouteDashboard,
+		Route:   RouteDown,
 		Context: context.Background(),
 	})
 	model.initialized = true
@@ -193,7 +210,7 @@ func TestAppModel_View_SizeWarning(t *testing.T) {
 	model.sizeWarning = "Terminal too narrow"
 
 	// Add a placeholder to make View() work
-	model.dashboardModel = newPlaceholderModel("Test", "desc")
+	model.downModel = &testSubModel{}
 
 	view := model.View()
 
@@ -204,7 +221,7 @@ func TestAppModel_View_SizeWarning(t *testing.T) {
 
 func TestAppModel_Update_GlobalKeys_Help(t *testing.T) {
 	model := NewAppModel(AppConfig{
-		Route:   RouteDashboard,
+		Route:   RouteDown,
 		Context: context.Background(),
 	})
 
@@ -228,7 +245,7 @@ func TestAppModel_Update_GlobalKeys_Help(t *testing.T) {
 
 func TestAppModel_Update_GlobalKeys_Escape(t *testing.T) {
 	model := NewAppModel(AppConfig{
-		Route:   RouteDashboard,
+		Route:   RouteDown,
 		Context: context.Background(),
 	})
 
@@ -245,28 +262,9 @@ func TestAppModel_Update_GlobalKeys_Escape(t *testing.T) {
 	}
 }
 
-func TestAppModel_Update_RouteChange(t *testing.T) {
-	model := NewAppModel(AppConfig{
-		Route:   RouteDashboard,
-		Context: context.Background(),
-	})
-
-	// Change route
-	msg := RouteChangeMsg{Route: RouteDown}
-	updatedModel, _ := model.Update(msg)
-	m, ok := updatedModel.(*AppModel)
-	if !ok {
-		t.Fatal("expected *AppModel type")
-	}
-
-	if m.route != RouteDown {
-		t.Errorf("route = %v, want %v", m.route, RouteDown)
-	}
-}
-
 func TestAppModel_Update_InitError(t *testing.T) {
 	model := NewAppModel(AppConfig{
-		Route:   RouteDashboard,
+		Route:   RouteDown,
 		Context: context.Background(),
 	})
 
@@ -285,7 +283,7 @@ func TestAppModel_Update_InitError(t *testing.T) {
 
 func TestAppModel_View_Quitting(t *testing.T) {
 	model := NewAppModel(AppConfig{
-		Route:   RouteDashboard,
+		Route:   RouteDown,
 		Context: context.Background(),
 	})
 	model.quitting = true
@@ -299,7 +297,7 @@ func TestAppModel_View_Quitting(t *testing.T) {
 
 func TestAppModel_View_Loading(t *testing.T) {
 	model := NewAppModel(AppConfig{
-		Route:   RouteDashboard,
+		Route:   RouteDown,
 		Context: context.Background(),
 	})
 	// Not initialized yet
@@ -317,7 +315,7 @@ func TestAppModel_View_Loading(t *testing.T) {
 
 func TestAppModel_View_Help(t *testing.T) {
 	model := NewAppModel(AppConfig{
-		Route:   RouteDashboard,
+		Route:   RouteDown,
 		Context: context.Background(),
 	})
 	model.showHelp = true
@@ -337,7 +335,7 @@ func TestAppModel_View_Help(t *testing.T) {
 
 func TestAppModel_View_Error(t *testing.T) {
 	model := NewAppModel(AppConfig{
-		Route:   RouteDashboard,
+		Route:   RouteDown,
 		Context: context.Background(),
 	})
 	model.initError = context.DeadlineExceeded
@@ -368,7 +366,7 @@ func TestAppModel_GetRoute(t *testing.T) {
 
 func TestAppModel_GetTerminalSize(t *testing.T) {
 	model := NewAppModel(AppConfig{
-		Route:   RouteDashboard,
+		Route:   RouteDown,
 		Context: context.Background(),
 	})
 	model.width = 100
@@ -383,7 +381,7 @@ func TestAppModel_GetTerminalSize(t *testing.T) {
 
 func TestAppModel_IsInitialized(t *testing.T) {
 	model := NewAppModel(AppConfig{
-		Route:   RouteDashboard,
+		Route:   RouteDown,
 		Context: context.Background(),
 	})
 
@@ -407,7 +405,7 @@ func TestAppModel_Update_SubModelsInitializedMsg(t *testing.T) {
 	model.height = 24
 
 	// Create a down model placeholder
-	downModel := newPlaceholderModel("Down", "")
+	downModel := &testSubModel{}
 
 	// Simulate SubModelsInitializedMsg
 	msg := SubModelsInitializedMsg{
@@ -434,40 +432,13 @@ func TestAppModel_Update_SubModelsInitializedMsg(t *testing.T) {
 	_ = cmd // Test doesn't require cmd check here
 }
 
-func TestAppModel_Update_SubModelsInitializedMsg_Dashboard(t *testing.T) {
-	model := NewAppModel(AppConfig{
-		Route:   RouteDashboard,
-		Context: context.Background(),
-	})
-
-	dashModel := newPlaceholderModel("Dashboard", "")
-
-	msg := SubModelsInitializedMsg{
-		DashboardModel: dashModel,
-		Route:          RouteDashboard,
-	}
-	updatedModel, _ := model.Update(msg)
-	m, ok := updatedModel.(*AppModel)
-	if !ok {
-		t.Fatal("expected *AppModel type")
-	}
-
-	if !m.initialized {
-		t.Error("initialized should be true")
-	}
-
-	if m.dashboardModel != dashModel {
-		t.Error("dashboardModel should be set from message")
-	}
-}
-
 func TestAppModel_Update_SubModelsInitializedMsg_Up(t *testing.T) {
 	model := NewAppModel(AppConfig{
 		Route:   RouteUp,
 		Context: context.Background(),
 	})
 
-	upModel := newPlaceholderModel("Up", "")
+	upModel := &testSubModel{}
 
 	msg := SubModelsInitializedMsg{
 		UpModel: upModel,
@@ -485,40 +456,6 @@ func TestAppModel_Update_SubModelsInitializedMsg_Up(t *testing.T) {
 
 	if m.upModel != upModel {
 		t.Error("upModel should be set from message")
-	}
-}
-
-func TestPlaceholderModel(t *testing.T) {
-	p := newPlaceholderModel("Test Title", "Test description")
-
-	// Test Init
-	cmd := p.Init()
-	if cmd != nil {
-		t.Error("placeholderModel.Init() should return nil")
-	}
-
-	// Test Update
-	model, cmd := p.Update(tea.KeyMsg{})
-	if model != p {
-		t.Error("placeholderModel.Update() should return same model")
-	}
-	if cmd != nil {
-		t.Error("placeholderModel.Update() should return nil cmd")
-	}
-
-	// Test SetSize
-	p.SetSize(80, 24)
-	if p.width != 80 || p.height != 24 {
-		t.Errorf("SetSize() didn't update dimensions: got (%d, %d)", p.width, p.height)
-	}
-
-	// Test View
-	view := p.View()
-	if !contains(view, "Test Title") {
-		t.Errorf("View() should contain title, got %q", view)
-	}
-	if !contains(view, "Test description") {
-		t.Errorf("View() should contain description, got %q", view)
 	}
 }
 
@@ -543,33 +480,26 @@ func TestMin(t *testing.T) {
 
 func TestAppModel_PropagateSizeToSubModels(t *testing.T) {
 	model := NewAppModel(AppConfig{
-		Route:   RouteDashboard,
+		Route:   RouteDown,
 		Context: context.Background(),
 	})
 
 	// Create placeholder models
-	model.dashboardModel = newPlaceholderModel("Dashboard", "")
-	model.downModel = newPlaceholderModel("Down", "")
-	model.upModel = newPlaceholderModel("Up", "")
+	model.downModel = &testSubModel{}
+	model.upModel = &testSubModel{}
 
 	model.width = 120
 	model.height = 40
 	model.propagateSizeToSubModels()
 
 	// Check that all models received the size
-	if pm, ok := model.dashboardModel.(*placeholderModel); ok {
-		if pm.width != 120 || pm.height != 40 {
-			t.Error("dashboardModel didn't receive size update")
-		}
-	}
-
-	if pm, ok := model.downModel.(*placeholderModel); ok {
+	if pm, ok := model.downModel.(*testSubModel); ok {
 		if pm.width != 120 || pm.height != 40 {
 			t.Error("downModel didn't receive size update")
 		}
 	}
 
-	if pm, ok := model.upModel.(*placeholderModel); ok {
+	if pm, ok := model.upModel.(*testSubModel); ok {
 		if pm.width != 120 || pm.height != 40 {
 			t.Error("upModel didn't receive size update")
 		}

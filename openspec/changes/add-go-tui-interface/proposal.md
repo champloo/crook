@@ -10,7 +10,6 @@ The current bash script (`osd-maintenance.sh`) works but has limitations:
 
 A Go-based TUI application will provide:
 - Interactive, guided workflows with real-time feedback
-- Visual cluster health monitoring before/during operations
 - Safer operations with built-in validation and confirmation prompts
 - Better error handling and recovery options
 - Foundation for future features (scheduling, automation, multi-node support)
@@ -21,7 +20,6 @@ A Go-based TUI application will provide:
 - **Replace bash script** with compiled Go binary (bash script will be removed)
 - **Add configuration system** with YAML/TOML config files and CLI flag overrides
 - **Implement live progress tracking** with progress bars for all async operations
-- **Add cluster health dashboard** showing node status, OSD health, deployment states
 - **Add resource listing command** (`crook ls`) for interactive cluster inspection with tabbed views
 - **Kubernetes client integration** using official client-go library
 - **State persistence** with JSON state file format (`resources` array, extensible)
@@ -33,7 +31,6 @@ Core functionality matches existing bash script:
 - Up phase: uncordon → restore deployments → scale operator → unset noout  
 New functionality beyond bash script:
 - `crook ls` command for viewing Ceph cluster resources (nodes, deployments, OSDs, pods)
-- **Multi-pane dashboard layout** showing Nodes, Deployments, and OSDs simultaneously in stacked rows
 - Pane navigation with Tab/1-3 keys, active pane gets 50% height with highlighted border
 - Deployments/Pods toggle in middle pane using `[` and `]` keys
 - Real-time cluster health summary header
@@ -45,7 +42,6 @@ New functionality beyond bash script:
   - `node-maintenance` - Core down/up operations
   - `tui-interface` - UI components and interactions
   - `kubernetes-client` - K8s API interactions
-  - `cluster-monitoring` - Health dashboard
   - `configuration` - Config and CLI management
   - `state-persistence` - State file handling
 
