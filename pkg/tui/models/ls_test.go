@@ -214,6 +214,20 @@ func TestLsModel_topRowWidths(t *testing.T) {
 	}
 }
 
+func TestLsModel_computeLayout_SizesAreAlwaysPositive(t *testing.T) {
+	model := NewLsModel(LsModelConfig{
+		Context: context.Background(),
+	})
+
+	model.width = 1
+	model.height = 1
+	layout := model.computeLayout()
+
+	if layout.nodesInnerWidth < 1 || layout.nodesInnerHeight < 1 {
+		t.Fatalf("expected nodes inner size to be positive, got %dx%d", layout.nodesInnerWidth, layout.nodesInnerHeight)
+	}
+}
+
 func TestLsModel_Update_TabSwitch(t *testing.T) {
 	model := NewLsModel(LsModelConfig{
 		Context: context.Background(),

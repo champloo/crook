@@ -170,6 +170,25 @@ func innerViewSize(paneWidth, paneHeight int) (int, int) {
 	return width, height
 }
 
+type lsLayout struct {
+	nodesWidth        int
+	maintenanceWidth  int
+	nodesHeight       int
+	deploymentsHeight int
+	osdsHeight        int
+
+	nodesInnerWidth        int
+	nodesInnerHeight       int
+	deploymentsInnerWidth  int
+	deploymentsInnerHeight int
+	osdsInnerWidth         int
+	osdsInnerHeight        int
+	maintenanceInnerWidth  int
+	maintenanceInnerHeight int
+
+	maintenanceActive bool
+}
+
 // LsDataUpdateMsg is sent when data is updated
 type LsDataUpdateMsg struct {
 	Tab        LsTab
@@ -391,18 +410,8 @@ func (m *LsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-// updateViewSizes updates view dimensions based on the multi-pane layout.
-func (m *LsModel) updateViewSizes() {
+func (m *LsModel) computeLayout() lsLayout {
 	activeHeight, inactiveHeight := m.paneHeights()
-
-	// Set sizes for each pane and view
-	for i, pane := range m.panes {
-		height := inactiveHeight
-		if LsPane(i) == m.activePane {
-			height = activeHeight
-		}
-		pane.SetSize(m.width, height)
-	}
 
 	nodesHeight := inactiveHeight
 	if m.activePane == LsPaneNodes {
@@ -418,23 +427,53 @@ func (m *LsModel) updateViewSizes() {
 	}
 
 	nodesWidth, maintenanceWidth := m.topRowWidths()
-	m.panes[LsPaneNodes].SetSize(nodesWidth, nodesHeight)
-	m.maintenancePane.SetSize(maintenanceWidth, nodesHeight)
-	m.maintenancePane.SetActive(m.maintenanceFlow != nil)
 
 	nodesInnerWidth, nodesInnerHeight := innerViewSize(nodesWidth, nodesHeight)
-	m.nodesView.SetSize(nodesInnerWidth, nodesInnerHeight)
-
 	deploymentsInnerWidth, deploymentsInnerHeight := innerViewSize(m.width, deploymentsHeight)
-	m.deploymentsPodsView.SetSize(deploymentsInnerWidth, deploymentsInnerHeight)
-
 	osdsInnerWidth, osdsInnerHeight := innerViewSize(m.width, osdsHeight)
-	m.osdsView.SetSize(osdsInnerWidth, osdsInnerHeight)
+	maintenanceInnerWidth, maintenanceInnerHeight := innerViewSize(maintenanceWidth, nodesHeight)
+
+	return lsLayout{
+		nodesWidth:        nodesWidth,
+		maintenanceWidth:  maintenanceWidth,
+		nodesHeight:       nodesHeight,
+		deploymentsHeight: deploymentsHeight,
+		osdsHeight:        osdsHeight,
+
+		nodesInnerWidth:        nodesInnerWidth,
+		nodesInnerHeight:       nodesInnerHeight,
+		deploymentsInnerWidth:  deploymentsInnerWidth,
+		deploymentsInnerHeight: deploymentsInnerHeight,
+		osdsInnerWidth:         osdsInnerWidth,
+		osdsInnerHeight:        osdsInnerHeight,
+		maintenanceInnerWidth:  maintenanceInnerWidth,
+		maintenanceInnerHeight: maintenanceInnerHeight,
+
+		maintenanceActive: m.maintenanceFlow != nil,
+	}
+}
+
+func (m *LsModel) applyLayout(layout lsLayout) {
+	m.panes[LsPaneNodes].SetSize(layout.nodesWidth, layout.nodesHeight)
+	m.maintenancePane.SetSize(layout.maintenanceWidth, layout.nodesHeight)
+	m.maintenancePane.SetActive(layout.maintenanceActive)
+
+	m.panes[LsPaneDeployments].SetSize(m.width, layout.deploymentsHeight)
+	m.panes[LsPaneOSDs].SetSize(m.width, layout.osdsHeight)
+
+	m.nodesView.SetSize(layout.nodesInnerWidth, layout.nodesInnerHeight)
+	m.deploymentsPodsView.SetSize(layout.deploymentsInnerWidth, layout.deploymentsInnerHeight)
+	m.osdsView.SetSize(layout.osdsInnerWidth, layout.osdsInnerHeight)
 
 	if m.maintenanceFlow != nil {
-		maintenanceInnerWidth, maintenanceInnerHeight := innerViewSize(maintenanceWidth, nodesHeight)
-		m.maintenanceFlow.SetSize(maintenanceInnerWidth, maintenanceInnerHeight)
+		m.maintenanceFlow.SetSize(layout.maintenanceInnerWidth, layout.maintenanceInnerHeight)
 	}
+}
+
+// updateViewSizes updates view dimensions based on the multi-pane layout.
+func (m *LsModel) updateViewSizes() {
+	layout := m.computeLayout()
+	m.applyLayout(layout)
 }
 
 // paneHeights calculates the active/inactive pane heights based on layout chrome.
@@ -600,6 +639,7 @@ func (m *LsModel) handleHelpFilterAndPaneNavKey(key string) bool {
 		return true
 	case "/":
 		m.filterActive = true
+		m.updateViewSizes()
 		return true
 	case "tab":
 		m.nextPane()
@@ -711,10 +751,12 @@ func (m *LsModel) handleFilterInput(msg tea.KeyMsg) tea.Cmd {
 	case tea.KeyEsc:
 		m.filterActive = false
 		m.filter = ""
+		m.updateViewSizes()
 		return nil
 
 	case tea.KeyEnter:
 		m.filterActive = false
+		m.updateViewSizes()
 		return func() tea.Msg {
 			return LsFilterMsg{Query: m.filter}
 		}
@@ -915,34 +957,17 @@ func (m *LsModel) renderHeader() string {
 func (m *LsModel) renderAllPanes() string {
 	var b strings.Builder
 
-	activeHeight, inactiveHeight := m.paneHeights()
-
-	nodesHeight := inactiveHeight
-	if m.activePane == LsPaneNodes {
-		nodesHeight = activeHeight
-	}
-	nodesWidth, maintenanceWidth := m.topRowWidths()
-	m.panes[LsPaneNodes].SetSize(nodesWidth, nodesHeight)
-	m.maintenancePane.SetSize(maintenanceWidth, nodesHeight)
+	layout := m.computeLayout()
+	m.applyLayout(layout)
 
 	nodes := m.panes[LsPaneNodes].View(m.nodesView.View())
 	maintenance := m.maintenancePane.View(m.maintenanceContent())
 	b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, nodes, " ", maintenance))
 	b.WriteString("\n")
 
-	deploymentsHeight := inactiveHeight
-	if m.activePane == LsPaneDeployments {
-		deploymentsHeight = activeHeight
-	}
-	m.panes[LsPaneDeployments].SetSize(m.width, deploymentsHeight)
 	b.WriteString(m.panes[LsPaneDeployments].View(m.deploymentsPodsView.View()))
 	b.WriteString("\n")
 
-	osdsHeight := inactiveHeight
-	if m.activePane == LsPaneOSDs {
-		osdsHeight = activeHeight
-	}
-	m.panes[LsPaneOSDs].SetSize(m.width, osdsHeight)
 	b.WriteString(m.panes[LsPaneOSDs].View(m.osdsView.View()))
 
 	return b.String()
