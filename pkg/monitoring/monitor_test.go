@@ -159,18 +159,30 @@ func TestMonitorStartStop(t *testing.T) {
 		}
 	}
 
-	// Stop the monitor
+	// Stop the monitor - this is synchronous and closes the channel
 	monitor.Stop()
 
-	// Channel should be closed
-	time.Sleep(100 * time.Millisecond)
-	select {
-	case _, ok := <-updates:
-		if ok {
-			t.Error("expected channel to be closed")
+	// Channel should be closed - drain any remaining buffered updates first
+	// then verify the channel is actually closed
+	channelClosed := false
+	closeTimeout := time.After(1 * time.Second)
+drainLoop:
+	for {
+		select {
+		case _, ok := <-updates:
+			if !ok {
+				// Channel is closed
+				channelClosed = true
+				break drainLoop
+			}
+			// Got a buffered update, continue draining
+		case <-closeTimeout:
+			t.Fatal("timeout waiting for channel to close")
 		}
-	default:
-		t.Error("channel should be closed but appears to be blocking")
+	}
+
+	if !channelClosed {
+		t.Error("expected channel to be closed after Stop()")
 	}
 }
 
