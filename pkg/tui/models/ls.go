@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/andri/crook/pkg/config"
 	"github.com/andri/crook/pkg/k8s"
@@ -807,7 +808,8 @@ func (m *LsModel) handleFilterInput(msg tea.KeyMsg) tea.Cmd {
 
 	case tea.KeyBackspace:
 		if len(m.filter) > 0 {
-			m.filter = m.filter[:len(m.filter)-1]
+			_, size := utf8.DecodeLastRuneInString(m.filter)
+			m.filter = m.filter[:len(m.filter)-size]
 		}
 		return nil
 

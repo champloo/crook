@@ -2,6 +2,8 @@ package monitoring
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -163,7 +165,7 @@ func (m *LsMonitor) startNodesPoller() <-chan []views.NodeInfo {
 		// Initial fetch
 		nodes, err := m.fetchNodes()
 		if err != nil {
-			m.sendError(err)
+			m.sendError(fmt.Errorf("nodes: %w", err))
 		} else {
 			select {
 			case updates <- nodes:
@@ -180,7 +182,7 @@ func (m *LsMonitor) startNodesPoller() <-chan []views.NodeInfo {
 			case <-ticker.C:
 				n, fetchErr := m.fetchNodes()
 				if fetchErr != nil {
-					m.sendError(fetchErr)
+					m.sendError(fmt.Errorf("nodes: %w", fetchErr))
 				} else {
 					select {
 					case updates <- n:
@@ -233,7 +235,7 @@ func (m *LsMonitor) startDeploymentsPoller() <-chan []views.DeploymentInfo {
 		// Initial fetch
 		deployments, err := m.fetchDeployments()
 		if err != nil {
-			m.sendError(err)
+			m.sendError(fmt.Errorf("deployments: %w", err))
 		} else {
 			select {
 			case updates <- deployments:
@@ -250,7 +252,7 @@ func (m *LsMonitor) startDeploymentsPoller() <-chan []views.DeploymentInfo {
 			case <-ticker.C:
 				d, fetchErr := m.fetchDeployments()
 				if fetchErr != nil {
-					m.sendError(fetchErr)
+					m.sendError(fmt.Errorf("deployments: %w", fetchErr))
 				} else {
 					select {
 					case updates <- d:
@@ -308,7 +310,7 @@ func (m *LsMonitor) startPodsPoller() <-chan []views.PodInfo {
 		// Initial fetch
 		pods, err := m.fetchPods()
 		if err != nil {
-			m.sendError(err)
+			m.sendError(fmt.Errorf("pods: %w", err))
 		} else {
 			select {
 			case updates <- pods:
@@ -325,7 +327,7 @@ func (m *LsMonitor) startPodsPoller() <-chan []views.PodInfo {
 			case <-ticker.C:
 				p, fetchErr := m.fetchPods()
 				if fetchErr != nil {
-					m.sendError(fetchErr)
+					m.sendError(fmt.Errorf("pods: %w", fetchErr))
 				} else {
 					select {
 					case updates <- p:
@@ -382,7 +384,7 @@ func (m *LsMonitor) startOSDsPoller() <-chan []views.OSDInfo {
 		// Initial fetch
 		osds, err := m.fetchOSDs()
 		if err != nil {
-			m.sendError(err)
+			m.sendError(fmt.Errorf("osds: %w", err))
 		} else {
 			select {
 			case updates <- osds:
@@ -399,7 +401,7 @@ func (m *LsMonitor) startOSDsPoller() <-chan []views.OSDInfo {
 			case <-ticker.C:
 				o, fetchErr := m.fetchOSDs()
 				if fetchErr != nil {
-					m.sendError(fetchErr)
+					m.sendError(fmt.Errorf("osds: %w", fetchErr))
 				} else {
 					select {
 					case updates <- o:
@@ -457,7 +459,7 @@ func (m *LsMonitor) startHeaderPoller() <-chan *components.ClusterHeaderData {
 		// Initial fetch
 		header, err := m.fetchHeader()
 		if err != nil {
-			m.sendError(err)
+			m.sendError(fmt.Errorf("header: %w", err))
 		} else {
 			select {
 			case updates <- header:
@@ -474,7 +476,7 @@ func (m *LsMonitor) startHeaderPoller() <-chan *components.ClusterHeaderData {
 			case <-ticker.C:
 				h, fetchErr := m.fetchHeader()
 				if fetchErr != nil {
-					m.sendError(fetchErr)
+					m.sendError(fmt.Errorf("header: %w", fetchErr))
 				} else {
 					select {
 					case updates <- h:
@@ -600,6 +602,7 @@ func (m *LsMonitor) updateNodes(nodes []views.NodeInfo) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.latest.Nodes = nodes
+	m.latest.Error = nil // Clear error on successful update
 	m.latest.UpdateTime = time.Now()
 }
 
@@ -608,6 +611,7 @@ func (m *LsMonitor) updateDeployments(deployments []views.DeploymentInfo) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.latest.Deployments = deployments
+	m.latest.Error = nil // Clear error on successful update
 	m.latest.UpdateTime = time.Now()
 }
 
@@ -616,6 +620,7 @@ func (m *LsMonitor) updatePods(pods []views.PodInfo) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.latest.Pods = pods
+	m.latest.Error = nil // Clear error on successful update
 	m.latest.UpdateTime = time.Now()
 }
 
@@ -624,6 +629,7 @@ func (m *LsMonitor) updateOSDs(osds []views.OSDInfo) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.latest.OSDs = osds
+	m.latest.Error = nil // Clear error on successful update
 	m.latest.UpdateTime = time.Now()
 }
 
@@ -632,6 +638,7 @@ func (m *LsMonitor) updateHeader(header *components.ClusterHeaderData) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.latest.Header = header
+	m.latest.Error = nil // Clear error on successful update
 	m.latest.UpdateTime = time.Now()
 }
 
@@ -643,8 +650,13 @@ func (m *LsMonitor) updateError(err error) {
 	m.latest.UpdateTime = time.Now()
 }
 
-// sendError sends an error to the errors channel (non-blocking)
+// sendError sends an error to the errors channel (non-blocking).
+// Suppresses context.Canceled errors during shutdown.
 func (m *LsMonitor) sendError(err error) {
+	// Don't surface cancellation errors during shutdown
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return
+	}
 	select {
 	case m.errors <- err:
 	case <-m.ctx.Done():
