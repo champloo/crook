@@ -983,18 +983,6 @@ func (m *LsModel) reselectNodeIfNeeded() {
 }
 
 // getPaneContent returns the view content for a specific pane
-func (m *LsModel) getPaneContent(pane LsPane) string {
-	switch pane {
-	case LsPaneNodes:
-		return m.nodesView.View()
-	case LsPaneDeployments:
-		return m.deploymentsPodsView.View()
-	case LsPaneOSDs:
-		return m.osdsView.View()
-	}
-	return ""
-}
-
 func (m *LsModel) maintenanceContent() string {
 	if m.maintenanceFlow != nil {
 		return m.maintenanceFlow.View()
