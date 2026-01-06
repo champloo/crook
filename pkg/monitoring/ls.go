@@ -12,6 +12,10 @@ import (
 
 // LsMonitorConfig holds configuration for the ls monitor
 type LsMonitorConfig struct {
+	// Context is the parent context for all polling operations.
+	// If nil, context.Background() is used.
+	Context context.Context
+
 	// Client is the Kubernetes client
 	Client *k8s.Client
 
@@ -72,18 +76,23 @@ type LsMonitorUpdate struct {
 
 // LsMonitor manages background polling of all ls resources
 type LsMonitor struct {
-	config  *LsMonitorConfig
-	ctx     context.Context
-	cancel  context.CancelFunc
-	updates chan *LsMonitorUpdate
-	wg      sync.WaitGroup
-	mu      sync.RWMutex
-	latest  *LsMonitorUpdate
+	config   *LsMonitorConfig
+	ctx      context.Context
+	cancel   context.CancelFunc
+	updates  chan *LsMonitorUpdate
+	stopOnce sync.Once
+	wg       sync.WaitGroup
+	mu       sync.RWMutex
+	latest   *LsMonitorUpdate
 }
 
 // NewLsMonitor creates a new ls monitoring instance
 func NewLsMonitor(config *LsMonitorConfig) *LsMonitor {
-	ctx, cancel := context.WithCancel(context.Background())
+	parentCtx := context.Background()
+	if config != nil && config.Context != nil {
+		parentCtx = config.Context
+	}
+	ctx, cancel := context.WithCancel(parentCtx)
 
 	return &LsMonitor{
 		config:  config,
@@ -114,9 +123,11 @@ func (m *LsMonitor) Start() <-chan *LsMonitorUpdate {
 
 // Stop gracefully stops all monitoring goroutines
 func (m *LsMonitor) Stop() {
-	m.cancel()
-	m.wg.Wait()
-	close(m.updates)
+	m.stopOnce.Do(func() {
+		m.cancel()
+		m.wg.Wait()
+		close(m.updates)
+	})
 }
 
 // GetLatest returns the most recent monitoring data
@@ -140,14 +151,21 @@ func (m *LsMonitor) GetLatest() *LsMonitorUpdate {
 func (m *LsMonitor) startNodesPoller() <-chan []views.NodeInfo {
 	updates := make(chan []views.NodeInfo, 1)
 
+	m.wg.Add(1)
 	go func() {
+		defer m.wg.Done()
 		defer close(updates)
 		ticker := time.NewTicker(m.config.NodesRefreshInterval)
 		defer ticker.Stop()
 
 		// Initial fetch
 		if nodes, err := m.fetchNodes(); err == nil {
-			updates <- nodes
+			select {
+			case updates <- nodes:
+			case <-m.ctx.Done():
+				return
+			default:
+			}
 		}
 
 		for {
@@ -156,7 +174,12 @@ func (m *LsMonitor) startNodesPoller() <-chan []views.NodeInfo {
 				return
 			case <-ticker.C:
 				if nodes, err := m.fetchNodes(); err == nil {
-					updates <- nodes
+					select {
+					case updates <- nodes:
+					case <-m.ctx.Done():
+						return
+					default:
+					}
 				}
 			}
 		}
@@ -192,14 +215,21 @@ func (m *LsMonitor) fetchNodes() ([]views.NodeInfo, error) {
 func (m *LsMonitor) startDeploymentsPoller() <-chan []views.DeploymentInfo {
 	updates := make(chan []views.DeploymentInfo, 1)
 
+	m.wg.Add(1)
 	go func() {
+		defer m.wg.Done()
 		defer close(updates)
 		ticker := time.NewTicker(m.config.DeploymentsRefreshInterval)
 		defer ticker.Stop()
 
 		// Initial fetch
 		if deployments, err := m.fetchDeployments(); err == nil {
-			updates <- deployments
+			select {
+			case updates <- deployments:
+			case <-m.ctx.Done():
+				return
+			default:
+			}
 		}
 
 		for {
@@ -208,7 +238,12 @@ func (m *LsMonitor) startDeploymentsPoller() <-chan []views.DeploymentInfo {
 				return
 			case <-ticker.C:
 				if deployments, err := m.fetchDeployments(); err == nil {
-					updates <- deployments
+					select {
+					case updates <- deployments:
+					case <-m.ctx.Done():
+						return
+					default:
+					}
 				}
 			}
 		}
@@ -249,14 +284,21 @@ func (m *LsMonitor) fetchDeployments() ([]views.DeploymentInfo, error) {
 func (m *LsMonitor) startPodsPoller() <-chan []views.PodInfo {
 	updates := make(chan []views.PodInfo, 1)
 
+	m.wg.Add(1)
 	go func() {
+		defer m.wg.Done()
 		defer close(updates)
 		ticker := time.NewTicker(m.config.PodsRefreshInterval)
 		defer ticker.Stop()
 
 		// Initial fetch
 		if pods, err := m.fetchPods(); err == nil {
-			updates <- pods
+			select {
+			case updates <- pods:
+			case <-m.ctx.Done():
+				return
+			default:
+			}
 		}
 
 		for {
@@ -265,7 +307,12 @@ func (m *LsMonitor) startPodsPoller() <-chan []views.PodInfo {
 				return
 			case <-ticker.C:
 				if pods, err := m.fetchPods(); err == nil {
-					updates <- pods
+					select {
+					case updates <- pods:
+					case <-m.ctx.Done():
+						return
+					default:
+					}
 				}
 			}
 		}
@@ -305,14 +352,21 @@ func (m *LsMonitor) fetchPods() ([]views.PodInfo, error) {
 func (m *LsMonitor) startOSDsPoller() <-chan []views.OSDInfo {
 	updates := make(chan []views.OSDInfo, 1)
 
+	m.wg.Add(1)
 	go func() {
+		defer m.wg.Done()
 		defer close(updates)
 		ticker := time.NewTicker(m.config.OSDsRefreshInterval)
 		defer ticker.Stop()
 
 		// Initial fetch
 		if osds, err := m.fetchOSDs(); err == nil {
-			updates <- osds
+			select {
+			case updates <- osds:
+			case <-m.ctx.Done():
+				return
+			default:
+			}
 		}
 
 		for {
@@ -321,7 +375,12 @@ func (m *LsMonitor) startOSDsPoller() <-chan []views.OSDInfo {
 				return
 			case <-ticker.C:
 				if osds, err := m.fetchOSDs(); err == nil {
-					updates <- osds
+					select {
+					case updates <- osds:
+					case <-m.ctx.Done():
+						return
+					default:
+					}
 				}
 			}
 		}
@@ -362,14 +421,21 @@ func (m *LsMonitor) fetchOSDs() ([]views.OSDInfo, error) {
 func (m *LsMonitor) startHeaderPoller() <-chan *components.ClusterHeaderData {
 	updates := make(chan *components.ClusterHeaderData, 1)
 
+	m.wg.Add(1)
 	go func() {
+		defer m.wg.Done()
 		defer close(updates)
 		ticker := time.NewTicker(m.config.HeaderRefreshInterval)
 		defer ticker.Stop()
 
 		// Initial fetch
 		if header, err := m.fetchHeader(); err == nil {
-			updates <- header
+			select {
+			case updates <- header:
+			case <-m.ctx.Done():
+				return
+			default:
+			}
 		}
 
 		for {
@@ -378,7 +444,12 @@ func (m *LsMonitor) startHeaderPoller() <-chan *components.ClusterHeaderData {
 				return
 			case <-ticker.C:
 				if header, err := m.fetchHeader(); err == nil {
-					updates <- header
+					select {
+					case updates <- header:
+					case <-m.ctx.Done():
+						return
+					default:
+					}
 				}
 			}
 		}

@@ -1,6 +1,7 @@
 package monitoring
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -71,6 +72,27 @@ func TestNewLsMonitor(t *testing.T) {
 	}
 	if monitor.latest == nil {
 		t.Error("latest update not initialized")
+	}
+}
+
+func TestNewLsMonitor_UsesParentContext(t *testing.T) {
+	//nolint:staticcheck // SA1019: using deprecated NewSimpleClientset
+	clientset := fake.NewSimpleClientset()
+	client := &k8s.Client{Clientset: clientset}
+
+	parentCtx, cancel := context.WithCancel(context.Background())
+	cfg := DefaultLsMonitorConfig(client, "rook-ceph", []string{})
+	cfg.Context = parentCtx
+
+	monitor := NewLsMonitor(cfg)
+
+	cancel()
+
+	select {
+	case <-monitor.ctx.Done():
+		// ok
+	case <-time.After(1 * time.Second):
+		t.Fatal("timeout waiting for monitor context to be cancelled")
 	}
 }
 

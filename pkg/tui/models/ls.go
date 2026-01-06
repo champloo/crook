@@ -295,6 +295,7 @@ func (m *LsModel) startMonitorCmd() tea.Cmd {
 		}
 
 		cfg := &monitoring.LsMonitorConfig{
+			Context:                    m.config.Context,
 			Client:                     m.config.Client,
 			Namespace:                  m.config.Config.Kubernetes.RookClusterNamespace,
 			Prefixes:                   m.config.Config.DeploymentFilters.Prefixes,
