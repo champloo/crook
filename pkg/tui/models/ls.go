@@ -14,9 +14,37 @@ import (
 	"github.com/andri/crook/pkg/tui/styles"
 	"github.com/andri/crook/pkg/tui/views"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
-// LsTab represents the available tabs in the ls view
+// LsPane represents the available panes in the multi-pane ls view
+type LsPane int
+
+const (
+	// LsPaneNodes shows cluster nodes
+	LsPaneNodes LsPane = iota
+	// LsPaneDeployments shows Rook-Ceph deployments (toggleable to pods)
+	LsPaneDeployments
+	// LsPaneOSDs shows Ceph OSDs
+	LsPaneOSDs
+)
+
+// String returns the human-readable name for the pane
+func (p LsPane) String() string {
+	switch p {
+	case LsPaneNodes:
+		return "Nodes"
+	case LsPaneDeployments:
+		return "Deployments"
+	case LsPaneOSDs:
+		return "OSDs"
+	default:
+		return "Unknown"
+	}
+}
+
+// LsTab is kept for backwards compatibility with LsModelConfig.ShowTabs
+// Deprecated: use LsPane instead
 type LsTab int
 
 const (
@@ -61,6 +89,7 @@ type LsModelConfig struct {
 	Context context.Context
 
 	// ShowTabs specifies which tabs to display (nil = all)
+	// Deprecated: the new multi-pane layout always shows all 3 panes
 	ShowTabs []LsTab
 }
 
@@ -69,10 +98,14 @@ type LsModel struct {
 	// Configuration
 	config LsModelConfig
 
-	// UI state
-	activeTab    LsTab
-	tabBar       *components.TabBar
-	cursor       int
+	// UI state - multi-pane layout
+	activePane LsPane
+	panes      [3]*components.Pane
+
+	// Legacy cursor field (kept for backwards compatibility with tests)
+	cursor int
+
+	// Filter state
 	filter       string
 	filterActive bool
 	helpVisible  bool
@@ -82,13 +115,12 @@ type LsModel struct {
 	height int
 
 	// Views
-	header          *components.ClusterHeader
-	nodesView       *views.NodesView
-	deploymentsView *views.DeploymentsView
-	osdsView        *views.OSDsView
-	podsView        *views.PodsView
+	header              *components.ClusterHeader
+	nodesView           *views.NodesView
+	deploymentsPodsView *views.DeploymentsPodsView
+	osdsView            *views.OSDsView
 
-	// Data counts (for tab badges)
+	// Data counts (for pane badges)
 	nodeCount       int
 	deploymentCount int
 	osdCount        int
@@ -109,6 +141,12 @@ type LsModel struct {
 	// Monitor for background updates
 	monitor        *monitoring.LsMonitor
 	lastUpdateTime time.Time
+
+	// Legacy fields for backwards compatibility
+	tabBar          *components.TabBar
+	activeTab       LsTab
+	deploymentsView *views.DeploymentsView
+	podsView        *views.PodsView
 }
 
 // LsDataUpdateMsg is sent when data is updated
@@ -136,13 +174,31 @@ type LsRefreshTickMsg struct{}
 
 // NewLsModel creates a new ls model
 func NewLsModel(cfg LsModelConfig) *LsModel {
-	// Determine which tabs to show
+	// Create panes
+	panes := [3]*components.Pane{
+		components.NewPane(components.PaneConfig{Title: "Nodes", ShortcutKey: "1"}),
+		components.NewPane(components.PaneConfig{Title: "Deployments", ShortcutKey: "2"}),
+		components.NewPane(components.PaneConfig{Title: "OSDs", ShortcutKey: "3"}),
+	}
+
+	// Set first pane as active
+	panes[0].SetActive(true)
+
+	// Create views
+	nodesView := views.NewNodesView()
+	deploymentsPodsView := views.NewDeploymentsPodsView()
+	osdsView := views.NewOSDsView()
+
+	// Apply node filter to pods view if specified
+	if cfg.NodeFilter != "" {
+		deploymentsPodsView.SetNodeFilter(cfg.NodeFilter)
+	}
+
+	// Create legacy tab bar for backwards compatibility with tests
 	showTabs := cfg.ShowTabs
 	if len(showTabs) == 0 {
 		showTabs = []LsTab{LsTabNodes, LsTabDeployments, LsTabOSDs, LsTabPods}
 	}
-
-	// Create tab definitions
 	tabs := make([]components.Tab, len(showTabs))
 	for i, t := range showTabs {
 		tabs[i] = components.Tab{
@@ -151,27 +207,20 @@ func NewLsModel(cfg LsModelConfig) *LsModel {
 		}
 	}
 
-	// Create views
-	nodesView := views.NewNodesView()
-	deploymentsView := views.NewDeploymentsView()
-	osdsView := views.NewOSDsView()
-	podsView := views.NewPodsView()
-
-	// Apply node filter to pods view if specified
-	if cfg.NodeFilter != "" {
-		podsView.SetNodeFilter(cfg.NodeFilter)
-	}
-
 	return &LsModel{
-		config:          cfg,
-		activeTab:       showTabs[0],
+		config:              cfg,
+		activePane:          LsPaneNodes,
+		panes:               panes,
+		cursor:              0,
+		header:              components.NewClusterHeader(),
+		nodesView:           nodesView,
+		deploymentsPodsView: deploymentsPodsView,
+		osdsView:            osdsView,
+		// Legacy fields
 		tabBar:          components.NewTabBar(tabs),
-		cursor:          0,
-		header:          components.NewClusterHeader(),
-		nodesView:       nodesView,
-		deploymentsView: deploymentsView,
-		osdsView:        osdsView,
-		podsView:        podsView,
+		activeTab:       showTabs[0],
+		deploymentsView: deploymentsPodsView.GetDeploymentsView(),
+		podsView:        deploymentsPodsView.GetPodsView(),
 	}
 }
 
@@ -232,36 +281,33 @@ func (m *LsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		m.tabBar.SetWidth(msg.Width)
 		m.header.SetWidth(msg.Width)
-		// Update view sizes (subtract space for header, tabs, status bar)
-		viewHeight := msg.Height - 10 // Approximate header + tabs + status
-		m.nodesView.SetSize(msg.Width, viewHeight)
-		m.deploymentsView.SetSize(msg.Width, viewHeight)
-		m.osdsView.SetSize(msg.Width, viewHeight)
-		m.podsView.SetSize(msg.Width, viewHeight)
+		m.tabBar.SetWidth(msg.Width)
+		m.updateViewSizes()
 
 	case components.TabSwitchMsg:
-		// Update tab bar
+		// Legacy tab switch support - map to pane
 		newTabBar, _ := m.tabBar.Update(msg)
 		if tb, ok := newTabBar.(*components.TabBar); ok {
 			m.tabBar = tb
 		}
-		// Update active tab based on the tab bar's show tabs
 		m.updateActiveTab(msg.Index)
-		m.cursor = 0 // Reset cursor on tab switch
+		// Also update pane based on tab index
+		if msg.Index < 3 {
+			m.setActivePane(LsPane(msg.Index))
+		}
+		m.cursor = 0
 
 	case LsDataUpdateMsg:
 		m.updateDataCount(msg)
 
 	case LsFilterMsg:
 		m.filter = msg.Query
-		m.cursor = 0 // Reset cursor on filter change
+		m.cursor = 0
 		// Apply filter to all views
 		m.nodesView.SetFilter(msg.Query)
-		m.deploymentsView.SetFilter(msg.Query)
+		m.deploymentsPodsView.SetFilter(msg.Query)
 		m.osdsView.SetFilter(msg.Query)
-		m.podsView.SetFilter(msg.Query)
 		// Update counts after filtering
 		m.updateAllCounts()
 
@@ -292,6 +338,42 @@ func (m *LsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
+// updateViewSizes updates view dimensions based on the multi-pane layout
+func (m *LsModel) updateViewSizes() {
+	// Calculate available height for panes
+	// Header: ~4 lines, Nav bar: 2 lines, Status bar: 2 lines
+	headerHeight := 4
+	navBarHeight := 2
+	statusBarHeight := 2
+	availableHeight := m.height - headerHeight - navBarHeight - statusBarHeight
+
+	// Calculate height distribution: active pane gets 50%, inactive get 25% each
+	activeHeight := availableHeight / 2
+	inactiveHeight := availableHeight / 4
+
+	// Ensure minimum heights
+	if activeHeight < 8 {
+		activeHeight = 8
+	}
+	if inactiveHeight < 4 {
+		inactiveHeight = 4
+	}
+
+	// Set sizes for each pane and view
+	for i, pane := range m.panes {
+		height := inactiveHeight
+		if LsPane(i) == m.activePane {
+			height = activeHeight
+		}
+		pane.SetSize(m.width, height)
+	}
+
+	// Set view sizes (use active pane height for all, they'll be clipped by pane)
+	m.nodesView.SetSize(m.width-4, activeHeight-3)
+	m.deploymentsPodsView.SetSize(m.width-4, activeHeight-3)
+	m.osdsView.SetSize(m.width-4, activeHeight-3)
+}
+
 // updateFromMonitor updates the model from a monitor update
 func (m *LsModel) updateFromMonitor(update *monitoring.LsMonitorUpdate) {
 	// Update header
@@ -306,13 +388,13 @@ func (m *LsModel) updateFromMonitor(update *monitoring.LsMonitorUpdate) {
 		m.nodesView.SetNodes(update.Nodes)
 	}
 	if update.Deployments != nil {
-		m.deploymentsView.SetDeployments(update.Deployments)
+		m.deploymentsPodsView.SetDeployments(update.Deployments)
 	}
 	if update.OSDs != nil {
 		m.osdsView.SetOSDs(update.OSDs)
 	}
 	if update.Pods != nil {
-		m.podsView.SetPods(update.Pods)
+		m.deploymentsPodsView.SetPods(update.Pods)
 	}
 
 	// Update counts and badges
@@ -322,30 +404,48 @@ func (m *LsModel) updateFromMonitor(update *monitoring.LsMonitorUpdate) {
 	m.lastError = update.Error
 }
 
-// updateAllCounts updates all tab counts and badges
+// updateAllCounts updates all pane counts and badges
 func (m *LsModel) updateAllCounts() {
 	// Nodes
 	m.nodeCount = m.nodesView.Count()
 	m.nodeTotalCount = m.nodesView.TotalCount()
+	m.updatePaneBadge(LsPaneNodes, m.nodeCount, m.nodeTotalCount)
 	m.updateBadge(0, m.nodeCount, m.nodeTotalCount)
 
-	// Deployments
-	m.deploymentCount = m.deploymentsView.Count()
-	m.deploymentTotalCount = m.deploymentsView.TotalCount()
+	// Deployments/Pods - show count from currently active sub-view
+	m.deploymentCount = m.deploymentsPodsView.DeploymentsCount()
+	m.deploymentTotalCount = m.deploymentsPodsView.DeploymentsTotalCount()
+	m.podCount = m.deploymentsPodsView.PodsCount()
+	m.podTotalCount = m.deploymentsPodsView.PodsTotalCount()
+
+	// Update deployments pane badge based on which view is showing
+	if m.deploymentsPodsView.IsShowingPods() {
+		m.updatePaneBadge(LsPaneDeployments, m.podCount, m.podTotalCount)
+		m.panes[LsPaneDeployments].SetTitle("Pods")
+	} else {
+		m.updatePaneBadge(LsPaneDeployments, m.deploymentCount, m.deploymentTotalCount)
+		m.panes[LsPaneDeployments].SetTitle("Deployments")
+	}
 	m.updateBadge(1, m.deploymentCount, m.deploymentTotalCount)
+	m.updateBadge(3, m.podCount, m.podTotalCount)
 
 	// OSDs
 	m.osdCount = m.osdsView.Count()
 	m.osdTotalCount = m.osdsView.TotalCount()
+	m.updatePaneBadge(LsPaneOSDs, m.osdCount, m.osdTotalCount)
 	m.updateBadge(2, m.osdCount, m.osdTotalCount)
-
-	// Pods
-	m.podCount = m.podsView.Count()
-	m.podTotalCount = m.podsView.TotalCount()
-	m.updateBadge(3, m.podCount, m.podTotalCount)
 }
 
-// updateBadge updates a tab badge with count information
+// updatePaneBadge updates a pane badge with count information
+func (m *LsModel) updatePaneBadge(pane LsPane, count, totalCount int) {
+	badge := fmt.Sprintf("%d", count)
+	if totalCount > 0 && count != totalCount {
+		badge = fmt.Sprintf("%d/%d", count, totalCount)
+	}
+	m.panes[pane].SetBadge(badge)
+}
+
+// updateBadge updates a tab badge with count information (legacy)
 func (m *LsModel) updateBadge(tabIndex, count, totalCount int) {
 	badge := fmt.Sprintf("%d", count)
 	if totalCount > 0 && count != totalCount {
@@ -384,10 +484,52 @@ func (m *LsModel) handleKeyPress(msg tea.KeyMsg) tea.Cmd {
 		m.filterActive = true
 		return nil
 
-	case "tab", "shift+tab", "1", "2", "3", "4", "5", "6", "7", "8", "9":
-		// Delegate to tab bar
+	case "tab":
+		m.nextPane()
+		return nil
+
+	case "shift+tab":
+		m.prevPane()
+		return nil
+
+	case "1":
+		m.setActivePane(LsPaneNodes)
+		// Also update legacy tab bar
 		_, cmd := m.tabBar.Update(msg)
 		return cmd
+
+	case "2":
+		m.setActivePane(LsPaneDeployments)
+		_, cmd := m.tabBar.Update(msg)
+		return cmd
+
+	case "3":
+		m.setActivePane(LsPaneOSDs)
+		_, cmd := m.tabBar.Update(msg)
+		return cmd
+
+	case "4", "5", "6", "7", "8", "9":
+		// Delegate to tab bar for backward compatibility
+		_, cmd := m.tabBar.Update(msg)
+		return cmd
+
+	case "[":
+		// Toggle to deployments view in middle pane
+		if m.activePane == LsPaneDeployments {
+			m.deploymentsPodsView.ShowDeployments()
+			m.panes[LsPaneDeployments].SetTitle("Deployments")
+			m.updateAllCounts()
+		}
+		return nil
+
+	case "]":
+		// Toggle to pods view in middle pane
+		if m.activePane == LsPaneDeployments {
+			m.deploymentsPodsView.ShowPods()
+			m.panes[LsPaneDeployments].SetTitle("Pods")
+			m.updateAllCounts()
+		}
+		return nil
 
 	case "j", "down":
 		m.updateActiveViewCursor(1)
@@ -453,7 +595,51 @@ func (m *LsModel) handleFilterInput(msg tea.KeyMsg) tea.Cmd {
 	return nil
 }
 
-// updateActiveTab updates the active tab based on the index
+// nextPane cycles to the next pane
+func (m *LsModel) nextPane() {
+	newPane := (m.activePane + 1) % 3
+	m.setActivePane(newPane)
+}
+
+// prevPane cycles to the previous pane
+func (m *LsModel) prevPane() {
+	newPane := m.activePane - 1
+	if newPane < 0 {
+		newPane = 2
+	}
+	m.setActivePane(newPane)
+}
+
+// setActivePane changes the active pane
+func (m *LsModel) setActivePane(pane LsPane) {
+	// Deactivate all panes
+	for _, p := range m.panes {
+		p.SetActive(false)
+	}
+
+	// Activate the selected pane
+	m.activePane = pane
+	m.panes[pane].SetActive(true)
+
+	// Update legacy activeTab
+	switch pane {
+	case LsPaneNodes:
+		m.activeTab = LsTabNodes
+	case LsPaneDeployments:
+		if m.deploymentsPodsView.IsShowingPods() {
+			m.activeTab = LsTabPods
+		} else {
+			m.activeTab = LsTabDeployments
+		}
+	case LsPaneOSDs:
+		m.activeTab = LsTabOSDs
+	}
+
+	// Update view sizes for new active pane
+	m.updateViewSizes()
+}
+
+// updateActiveTab updates the active tab based on the index (legacy)
 func (m *LsModel) updateActiveTab(index int) {
 	showTabs := m.config.ShowTabs
 	if len(showTabs) == 0 {
@@ -479,73 +665,72 @@ func (m *LsModel) updateDataCount(msg LsDataUpdateMsg) {
 		m.nodeCount = msg.Count
 		m.nodeTotalCount = msg.TotalCount
 		m.tabBar.SetBadge(0, badge)
+		m.panes[LsPaneNodes].SetBadge(badge)
 	case LsTabDeployments:
 		m.deploymentCount = msg.Count
 		m.deploymentTotalCount = msg.TotalCount
 		m.tabBar.SetBadge(1, badge)
+		if !m.deploymentsPodsView.IsShowingPods() {
+			m.panes[LsPaneDeployments].SetBadge(badge)
+		}
 	case LsTabOSDs:
 		m.osdCount = msg.Count
 		m.osdTotalCount = msg.TotalCount
 		m.tabBar.SetBadge(2, badge)
+		m.panes[LsPaneOSDs].SetBadge(badge)
 	case LsTabPods:
 		m.podCount = msg.Count
 		m.podTotalCount = msg.TotalCount
 		m.tabBar.SetBadge(3, badge)
+		if m.deploymentsPodsView.IsShowingPods() {
+			m.panes[LsPaneDeployments].SetBadge(badge)
+		}
 	}
 }
 
-// getMaxCursor returns the maximum cursor position for the current tab
+// getMaxCursor returns the maximum cursor position for the current pane
 func (m *LsModel) getMaxCursor() int {
-	switch m.activeTab {
-	case LsTabNodes:
+	switch m.activePane {
+	case LsPaneNodes:
 		return max(0, m.nodeCount-1)
-	case LsTabDeployments:
-		return max(0, m.deploymentCount-1)
-	case LsTabOSDs:
+	case LsPaneDeployments:
+		return max(0, m.deploymentsPodsView.Count()-1)
+	case LsPaneOSDs:
 		return max(0, m.osdCount-1)
-	case LsTabPods:
-		return max(0, m.podCount-1)
 	}
 	return 0
 }
 
 // updateActiveViewCursor moves the cursor in the active view by delta
 func (m *LsModel) updateActiveViewCursor(delta int) {
-	switch m.activeTab {
-	case LsTabNodes:
+	switch m.activePane {
+	case LsPaneNodes:
 		newCursor := m.nodesView.GetCursor() + delta
 		if newCursor >= 0 && newCursor < m.nodesView.Count() {
 			m.nodesView.SetCursor(newCursor)
 		}
-	case LsTabDeployments:
-		newCursor := m.deploymentsView.GetCursor() + delta
-		if newCursor >= 0 && newCursor < m.deploymentsView.Count() {
-			m.deploymentsView.SetCursor(newCursor)
+	case LsPaneDeployments:
+		newCursor := m.deploymentsPodsView.GetCursor() + delta
+		if newCursor >= 0 && newCursor < m.deploymentsPodsView.Count() {
+			m.deploymentsPodsView.SetCursor(newCursor)
 		}
-	case LsTabOSDs:
+	case LsPaneOSDs:
 		newCursor := m.osdsView.GetCursor() + delta
 		if newCursor >= 0 && newCursor < m.osdsView.Count() {
 			m.osdsView.SetCursor(newCursor)
-		}
-	case LsTabPods:
-		newCursor := m.podsView.GetCursor() + delta
-		if newCursor >= 0 && newCursor < m.podsView.Count() {
-			m.podsView.SetCursor(newCursor)
 		}
 	}
 }
 
 // setActiveViewCursor sets the cursor position in the active view
 func (m *LsModel) setActiveViewCursor(pos int) {
-	switch m.activeTab {
-	case LsTabNodes:
+	switch m.activePane {
+	case LsPaneNodes:
 		m.nodesView.SetCursor(pos)
-	case LsTabDeployments:
-		m.deploymentsView.SetCursor(pos)
-	case LsTabOSDs:
+	case LsPaneDeployments:
+		m.deploymentsPodsView.SetCursor(pos)
+	case LsPaneOSDs:
 		m.osdsView.SetCursor(pos)
-	case LsTabPods:
-		m.podsView.SetCursor(pos)
 	}
 }
 
@@ -558,17 +743,17 @@ func (m *LsModel) View() string {
 		return m.renderHelp()
 	}
 
-	// Header with cluster summary placeholder
+	// Header with cluster summary
 	b.WriteString(m.renderHeader())
 	b.WriteString("\n\n")
 
-	// Tab bar
-	b.WriteString(m.tabBar.View())
+	// Pane navigation bar
+	b.WriteString(m.renderPaneNavBar())
 	b.WriteString("\n\n")
 
-	// Active view content (placeholder)
-	b.WriteString(m.renderActiveView())
-	b.WriteString("\n\n")
+	// Render all three panes
+	b.WriteString(m.renderAllPanes())
+	b.WriteString("\n")
 
 	// Filter bar (if active)
 	if m.filterActive {
@@ -592,17 +777,97 @@ func (m *LsModel) renderHeader() string {
 	return header.String()
 }
 
-// renderActiveView renders the currently active tab's content
-func (m *LsModel) renderActiveView() string {
-	switch m.activeTab {
-	case LsTabNodes:
+// renderPaneNavBar renders the navigation bar showing pane names with badges
+func (m *LsModel) renderPaneNavBar() string {
+	var parts []string
+
+	for i, pane := range m.panes {
+		name := pane.GetTitle()
+		badge := pane.GetBadge()
+		shortcut := pane.GetShortcutKey()
+
+		// Format: [1:Nodes (6)]
+		text := fmt.Sprintf("%s:%s", shortcut, name)
+		if badge != "" {
+			text = fmt.Sprintf("%s (%s)", text, badge)
+		}
+
+		var style lipgloss.Style
+		if LsPane(i) == m.activePane {
+			style = styles.StylePaneTitleActive
+		} else {
+			style = styles.StylePaneTitleInactive
+		}
+
+		parts = append(parts, style.Render(text))
+	}
+
+	// Add toggle hint if on deployments pane
+	if m.activePane == LsPaneDeployments {
+		toggleHint := styles.StyleSubtle.Render(" [/]: deps/pods")
+		parts = append(parts, toggleHint)
+	}
+
+	return strings.Join(parts, "  ")
+}
+
+// renderAllPanes renders all three panes stacked vertically
+func (m *LsModel) renderAllPanes() string {
+	var b strings.Builder
+
+	// Calculate heights
+	headerHeight := 4
+	navBarHeight := 2
+	statusBarHeight := 2
+	filterBarHeight := 0
+	if m.filterActive {
+		filterBarHeight = 2
+	}
+	availableHeight := m.height - headerHeight - navBarHeight - statusBarHeight - filterBarHeight
+
+	// Height distribution: active pane gets 50%, inactive get 25% each
+	activeHeight := availableHeight / 2
+	inactiveHeight := availableHeight / 4
+
+	// Ensure minimum heights
+	if activeHeight < 8 {
+		activeHeight = 8
+	}
+	if inactiveHeight < 4 {
+		inactiveHeight = 4
+	}
+
+	// Render each pane
+	for i, pane := range m.panes {
+		height := inactiveHeight
+		if LsPane(i) == m.activePane {
+			height = activeHeight
+		}
+
+		// Get content for this pane
+		content := m.getPaneContent(LsPane(i))
+
+		// Update pane size and render
+		pane.SetSize(m.width, height)
+		b.WriteString(pane.View(content))
+
+		if i < len(m.panes)-1 {
+			b.WriteString("\n")
+		}
+	}
+
+	return b.String()
+}
+
+// getPaneContent returns the view content for a specific pane
+func (m *LsModel) getPaneContent(pane LsPane) string {
+	switch pane {
+	case LsPaneNodes:
 		return m.nodesView.View()
-	case LsTabDeployments:
-		return m.deploymentsView.View()
-	case LsTabOSDs:
+	case LsPaneDeployments:
+		return m.deploymentsPodsView.View()
+	case LsPaneOSDs:
 		return m.osdsView.View()
-	case LsTabPods:
-		return m.podsView.View()
 	}
 	return ""
 }
@@ -610,7 +875,7 @@ func (m *LsModel) renderActiveView() string {
 // renderFilterBar renders the filter input bar
 func (m *LsModel) renderFilterBar() string {
 	prompt := styles.StyleStatus.Render("/")
-	input := styles.StyleNormal.Render(m.filter + "█")
+	input := styles.StyleNormal.Render(m.filter + "\u2588")
 	return prompt + input
 }
 
@@ -621,7 +886,11 @@ func (m *LsModel) renderStatusBar() string {
 	if m.filterActive {
 		hints = append(hints, "Enter: apply", "Esc: cancel")
 	} else {
-		hints = append(hints, "Tab: switch", "j/k: navigate", "/: filter", "r: refresh", "?: help", "q: quit")
+		hints = append(hints, "Tab/1-3: pane", "j/k: navigate")
+		if m.activePane == LsPaneDeployments {
+			hints = append(hints, "[/]: deps/pods")
+		}
+		hints = append(hints, "/: filter", "r: refresh", "?: help", "q: quit")
 	}
 
 	return styles.StyleSubtle.Render(strings.Join(hints, "  "))
@@ -634,7 +903,8 @@ func (m *LsModel) renderHelp() string {
 │             crook ls Help               │
 ├─────────────────────────────────────────┤
 │  Navigation                             │
-│    Tab, 1-4    Switch tabs              │
+│    Tab, 1-3    Switch panes             │
+│    [, ]        Toggle deps/pods         │
 │    j/k, ↑/↓    Move cursor              │
 │    g/G         Go to top/bottom         │
 │    Enter       View details             │
@@ -662,14 +932,20 @@ func (m *LsModel) SetSize(width, height int) {
 	m.width = width
 	m.height = height
 	m.tabBar.SetWidth(width)
+	m.updateViewSizes()
 }
 
-// GetActiveTab returns the currently active tab
+// GetActiveTab returns the currently active tab (legacy)
 func (m *LsModel) GetActiveTab() LsTab {
 	return m.activeTab
 }
 
-// GetCursor returns the current cursor position
+// GetActivePane returns the currently active pane
+func (m *LsModel) GetActivePane() LsPane {
+	return m.activePane
+}
+
+// GetCursor returns the current cursor position (legacy)
 func (m *LsModel) GetCursor() int {
 	return m.cursor
 }
@@ -697,4 +973,9 @@ func (m *LsModel) GetNodeFilter() string {
 // HasNodeFilter returns true if a node filter is active
 func (m *LsModel) HasNodeFilter() bool {
 	return m.config.NodeFilter != ""
+}
+
+// IsShowingPods returns true if the deployments pane is showing pods
+func (m *LsModel) IsShowingPods() bool {
+	return m.deploymentsPodsView.IsShowingPods()
 }

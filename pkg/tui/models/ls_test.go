@@ -32,6 +32,26 @@ func TestLsTab_String(t *testing.T) {
 	}
 }
 
+func TestLsPane_String(t *testing.T) {
+	tests := []struct {
+		pane     LsPane
+		expected string
+	}{
+		{LsPaneNodes, "Nodes"},
+		{LsPaneDeployments, "Deployments"},
+		{LsPaneOSDs, "OSDs"},
+		{LsPane(99), "Unknown"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.expected, func(t *testing.T) {
+			if got := tt.pane.String(); got != tt.expected {
+				t.Errorf("LsPane.String() = %q, want %q", got, tt.expected)
+			}
+		})
+	}
+}
+
 func TestNewLsModel(t *testing.T) {
 	cfg := LsModelConfig{
 		NodeFilter: "",
@@ -45,10 +65,20 @@ func TestNewLsModel(t *testing.T) {
 		t.Fatal("NewLsModel returned nil")
 	}
 
-	if model.activeTab != LsTabNodes {
-		t.Errorf("initial active tab = %v, want %v", model.activeTab, LsTabNodes)
+	// Check new pane-based fields
+	if model.activePane != LsPaneNodes {
+		t.Errorf("initial active pane = %v, want %v", model.activePane, LsPaneNodes)
 	}
 
+	if model.panes[0] == nil || model.panes[1] == nil || model.panes[2] == nil {
+		t.Error("panes should not be nil")
+	}
+
+	if !model.panes[0].IsActive() {
+		t.Error("first pane should be active initially")
+	}
+
+	// Legacy tab bar still exists for backwards compatibility
 	if model.tabBar == nil {
 		t.Error("tabBar should not be nil")
 	}
@@ -70,12 +100,14 @@ func TestNewLsModel_WithShowTabs(t *testing.T) {
 
 	model := NewLsModel(cfg)
 
+	// Legacy tab bar respects ShowTabs
 	if model.tabBar.TabCount() != 2 {
 		t.Errorf("expected 2 tabs, got %d", model.tabBar.TabCount())
 	}
 
-	if model.activeTab != LsTabNodes {
-		t.Errorf("initial active tab = %v, want %v", model.activeTab, LsTabNodes)
+	// But panes are always all 3
+	if model.panes[0] == nil || model.panes[1] == nil || model.panes[2] == nil {
+		t.Error("all 3 panes should exist regardless of ShowTabs")
 	}
 }
 
@@ -138,8 +170,14 @@ func TestLsModel_Update_TabSwitch(t *testing.T) {
 		t.Fatal("expected *LsModel type")
 	}
 
+	// Legacy activeTab is updated
 	if m.activeTab != LsTabOSDs {
 		t.Errorf("activeTab = %v, want %v", m.activeTab, LsTabOSDs)
+	}
+
+	// Pane is also updated
+	if m.activePane != LsPaneOSDs {
+		t.Errorf("activePane = %v, want %v", m.activePane, LsPaneOSDs)
 	}
 
 	if m.cursor != 0 {
@@ -346,25 +384,116 @@ func TestLsModel_handleKeyPress_Refresh(t *testing.T) {
 	}
 }
 
-func TestLsModel_handleKeyPress_TabNavigation(t *testing.T) {
+func TestLsModel_handleKeyPress_PaneNavigation(t *testing.T) {
 	model := NewLsModel(LsModelConfig{
 		Context: context.Background(),
 	})
 
-	// Test tab key
-	msg := tea.KeyMsg{Type: tea.KeyTab}
-	cmd := model.handleKeyPress(msg)
-
-	if cmd == nil {
-		t.Error("tab should return a command")
+	// Test tab key cycles through panes
+	if model.activePane != LsPaneNodes {
+		t.Errorf("initial pane should be Nodes, got %v", model.activePane)
 	}
 
-	// Test number keys
-	msg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("2")}
-	cmd = model.handleKeyPress(msg)
+	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyTab})
+	if model.activePane != LsPaneDeployments {
+		t.Errorf("after tab, pane should be Deployments, got %v", model.activePane)
+	}
 
-	if cmd == nil {
-		t.Error("number key should return a command")
+	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyTab})
+	if model.activePane != LsPaneOSDs {
+		t.Errorf("after second tab, pane should be OSDs, got %v", model.activePane)
+	}
+
+	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyTab})
+	if model.activePane != LsPaneNodes {
+		t.Errorf("after third tab, pane should wrap to Nodes, got %v", model.activePane)
+	}
+
+	// Test number keys for direct pane selection
+	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("2")})
+	if model.activePane != LsPaneDeployments {
+		t.Errorf("pressing 2 should select Deployments pane, got %v", model.activePane)
+	}
+
+	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("3")})
+	if model.activePane != LsPaneOSDs {
+		t.Errorf("pressing 3 should select OSDs pane, got %v", model.activePane)
+	}
+
+	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("1")})
+	if model.activePane != LsPaneNodes {
+		t.Errorf("pressing 1 should select Nodes pane, got %v", model.activePane)
+	}
+}
+
+func TestLsModel_handleKeyPress_ShiftTab(t *testing.T) {
+	model := NewLsModel(LsModelConfig{
+		Context: context.Background(),
+	})
+
+	// Start at Nodes, shift+tab should go to OSDs (wrap backwards)
+	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyShiftTab})
+	if model.activePane != LsPaneOSDs {
+		t.Errorf("shift+tab from Nodes should go to OSDs, got %v", model.activePane)
+	}
+
+	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyShiftTab})
+	if model.activePane != LsPaneDeployments {
+		t.Errorf("shift+tab from OSDs should go to Deployments, got %v", model.activePane)
+	}
+
+	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyShiftTab})
+	if model.activePane != LsPaneNodes {
+		t.Errorf("shift+tab from Deployments should go to Nodes, got %v", model.activePane)
+	}
+}
+
+func TestLsModel_handleKeyPress_DeploymentsPodsToggle(t *testing.T) {
+	model := NewLsModel(LsModelConfig{
+		Context: context.Background(),
+	})
+
+	// Switch to deployments pane
+	model.setActivePane(LsPaneDeployments)
+
+	// Initially showing deployments
+	if model.deploymentsPodsView.IsShowingPods() {
+		t.Error("should initially show deployments")
+	}
+
+	// Press ] to show pods
+	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("]")})
+	if !model.deploymentsPodsView.IsShowingPods() {
+		t.Error("after pressing ], should show pods")
+	}
+
+	// Press [ to show deployments
+	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("[")})
+	if model.deploymentsPodsView.IsShowingPods() {
+		t.Error("after pressing [, should show deployments")
+	}
+}
+
+func TestLsModel_handleKeyPress_ToggleOnlyWorksOnDeploymentsPane(t *testing.T) {
+	model := NewLsModel(LsModelConfig{
+		Context: context.Background(),
+	})
+
+	// Start on Nodes pane
+	if model.activePane != LsPaneNodes {
+		t.Fatal("expected to start on Nodes pane")
+	}
+
+	// Press ] - should not toggle since not on Deployments pane
+	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("]")})
+	if model.deploymentsPodsView.IsShowingPods() {
+		t.Error("] should not toggle when not on Deployments pane")
+	}
+
+	// Press [ - should not toggle since not on Deployments pane
+	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("[")})
+	if model.deploymentsPodsView.IsShowingPods() {
+		t.Error("[ should not toggle when not on Deployments pane")
 	}
 }
 
@@ -432,24 +561,41 @@ func TestLsModel_getMaxCursor(t *testing.T) {
 	model := NewLsModel(LsModelConfig{
 		Context: context.Background(),
 	})
+
+	// Set up test data in views
+	testNodes := make([]views.NodeInfo, 5)
+	for i := 0; i < 5; i++ {
+		testNodes[i] = views.NodeInfo{Name: fmt.Sprintf("node-%d", i)}
+	}
+	model.nodesView.SetNodes(testNodes)
 	model.nodeCount = 5
+
+	testDeployments := make([]views.DeploymentInfo, 10)
+	for i := 0; i < 10; i++ {
+		testDeployments[i] = views.DeploymentInfo{Name: fmt.Sprintf("dep-%d", i)}
+	}
+	model.deploymentsPodsView.SetDeployments(testDeployments)
 	model.deploymentCount = 10
+
+	testOSDs := make([]views.OSDInfo, 3)
+	for i := 0; i < 3; i++ {
+		testOSDs[i] = views.OSDInfo{ID: i}
+	}
+	model.osdsView.SetOSDs(testOSDs)
 	model.osdCount = 3
-	model.podCount = 0
 
 	tests := []struct {
-		tab      LsTab
+		pane     LsPane
 		expected int
 	}{
-		{LsTabNodes, 4},
-		{LsTabDeployments, 9},
-		{LsTabOSDs, 2},
-		{LsTabPods, 0},
+		{LsPaneNodes, 4},
+		{LsPaneDeployments, 9},
+		{LsPaneOSDs, 2},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.tab.String(), func(t *testing.T) {
-			model.activeTab = tt.tab
+		t.Run(tt.pane.String(), func(t *testing.T) {
+			model.activePane = tt.pane
 			if got := model.getMaxCursor(); got != tt.expected {
 				t.Errorf("getMaxCursor() = %d, want %d", got, tt.expected)
 			}
@@ -462,7 +608,7 @@ func TestLsModel_View(t *testing.T) {
 		Context: context.Background(),
 	})
 	model.width = 80
-	model.height = 24
+	model.height = 40
 
 	view := model.View()
 
@@ -470,27 +616,47 @@ func TestLsModel_View(t *testing.T) {
 		t.Error("View should not be empty")
 	}
 
-	if !contains(view, "crook ls") {
-		t.Error("View should contain 'crook ls' header")
+	// View should contain pane titles
+	if !contains(view, "Nodes") {
+		t.Error("View should contain 'Nodes' pane")
 	}
 
-	if !contains(view, "Nodes") {
-		t.Error("View should contain 'Nodes' tab")
+	if !contains(view, "Deployments") {
+		t.Error("View should contain 'Deployments' pane")
+	}
+
+	if !contains(view, "OSDs") {
+		t.Error("View should contain 'OSDs' pane")
 	}
 }
 
-func TestLsModel_View_WithNodeFilter(t *testing.T) {
+func TestLsModel_View_AllPanesVisible(t *testing.T) {
 	model := NewLsModel(LsModelConfig{
-		NodeFilter: "worker-1",
-		Context:    context.Background(),
+		Context: context.Background(),
 	})
-	model.width = 80
-	model.height = 24
+	model.width = 100
+	model.height = 50
+
+	// Set up some test data
+	model.nodesView.SetNodes([]views.NodeInfo{{Name: "test-node"}})
+	model.deploymentsPodsView.SetDeployments([]views.DeploymentInfo{{Name: "test-deploy"}})
+	model.osdsView.SetOSDs([]views.OSDInfo{{ID: 0}})
+	model.updateAllCounts()
 
 	view := model.View()
 
-	if !contains(view, "worker-1") {
-		t.Error("View should contain node filter")
+	// All three pane titles should be visible
+	if !contains(view, "1:Nodes") {
+		t.Error("View should contain '1:Nodes' in nav bar")
+	}
+	if !contains(view, "2:Deployments") || !contains(view, "2:Pods") {
+		// Either Deployments or Pods depending on toggle state
+		if !contains(view, "2:") {
+			t.Error("View should contain '2:' prefix in nav bar")
+		}
+	}
+	if !contains(view, "3:OSDs") {
+		t.Error("View should contain '3:OSDs' in nav bar")
 	}
 }
 
@@ -499,7 +665,7 @@ func TestLsModel_View_Help(t *testing.T) {
 		Context: context.Background(),
 	})
 	model.width = 80
-	model.height = 24
+	model.height = 40
 	model.helpVisible = true
 
 	view := model.View()
@@ -511,6 +677,14 @@ func TestLsModel_View_Help(t *testing.T) {
 	if !contains(view, "Navigation") {
 		t.Error("Help should contain Navigation section")
 	}
+
+	if !contains(view, "Switch panes") {
+		t.Error("Help should mention pane switching")
+	}
+
+	if !contains(view, "deps/pods") {
+		t.Error("Help should mention deps/pods toggle")
+	}
 }
 
 func TestLsModel_View_FilterActive(t *testing.T) {
@@ -518,7 +692,7 @@ func TestLsModel_View_FilterActive(t *testing.T) {
 		Context: context.Background(),
 	})
 	model.width = 80
-	model.height = 24
+	model.height = 40
 	model.filterActive = true
 	model.filter = "test"
 
@@ -530,6 +704,29 @@ func TestLsModel_View_FilterActive(t *testing.T) {
 
 	if !contains(view, "Enter: apply") {
 		t.Error("View should show filter mode hints")
+	}
+}
+
+func TestLsModel_View_StatusBarShowsToggleHint(t *testing.T) {
+	model := NewLsModel(LsModelConfig{
+		Context: context.Background(),
+	})
+	model.width = 100
+	model.height = 40
+
+	// On Nodes pane - should not show toggle hint
+	model.setActivePane(LsPaneNodes)
+	view := model.View()
+	// The status bar should show pane hints but not the toggle hint
+	if !contains(view, "Tab/1-3: pane") {
+		t.Error("View should contain pane navigation hint")
+	}
+
+	// On Deployments pane - should show toggle hint
+	model.setActivePane(LsPaneDeployments)
+	view = model.View()
+	if !contains(view, "[/]: deps/pods") {
+		t.Error("View should contain toggle hint when on Deployments pane")
 	}
 }
 
@@ -553,6 +750,7 @@ func TestLsModel_Getters(t *testing.T) {
 	model := NewLsModel(LsModelConfig{
 		Context: context.Background(),
 	})
+	model.activePane = LsPaneOSDs
 	model.activeTab = LsTabOSDs
 	model.cursor = 5
 	model.filter = "test"
@@ -561,6 +759,10 @@ func TestLsModel_Getters(t *testing.T) {
 
 	if model.GetActiveTab() != LsTabOSDs {
 		t.Errorf("GetActiveTab() = %v, want %v", model.GetActiveTab(), LsTabOSDs)
+	}
+
+	if model.GetActivePane() != LsPaneOSDs {
+		t.Errorf("GetActivePane() = %v, want %v", model.GetActivePane(), LsPaneOSDs)
 	}
 
 	if model.GetCursor() != 5 {
@@ -598,3 +800,86 @@ func TestLsModel_updateActiveTab_WithCustomShowTabs(t *testing.T) {
 		t.Errorf("activeTab = %v, want %v", model.activeTab, LsTabPods)
 	}
 }
+
+func TestLsModel_IsShowingPods(t *testing.T) {
+	model := NewLsModel(LsModelConfig{
+		Context: context.Background(),
+	})
+
+	// Initially showing deployments
+	if model.IsShowingPods() {
+		t.Error("should initially show deployments, not pods")
+	}
+
+	// Switch to pods
+	model.deploymentsPodsView.ShowPods()
+	if !model.IsShowingPods() {
+		t.Error("should show pods after ShowPods()")
+	}
+
+	// Switch back to deployments
+	model.deploymentsPodsView.ShowDeployments()
+	if model.IsShowingPods() {
+		t.Error("should show deployments after ShowDeployments()")
+	}
+}
+
+func TestLsModel_CursorNavigationOnlyAffectsActivePane(t *testing.T) {
+	model := NewLsModel(LsModelConfig{
+		Context: context.Background(),
+	})
+
+	// Set up test data in all views
+	testNodes := make([]views.NodeInfo, 5)
+	for i := 0; i < 5; i++ {
+		testNodes[i] = views.NodeInfo{Name: fmt.Sprintf("node-%d", i)}
+	}
+	model.nodesView.SetNodes(testNodes)
+	model.nodeCount = 5
+
+	testDeployments := make([]views.DeploymentInfo, 5)
+	for i := 0; i < 5; i++ {
+		testDeployments[i] = views.DeploymentInfo{Name: fmt.Sprintf("dep-%d", i)}
+	}
+	model.deploymentsPodsView.SetDeployments(testDeployments)
+	model.deploymentCount = 5
+
+	testOSDs := make([]views.OSDInfo, 5)
+	for i := 0; i < 5; i++ {
+		testOSDs[i] = views.OSDInfo{ID: i}
+	}
+	model.osdsView.SetOSDs(testOSDs)
+	model.osdCount = 5
+
+	// Start on Nodes pane
+	model.setActivePane(LsPaneNodes)
+
+	// Move cursor down twice
+	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
+	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
+
+	if model.nodesView.GetCursor() != 2 {
+		t.Errorf("nodes cursor should be 2, got %d", model.nodesView.GetCursor())
+	}
+
+	// Deployments cursor should still be at 0
+	if model.deploymentsPodsView.GetCursor() != 0 {
+		t.Errorf("deployments cursor should still be 0, got %d", model.deploymentsPodsView.GetCursor())
+	}
+
+	// Switch to deployments pane
+	model.setActivePane(LsPaneDeployments)
+	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
+
+	// Deployments cursor should now be 1
+	if model.deploymentsPodsView.GetCursor() != 1 {
+		t.Errorf("deployments cursor should be 1, got %d", model.deploymentsPodsView.GetCursor())
+	}
+
+	// Nodes cursor should still be 2
+	if model.nodesView.GetCursor() != 2 {
+		t.Errorf("nodes cursor should still be 2, got %d", model.nodesView.GetCursor())
+	}
+}
+
+// NOTE: contains() helper is defined in app_test.go

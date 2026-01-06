@@ -132,6 +132,30 @@ var (
 			Padding(1, 2)
 )
 
+// Pane border styles for multi-pane layouts
+var (
+	// StylePaneActive is the highlighted border style for focused panes
+	StylePaneActive = lipgloss.NewStyle().
+			Border(BorderRounded).
+			BorderForeground(ColorPrimary).
+			Padding(0, 1)
+
+	// StylePaneInactive is the muted border style for unfocused panes
+	StylePaneInactive = lipgloss.NewStyle().
+				Border(BorderRounded).
+				BorderForeground(ColorBorder).
+				Padding(0, 1)
+
+	// StylePaneTitleActive is the bold title style for active panes
+	StylePaneTitleActive = lipgloss.NewStyle().
+				Bold(true).
+				Foreground(ColorPrimary)
+
+	// StylePaneTitleInactive is the muted title style for inactive panes
+	StylePaneTitleInactive = lipgloss.NewStyle().
+				Foreground(ColorSubtle)
+)
+
 // Progress bar styles
 var (
 	// StyleProgressBar is the style for progress bars
