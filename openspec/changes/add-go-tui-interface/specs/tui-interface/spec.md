@@ -227,9 +227,9 @@ The system SHALL provide a `crook ls` command to display Ceph-related Kubernetes
   - Top: Nodes pane
   - Middle: Deployments pane (toggleable to Pods view)
   - Bottom: OSDs pane
-- **THEN** system shows pane navigation bar with badges: `[1:Nodes (3)]  [2:Deps (12)]  [3:OSDs (6)]`
-- **THEN** active pane receives 50% of available height with highlighted border
-- **THEN** inactive panes receive 25% each with muted border
+- **THEN** each pane displays title with shortcut key and badge in its top border: `╭─[1] Nodes (3)─────────────────────────────╮`
+- **THEN** active pane receives 50% of available height with highlighted border (primary color)
+- **THEN** inactive panes receive 25% each with muted border (subtle color)
 - **THEN** all panes display their full table columns (same as single-view mode)
 - **THEN** cluster health header remains visible at top of screen
 - **THEN** status bar shows context-sensitive keyboard hints at bottom
@@ -239,8 +239,8 @@ The system SHALL provide a `crook ls` command to display Ceph-related Kubernetes
 - **WHEN** middle pane (Deployments) is active
 - **THEN** user can press `[` to show Deployments view
 - **THEN** user can press `]` to show Pods view
-- **THEN** pane title updates to reflect current view ("Deployments" or "Pods")
-- **THEN** toggle hint `[/]: deps/pods` appears in status bar
+- **THEN** pane title in border updates to reflect current view ("[2] Deployments" or "[2] Pods")
+- **THEN** toggle hint `[/]: deps/pods` appears in status bar when Deployments pane is active
 - **THEN** cursor position resets when toggling between views
 
 #### Scenario: Keyboard navigation in ls mode

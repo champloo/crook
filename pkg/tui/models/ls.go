@@ -864,7 +864,7 @@ func (m *LsModel) renderHelp() string {
 ├─────────────────────────────────────────┤
 │  Navigation                             │
 │    Tab, 1-3    Switch panes             │
-│    [, ]        Toggle deploymentss/pods │
+│    [, ]        Toggle deployments/pods  │
 │    j/k, ↑/↓    Move cursor              │
 │    g/G         Go to top/bottom         │
 │    Enter       View details             │
