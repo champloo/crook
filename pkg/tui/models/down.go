@@ -102,6 +102,10 @@ type DownModelConfig struct {
 	// ExitBehavior controls how the flow exits (quit vs message).
 	ExitBehavior FlowExitBehavior
 
+	// Embedded renders the model without an outer frame so it can be hosted inside
+	// another container (for example, the `crook ls` Maintenance pane).
+	Embedded bool
+
 	// Config is the application configuration
 	Config config.Config
 
@@ -534,6 +538,10 @@ func (m *DownModel) View() string {
 	// Footer with help
 	b.WriteString("\n\n")
 	b.WriteString(m.renderFooter())
+
+	if m.config.Embedded {
+		return b.String()
+	}
 
 	return styles.StyleBox.Width(min(m.width-4, 80)).Render(b.String())
 }
