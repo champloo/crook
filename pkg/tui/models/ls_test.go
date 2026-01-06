@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/andri/crook/pkg/config"
+	"github.com/andri/crook/pkg/monitoring"
 	"github.com/andri/crook/pkg/tui/components"
 	"github.com/andri/crook/pkg/tui/views"
 	tea "github.com/charmbracelet/bubbletea"
@@ -497,6 +498,97 @@ func TestLsModel_handleKeyPress_ToggleOnlyWorksOnDeploymentsPane(t *testing.T) {
 	}
 }
 
+func TestLsModel_handleKeyPress_MaintenanceModalOpens(t *testing.T) {
+	model := NewLsModel(LsModelConfig{
+		Context: context.Background(),
+	})
+	model.setActivePane(LsPaneNodes)
+
+	nodes := []views.NodeInfo{{Name: "node-a"}, {Name: "node-b"}}
+	model.nodesView.SetNodes(nodes)
+	model.nodeCount = len(nodes)
+	model.nodesView.SetCursor(1)
+
+	cmd := model.handleKeyPress(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("d")})
+	if model.maintenanceModal == nil {
+		t.Fatal("expected maintenance modal to open on 'd'")
+	}
+	if cmd == nil {
+		t.Error("expected init command when opening modal")
+	}
+}
+
+func TestLsModel_handleKeyPress_MaintenanceModalIgnoredOutsideNodesPane(t *testing.T) {
+	model := NewLsModel(LsModelConfig{
+		Context: context.Background(),
+	})
+	model.setActivePane(LsPaneDeployments)
+
+	nodes := []views.NodeInfo{{Name: "node-a"}}
+	model.nodesView.SetNodes(nodes)
+	model.nodeCount = len(nodes)
+
+	cmd := model.handleKeyPress(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("u")})
+	if cmd != nil {
+		t.Error("did not expect command when not in Nodes pane")
+	}
+	if model.maintenanceModal != nil {
+		t.Error("did not expect modal to open outside Nodes pane")
+	}
+}
+
+func TestLsModel_Update_MaintenanceExitClosesModal(t *testing.T) {
+	model := NewLsModel(LsModelConfig{
+		Context: context.Background(),
+	})
+	model.maintenanceModal = components.NewModal(components.ModalConfig{})
+
+	updatedModel, cmd := model.Update(DownFlowExitMsg{Reason: FlowExitDeclined})
+	m, ok := updatedModel.(*LsModel)
+	if !ok {
+		t.Fatal("expected *LsModel type")
+	}
+	if m.maintenanceModal != nil {
+		t.Error("expected maintenance modal to close")
+	}
+	if cmd == nil {
+		t.Fatal("expected refresh command after closing modal")
+	}
+	if msg, ok := cmd().(LsRefreshMsg); !ok || msg.Tab != LsTabNodes {
+		t.Fatalf("expected LsRefreshMsg for nodes, got %T", cmd())
+	}
+}
+
+func TestLsModel_reselectNodeAfterUpdate(t *testing.T) {
+	model := NewLsModel(LsModelConfig{
+		Context: context.Background(),
+	})
+	model.setActivePane(LsPaneNodes)
+
+	nodes := []views.NodeInfo{{Name: "node-a"}, {Name: "node-b"}, {Name: "node-c"}}
+	model.nodesView.SetNodes(nodes)
+	model.nodeCount = len(nodes)
+	model.nodesView.SetCursor(2)
+
+	model.pendingReselectNode = "node-c"
+	update := &monitoring.LsMonitorUpdate{
+		Nodes: []views.NodeInfo{
+			{Name: "node-c"},
+			{Name: "node-a"},
+			{Name: "node-b"},
+		},
+	}
+	model.updateFromMonitor(update)
+
+	selected := model.nodesView.GetSelectedNode()
+	if selected == nil || selected.Name != "node-c" {
+		t.Errorf("expected selected node to remain node-c, got %#v", selected)
+	}
+	if model.pendingReselectNode != "" {
+		t.Error("expected pendingReselectNode to clear after reselect")
+	}
+}
+
 func TestLsModel_handleFilterInput(t *testing.T) {
 	model := NewLsModel(LsModelConfig{
 		Context: context.Background(),
@@ -717,6 +809,12 @@ func TestLsModel_View_StatusBarShowsToggleHint(t *testing.T) {
 	// The status bar should show pane hints but not the toggle hint
 	if !contains(view, "Tab/1-3: pane") {
 		t.Error("View should contain pane navigation hint")
+	}
+	if !contains(view, "u/d: up/down") {
+		t.Error("View should contain maintenance hint on Nodes pane")
+	}
+	if contains(view, "[/]: deployments/pods") {
+		t.Error("View should not contain toggle hint when on Nodes pane")
 	}
 
 	// On Deployments pane - should show toggle hint
