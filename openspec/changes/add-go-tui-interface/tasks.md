@@ -216,21 +216,7 @@
   - [ ] Run linters (golangci-lint)
 - [ ] 10.8 Create release process and versioning strategy
 
-## 11. Migration and Cleanup
-
-- [ ] 11.1 Test Go binary with existing bash script state files
-- [ ] 11.2 Verify feature parity with bash script
-- [ ] 11.3 Create migration guide for users
-- [ ] 11.4 Remove osd-maintenance.sh
-- [ ] 11.5 Update devenv.nix if needed (already has Go configured)
-- [ ] 11.6 Create pre-built binaries for common platforms:
-  - [ ] Linux amd64
-  - [ ] Linux arm64
-  - [ ] macOS amd64
-  - [ ] macOS arm64
-- [ ] 11.7 Update project.md to reflect Go implementation
-
-## 12. Final Validation
+## 11. Final Validation
 
 - [ ] 12.1 Run `openspec validate add-go-tui-interface --strict`
 - [ ] 12.2 Verify all requirements have corresponding code
