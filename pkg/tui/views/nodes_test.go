@@ -207,6 +207,37 @@ func TestNodesView_View(t *testing.T) {
 	}
 }
 
+func TestNodesView_View_TinyHeightLimitsOutput(t *testing.T) {
+	v := NewNodesView()
+	v.SetSize(120, 3)
+	v.SetNodes([]NodeInfo{
+		{Name: "node-1", Status: "Ready"},
+		{Name: "node-2", Status: "Ready"},
+		{Name: "node-3", Status: "Ready"},
+	})
+
+	output := v.View()
+	if !strings.Contains(output, "(1/3)") {
+		t.Fatalf("expected scroll indicator for tiny height, got: %q", output)
+	}
+	if strings.Contains(output, "node-3") {
+		t.Fatalf("expected tiny height to not render all rows, got: %q", output)
+	}
+}
+
+func TestNodesView_View_TruncatesRolesWithEllipsis(t *testing.T) {
+	v := NewNodesView()
+	v.SetSize(82, 30) // includes Roles column with width 14
+	v.SetNodes([]NodeInfo{
+		{Name: "node-1", Status: "Ready", Roles: []string{"control-plane", "very-long-role-name"}},
+	})
+
+	output := v.View()
+	if !strings.Contains(output, "...") {
+		t.Fatalf("expected roles to be truncated with ellipsis, got: %q", output)
+	}
+}
+
 func TestNodesView_EmptyView(t *testing.T) {
 	v := NewNodesView()
 	v.SetSize(100, 30)

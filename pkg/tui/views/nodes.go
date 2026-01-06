@@ -111,10 +111,7 @@ func (v *NodesView) View() string {
 	b.WriteString("\n")
 
 	// Calculate visible rows based on height
-	visibleRows := v.height - 4 // Account for header, separator, and padding
-	if visibleRows < 1 {
-		visibleRows = len(v.filtered)
-	}
+	visibleRows := max(1, v.height-4) // Account for header, separator, and padding
 
 	// Calculate scroll offset
 	startIdx := 0
@@ -141,6 +138,19 @@ func (v *NodesView) View() string {
 	}
 
 	return b.String()
+}
+
+func truncateEllipsis(s string, width int) string {
+	if width <= 0 {
+		return ""
+	}
+	if format.DisplayWidth(s) <= width {
+		return s
+	}
+	if width <= 3 {
+		return strings.Repeat(".", width)
+	}
+	return format.Truncate(s, width-3) + "..."
 }
 
 func (v *NodesView) columnLayout() nodesColumnLayout {
@@ -264,10 +274,7 @@ func (v *NodesView) renderRow(node NodeInfo, selected bool) string {
 	}
 
 	if layout.showRoles {
-		maxLen := max(0, layout.roles-3)
-		if len(rolesText) > maxLen && maxLen > 0 {
-			rolesText = rolesText[:max(0, maxLen-3)] + "..."
-		}
+		rolesText = truncateEllipsis(rolesText, layout.roles)
 	}
 
 	cols := []string{
