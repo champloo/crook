@@ -136,6 +136,8 @@ The system SHALL support intuitive keyboard controls for navigation and actions.
   - `r` → Retry failed operation (in error state)
   - `l` → Toggle log view (show/hide detailed logs)
   - `?` → Show help overlay with keyboard shortcuts
+  - `d` → (ls nodes pane) open down maintenance flow for selected node
+  - `u` → (ls nodes pane) open up maintenance flow for selected node
 
 #### Scenario: Context-sensitive controls
 
@@ -145,6 +147,32 @@ The system SHALL support intuitive keyboard controls for navigation and actions.
 - **THEN** system accepts 'r' (retry), 'a' (abort), 'l' (logs)
 - **WHEN** operation is in progress
 - **THEN** system accepts only 'Ctrl+C' to cancel (gracefully if possible)
+
+#### Scenario: Node maintenance shortcuts in ls nodes pane
+
+- **WHEN** user is running `crook ls` and the active pane is Nodes
+- **AND** a node row is selected
+- **AND** user presses `d`
+- **THEN** system displays a centered modal (floating pane) showing the Down Phase confirmation UI for the selected node
+- **AND** the UI content and flow matches `crook down <node>` (same TUI screens and maintenance code path; no shelling out)
+- **AND** `Esc` closes the modal and returns to `crook ls` without making changes
+- **AND** `y` confirms and starts the down workflow inside the modal
+- **AND** `Enter` is treated as default No (no changes)
+- **AND** once the down workflow completes, errors, or is cancelled, the modal closes
+- **AND** system returns to `crook ls` with the same node still selected and triggers a refresh of node data
+
+- **WHEN** user is running `crook ls` and the active pane is Nodes
+- **AND** a node row is selected
+- **AND** user presses `u`
+- **THEN** system displays a centered modal (floating pane) showing the Up Phase confirmation UI for the selected node
+- **AND** the UI content and flow matches `crook up <node>` (same TUI screens and maintenance code path; no shelling out)
+- **AND** the state file path resolution matches `crook up <node>` (no additional override UI)
+- **AND** if the state file is missing or invalid, the Up Phase UI displays the error state inside the modal
+- **AND** `Esc` closes the modal and returns to `crook ls` without making changes
+- **AND** `y` confirms and starts the up workflow inside the modal
+- **AND** `Enter` is treated as default No (no changes)
+- **AND** once the up workflow completes, errors, or is cancelled, the modal closes
+- **AND** system returns to `crook ls` with the same node still selected and triggers a refresh of node data
 
 ### Requirement: Resource List View (ls command)
 
