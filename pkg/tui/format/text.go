@@ -3,6 +3,7 @@ package format
 
 import (
 	"strings"
+	"unicode"
 
 	"github.com/charmbracelet/x/ansi"
 )
@@ -47,4 +48,22 @@ func PadRight(s string, width int) string {
 		return Truncate(s, width)
 	}
 	return s + strings.Repeat(" ", width-displayWidth)
+}
+
+// SanitizeForDisplay removes control characters and ANSI escape sequences from a string.
+// This prevents malicious or malformed error messages from corrupting the terminal display.
+// Printable characters, spaces, and newlines are preserved.
+func SanitizeForDisplay(s string) string {
+	// First strip ANSI escape sequences
+	s = ansi.Strip(s)
+
+	// Then remove control characters (except space, tab, newline)
+	var b strings.Builder
+	b.Grow(len(s))
+	for _, r := range s {
+		if r == ' ' || r == '\t' || r == '\n' || (unicode.IsPrint(r) && !unicode.IsControl(r)) {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/andri/crook/pkg/k8s"
 	"github.com/andri/crook/pkg/monitoring"
 	"github.com/andri/crook/pkg/tui/components"
+	"github.com/andri/crook/pkg/tui/format"
 	"github.com/andri/crook/pkg/tui/styles"
 	"github.com/andri/crook/pkg/tui/views"
 	tea "github.com/charmbracelet/bubbletea"
@@ -1155,7 +1156,7 @@ func (m *LsModel) renderStatusBar() string {
 		return status
 	}
 
-	errText := styles.StyleError.Render(fmt.Sprintf("error: %v", m.lastError))
+	errText := styles.StyleError.Render("error: " + format.SanitizeForDisplay(m.lastError.Error()))
 	return errText + "  " + status
 }
 

@@ -82,7 +82,6 @@ type LsMonitor struct {
 	ctx      context.Context
 	cancel   context.CancelFunc
 	updates  chan *LsMonitorUpdate
-	errors   chan error
 	stopOnce sync.Once
 	wg       sync.WaitGroup
 	mu       sync.RWMutex
@@ -102,7 +101,6 @@ func NewLsMonitor(config *LsMonitorConfig) *LsMonitor {
 		ctx:     ctx,
 		cancel:  cancel,
 		updates: make(chan *LsMonitorUpdate, 10),
-		errors:  make(chan error, 10),
 		latest: &LsMonitorUpdate{
 			UpdateTime: time.Now(),
 		},
@@ -151,50 +149,66 @@ func (m *LsMonitor) GetLatest() *LsMonitorUpdate {
 	}
 }
 
+// runPoller runs a polling loop with the given interval and fetch function.
+// It handles initial fetch, tick-based updates, context cancellation, and error wrapping.
+// This generic helper reduces code duplication across the 5 resource pollers.
+func runPoller[T any](
+	ctx context.Context,
+	updates chan<- T,
+	interval time.Duration,
+	source string,
+	fetch func() (T, error),
+	onError func(error),
+) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	// send attempts to send data to the updates channel (non-blocking)
+	send := func(data T) {
+		select {
+		case updates <- data:
+		case <-ctx.Done():
+		default:
+		}
+	}
+
+	// handleFetch fetches data and either sends it or reports an error
+	handleFetch := func() {
+		data, err := fetch()
+		if err != nil {
+			// Suppress context cancellation errors during shutdown
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				return
+			}
+			onError(fmt.Errorf("%s: %w", source, err))
+		} else {
+			send(data)
+		}
+	}
+
+	// Initial fetch
+	handleFetch()
+
+	// Poll loop
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			handleFetch()
+		}
+	}
+}
+
 // startNodesPoller starts background node polling
 func (m *LsMonitor) startNodesPoller() <-chan []views.NodeInfo {
 	updates := make(chan []views.NodeInfo, 1)
-
 	m.wg.Add(1)
 	go func() {
 		defer m.wg.Done()
 		defer close(updates)
-		ticker := time.NewTicker(m.config.NodesRefreshInterval)
-		defer ticker.Stop()
-
-		// Initial fetch
-		nodes, err := m.fetchNodes()
-		if err != nil {
-			m.sendError(fmt.Errorf("nodes: %w", err))
-		} else {
-			select {
-			case updates <- nodes:
-			case <-m.ctx.Done():
-				return
-			default:
-			}
-		}
-
-		for {
-			select {
-			case <-m.ctx.Done():
-				return
-			case <-ticker.C:
-				n, fetchErr := m.fetchNodes()
-				if fetchErr != nil {
-					m.sendError(fmt.Errorf("nodes: %w", fetchErr))
-				} else {
-					select {
-					case updates <- n:
-					case <-m.ctx.Done():
-						return
-					default:
-					}
-				}
-			}
-		}
+		runPoller(m.ctx, updates, m.config.NodesRefreshInterval, "nodes", m.fetchNodes, m.handleError)
 	}()
-
 	return updates
 }
 
@@ -224,47 +238,12 @@ func (m *LsMonitor) fetchNodes() ([]views.NodeInfo, error) {
 // startDeploymentsPoller starts background deployment polling
 func (m *LsMonitor) startDeploymentsPoller() <-chan []views.DeploymentInfo {
 	updates := make(chan []views.DeploymentInfo, 1)
-
 	m.wg.Add(1)
 	go func() {
 		defer m.wg.Done()
 		defer close(updates)
-		ticker := time.NewTicker(m.config.DeploymentsRefreshInterval)
-		defer ticker.Stop()
-
-		// Initial fetch
-		deployments, err := m.fetchDeployments()
-		if err != nil {
-			m.sendError(fmt.Errorf("deployments: %w", err))
-		} else {
-			select {
-			case updates <- deployments:
-			case <-m.ctx.Done():
-				return
-			default:
-			}
-		}
-
-		for {
-			select {
-			case <-m.ctx.Done():
-				return
-			case <-ticker.C:
-				d, fetchErr := m.fetchDeployments()
-				if fetchErr != nil {
-					m.sendError(fmt.Errorf("deployments: %w", fetchErr))
-				} else {
-					select {
-					case updates <- d:
-					case <-m.ctx.Done():
-						return
-					default:
-					}
-				}
-			}
-		}
+		runPoller(m.ctx, updates, m.config.DeploymentsRefreshInterval, "deployments", m.fetchDeployments, m.handleError)
 	}()
-
 	return updates
 }
 
@@ -299,47 +278,12 @@ func (m *LsMonitor) fetchDeployments() ([]views.DeploymentInfo, error) {
 // startPodsPoller starts background pod polling
 func (m *LsMonitor) startPodsPoller() <-chan []views.PodInfo {
 	updates := make(chan []views.PodInfo, 1)
-
 	m.wg.Add(1)
 	go func() {
 		defer m.wg.Done()
 		defer close(updates)
-		ticker := time.NewTicker(m.config.PodsRefreshInterval)
-		defer ticker.Stop()
-
-		// Initial fetch
-		pods, err := m.fetchPods()
-		if err != nil {
-			m.sendError(fmt.Errorf("pods: %w", err))
-		} else {
-			select {
-			case updates <- pods:
-			case <-m.ctx.Done():
-				return
-			default:
-			}
-		}
-
-		for {
-			select {
-			case <-m.ctx.Done():
-				return
-			case <-ticker.C:
-				p, fetchErr := m.fetchPods()
-				if fetchErr != nil {
-					m.sendError(fmt.Errorf("pods: %w", fetchErr))
-				} else {
-					select {
-					case updates <- p:
-					case <-m.ctx.Done():
-						return
-					default:
-					}
-				}
-			}
-		}
+		runPoller(m.ctx, updates, m.config.PodsRefreshInterval, "pods", m.fetchPods, m.handleError)
 	}()
-
 	return updates
 }
 
@@ -373,47 +317,12 @@ func (m *LsMonitor) fetchPods() ([]views.PodInfo, error) {
 // startOSDsPoller starts background OSD polling
 func (m *LsMonitor) startOSDsPoller() <-chan []views.OSDInfo {
 	updates := make(chan []views.OSDInfo, 1)
-
 	m.wg.Add(1)
 	go func() {
 		defer m.wg.Done()
 		defer close(updates)
-		ticker := time.NewTicker(m.config.OSDsRefreshInterval)
-		defer ticker.Stop()
-
-		// Initial fetch
-		osds, err := m.fetchOSDs()
-		if err != nil {
-			m.sendError(fmt.Errorf("osds: %w", err))
-		} else {
-			select {
-			case updates <- osds:
-			case <-m.ctx.Done():
-				return
-			default:
-			}
-		}
-
-		for {
-			select {
-			case <-m.ctx.Done():
-				return
-			case <-ticker.C:
-				o, fetchErr := m.fetchOSDs()
-				if fetchErr != nil {
-					m.sendError(fmt.Errorf("osds: %w", fetchErr))
-				} else {
-					select {
-					case updates <- o:
-					case <-m.ctx.Done():
-						return
-					default:
-					}
-				}
-			}
-		}
+		runPoller(m.ctx, updates, m.config.OSDsRefreshInterval, "osds", m.fetchOSDs, m.handleError)
 	}()
-
 	return updates
 }
 
@@ -448,47 +357,12 @@ func (m *LsMonitor) fetchOSDs() ([]views.OSDInfo, error) {
 // startHeaderPoller starts background cluster header polling
 func (m *LsMonitor) startHeaderPoller() <-chan *components.ClusterHeaderData {
 	updates := make(chan *components.ClusterHeaderData, 1)
-
 	m.wg.Add(1)
 	go func() {
 		defer m.wg.Done()
 		defer close(updates)
-		ticker := time.NewTicker(m.config.HeaderRefreshInterval)
-		defer ticker.Stop()
-
-		// Initial fetch
-		header, err := m.fetchHeader()
-		if err != nil {
-			m.sendError(fmt.Errorf("header: %w", err))
-		} else {
-			select {
-			case updates <- header:
-			case <-m.ctx.Done():
-				return
-			default:
-			}
-		}
-
-		for {
-			select {
-			case <-m.ctx.Done():
-				return
-			case <-ticker.C:
-				h, fetchErr := m.fetchHeader()
-				if fetchErr != nil {
-					m.sendError(fmt.Errorf("header: %w", fetchErr))
-				} else {
-					select {
-					case updates <- h:
-					case <-m.ctx.Done():
-						return
-					default:
-					}
-				}
-			}
-		}
+		runPoller(m.ctx, updates, m.config.HeaderRefreshInterval, "header", m.fetchHeader, m.handleError)
 	}()
-
 	return updates
 }
 
@@ -544,10 +418,6 @@ func (m *LsMonitor) aggregator(
 		select {
 		case <-m.ctx.Done():
 			return
-
-		case err := <-m.errors:
-			m.updateError(err)
-			m.sendUpdate()
 
 		case nodes, ok := <-nodesCh:
 			if !ok {
@@ -650,19 +520,11 @@ func (m *LsMonitor) updateError(err error) {
 	m.latest.UpdateTime = time.Now()
 }
 
-// sendError sends an error to the errors channel (non-blocking).
-// Suppresses context.Canceled errors during shutdown.
-func (m *LsMonitor) sendError(err error) {
-	// Don't surface cancellation errors during shutdown
-	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-		return
-	}
-	select {
-	case m.errors <- err:
-	case <-m.ctx.Done():
-	default:
-		// Channel full, skip this error
-	}
+// handleError updates the error state and sends an update directly.
+// This simplifies error handling by avoiding an intermediate channel.
+func (m *LsMonitor) handleError(err error) {
+	m.updateError(err)
+	m.sendUpdate()
 }
 
 // sendUpdate sends the current state to the updates channel
