@@ -586,14 +586,6 @@ func (m *LsModel) View() string {
 func (m *LsModel) renderHeader() string {
 	var header strings.Builder
 
-	title := "crook ls"
-	if m.config.NodeFilter != "" {
-		title += fmt.Sprintf(" (node: %s)", m.config.NodeFilter)
-	}
-
-	header.WriteString(styles.StyleHeading.Render(title))
-	header.WriteString("\n")
-
 	// Use the header component for cluster health
 	header.WriteString(m.header.View())
 
