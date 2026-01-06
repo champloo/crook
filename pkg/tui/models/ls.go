@@ -14,6 +14,7 @@ import (
 	"github.com/andri/crook/pkg/tui/styles"
 	"github.com/andri/crook/pkg/tui/views"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 // LsPane represents the available panes in the multi-pane ls view
@@ -137,9 +138,10 @@ type LsModel struct {
 	// Error state
 	lastError error
 
-	// Maintenance modal state
-	maintenanceModal    *components.Modal
+	// Maintenance pane state
+	maintenanceFlow     sizedModel
 	pendingReselectNode string
+	maintenancePane     *components.Pane
 
 	// Monitor for background updates
 	monitor        *monitoring.LsMonitor
@@ -150,6 +152,11 @@ type LsModel struct {
 	activeTab       LsTab
 	deploymentsView *views.DeploymentsView
 	podsView        *views.PodsView
+}
+
+type sizedModel interface {
+	tea.Model
+	SetSize(width, height int)
 }
 
 // LsDataUpdateMsg is sent when data is updated
@@ -185,6 +192,7 @@ func NewLsModel(cfg LsModelConfig) *LsModel {
 		components.NewPane(components.PaneConfig{Title: "Deployments", ShortcutKey: "2"}),
 		components.NewPane(components.PaneConfig{Title: "OSDs", ShortcutKey: "3"}),
 	}
+	maintenancePane := components.NewPane(components.PaneConfig{Title: "Maintenance", ShortcutKey: ""})
 
 	// Set first pane as active
 	panes[0].SetActive(true)
@@ -218,6 +226,7 @@ func NewLsModel(cfg LsModelConfig) *LsModel {
 		panes:               panes,
 		cursor:              0,
 		header:              components.NewClusterHeader(),
+		maintenancePane:     maintenancePane,
 		nodesView:           nodesView,
 		deploymentsPodsView: deploymentsPodsView,
 		osdsView:            osdsView,
@@ -277,27 +286,24 @@ func (m *LsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
-	case components.ModalCloseMsg:
-		cmds = append(cmds, m.closeMaintenanceModal())
-		return m, tea.Batch(cmds...)
 	case DownFlowExitMsg:
 		if msg.Err != nil {
 			m.lastError = msg.Err
 		}
-		cmds = append(cmds, m.closeMaintenanceModal())
+		cmds = append(cmds, m.closeMaintenanceFlow())
 		return m, tea.Batch(cmds...)
 	case UpFlowExitMsg:
 		if msg.Err != nil {
 			m.lastError = msg.Err
 		}
-		cmds = append(cmds, m.closeMaintenanceModal())
+		cmds = append(cmds, m.closeMaintenanceFlow())
 		return m, tea.Batch(cmds...)
 	}
 
-	if m.maintenanceModal != nil {
-		updatedModal, cmd := m.maintenanceModal.Update(msg)
-		if modal, ok := updatedModal.(*components.Modal); ok {
-			m.maintenanceModal = modal
+	if m.maintenanceFlow != nil {
+		updatedFlow, cmd := m.maintenanceFlow.Update(msg)
+		if flow, ok := updatedFlow.(sizedModel); ok {
+			m.maintenanceFlow = flow
 		}
 		if cmd != nil {
 			cmds = append(cmds, cmd)
@@ -320,9 +326,6 @@ func (m *LsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.header.SetWidth(msg.Width)
 		m.tabBar.SetWidth(msg.Width)
 		m.updateViewSizes()
-		if m.maintenanceModal != nil {
-			m.maintenanceModal.SetSize(msg.Width, msg.Height)
-		}
 
 	case components.TabSwitchMsg:
 		// Legacy tab switch support - map to pane
@@ -390,10 +393,31 @@ func (m *LsModel) updateViewSizes() {
 		pane.SetSize(m.width, height)
 	}
 
-	// Set view sizes (use active pane height for all, they'll be clipped by pane)
-	m.nodesView.SetSize(m.width-4, activeHeight-3)
-	m.deploymentsPodsView.SetSize(m.width-4, activeHeight-3)
-	m.osdsView.SetSize(m.width-4, activeHeight-3)
+	nodesHeight := inactiveHeight
+	if m.activePane == LsPaneNodes {
+		nodesHeight = activeHeight
+	}
+	deploymentsHeight := inactiveHeight
+	if m.activePane == LsPaneDeployments {
+		deploymentsHeight = activeHeight
+	}
+	osdsHeight := inactiveHeight
+	if m.activePane == LsPaneOSDs {
+		osdsHeight = activeHeight
+	}
+
+	nodesWidth, maintenanceWidth := m.topRowWidths()
+	m.panes[LsPaneNodes].SetSize(nodesWidth, nodesHeight)
+	m.maintenancePane.SetSize(maintenanceWidth, nodesHeight)
+	m.maintenancePane.SetActive(m.maintenanceFlow != nil)
+
+	m.nodesView.SetSize(nodesWidth-4, nodesHeight-3)
+	m.deploymentsPodsView.SetSize(m.width-4, deploymentsHeight-3)
+	m.osdsView.SetSize(m.width-4, osdsHeight-3)
+
+	if m.maintenanceFlow != nil {
+		m.maintenanceFlow.SetSize(maintenanceWidth-4, nodesHeight-3)
+	}
 }
 
 // paneHeights calculates the active/inactive pane heights based on layout chrome.
@@ -649,7 +673,7 @@ func (m *LsModel) handleActionKey(key string) (tea.Cmd, bool) {
 		if node == nil {
 			return nil, true
 		}
-		return m.openMaintenanceModal(node.Name, false), true
+		return m.openMaintenanceFlow(node.Name, false), true
 	case "u":
 		if m.activePane != LsPaneNodes {
 			return nil, true
@@ -658,7 +682,7 @@ func (m *LsModel) handleActionKey(key string) (tea.Cmd, bool) {
 		if node == nil {
 			return nil, true
 		}
-		return m.openMaintenanceModal(node.Name, true), true
+		return m.openMaintenanceFlow(node.Name, true), true
 	default:
 		return nil, false
 	}
@@ -840,10 +864,6 @@ func (m *LsModel) View() string {
 		return m.renderHelp()
 	}
 
-	if m.maintenanceModal != nil {
-		return m.maintenanceModal.View()
-	}
-
 	// Header with cluster summary
 	b.WriteString(m.renderHeader())
 	b.WriteString("\n\n")
@@ -880,36 +900,45 @@ func (m *LsModel) renderAllPanes() string {
 
 	activeHeight, inactiveHeight := m.paneHeights()
 
-	// Render each pane
-	for i, pane := range m.panes {
-		height := inactiveHeight
-		if LsPane(i) == m.activePane {
-			height = activeHeight
-		}
-
-		// Get content for this pane
-		content := m.getPaneContent(LsPane(i))
-
-		// Update pane size and render
-		pane.SetSize(m.width, height)
-		b.WriteString(pane.View(content))
-
-		if i < len(m.panes)-1 {
-			b.WriteString("\n")
-		}
+	nodesHeight := inactiveHeight
+	if m.activePane == LsPaneNodes {
+		nodesHeight = activeHeight
 	}
+	nodesWidth, maintenanceWidth := m.topRowWidths()
+	m.panes[LsPaneNodes].SetSize(nodesWidth, nodesHeight)
+	m.maintenancePane.SetSize(maintenanceWidth, nodesHeight)
+
+	nodes := m.panes[LsPaneNodes].View(m.nodesView.View())
+	maintenance := m.maintenancePane.View(m.maintenanceContent())
+	b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, nodes, " ", maintenance))
+	b.WriteString("\n")
+
+	deploymentsHeight := inactiveHeight
+	if m.activePane == LsPaneDeployments {
+		deploymentsHeight = activeHeight
+	}
+	m.panes[LsPaneDeployments].SetSize(m.width, deploymentsHeight)
+	b.WriteString(m.panes[LsPaneDeployments].View(m.deploymentsPodsView.View()))
+	b.WriteString("\n")
+
+	osdsHeight := inactiveHeight
+	if m.activePane == LsPaneOSDs {
+		osdsHeight = activeHeight
+	}
+	m.panes[LsPaneOSDs].SetSize(m.width, osdsHeight)
+	b.WriteString(m.panes[LsPaneOSDs].View(m.osdsView.View()))
 
 	return b.String()
 }
 
-func (m *LsModel) openMaintenanceModal(nodeName string, isUp bool) tea.Cmd {
-	if m.maintenanceModal != nil {
+func (m *LsModel) openMaintenanceFlow(nodeName string, isUp bool) tea.Cmd {
+	if m.maintenanceFlow != nil {
 		return nil
 	}
 
 	m.pendingReselectNode = nodeName
 
-	var flow components.ModalContent
+	var flow sizedModel
 	if isUp {
 		flow = NewUpModel(UpModelConfig{
 			NodeName:     nodeName,
@@ -917,6 +946,7 @@ func (m *LsModel) openMaintenanceModal(nodeName string, isUp bool) tea.Cmd {
 			Client:       m.config.Client,
 			Context:      m.config.Context,
 			ExitBehavior: FlowExitMessage,
+			Embedded:     true,
 		})
 	} else {
 		flow = NewDownModel(DownModelConfig{
@@ -925,20 +955,19 @@ func (m *LsModel) openMaintenanceModal(nodeName string, isUp bool) tea.Cmd {
 			Client:       m.config.Client,
 			Context:      m.config.Context,
 			ExitBehavior: FlowExitMessage,
+			Embedded:     true,
 		})
 	}
 
-	m.maintenanceModal = components.NewModalWithModel(components.ModalConfig{
-		DisableEscClose: true,
-		DisableFrame:    true,
-	}, flow)
-	m.maintenanceModal.SetSize(m.width, m.height)
+	m.maintenanceFlow = flow
+	m.updateViewSizes()
 
 	return flow.Init()
 }
 
-func (m *LsModel) closeMaintenanceModal() tea.Cmd {
-	m.maintenanceModal = nil
+func (m *LsModel) closeMaintenanceFlow() tea.Cmd {
+	m.maintenanceFlow = nil
+	m.updateViewSizes()
 	return func() tea.Msg {
 		return LsRefreshMsg{Tab: LsTabNodes}
 	}
@@ -964,6 +993,61 @@ func (m *LsModel) getPaneContent(pane LsPane) string {
 		return m.osdsView.View()
 	}
 	return ""
+}
+
+func (m *LsModel) maintenanceContent() string {
+	if m.maintenanceFlow != nil {
+		return m.maintenanceFlow.View()
+	}
+
+	var b strings.Builder
+	b.WriteString(styles.StyleSubtle.Render("Select a node and start maintenance:"))
+	b.WriteString("\n\n")
+	b.WriteString(styles.StyleStatus.Render("d"))
+	b.WriteString(styles.StyleSubtle.Render(" → down"))
+	b.WriteString("\n")
+	b.WriteString(styles.StyleStatus.Render("u"))
+	b.WriteString(styles.StyleSubtle.Render(" → up"))
+
+	if node := m.nodesView.GetSelectedNode(); node != nil {
+		b.WriteString("\n\n")
+		b.WriteString(styles.StyleStatus.Render("Selected: "))
+		b.WriteString(node.Name)
+	}
+
+	return b.String()
+}
+
+func (m *LsModel) topRowWidths() (int, int) {
+	// Leave a single character gap between the two panes.
+	const gap = 1
+	const minNodes = 40
+	const minMaintenance = 35
+
+	total := m.width
+	if total <= gap {
+		return total, 0
+	}
+
+	maintenance := max(minMaintenance, total/3)
+	nodes := total - gap - maintenance
+
+	if nodes < minNodes {
+		nodes = minNodes
+		maintenance = total - gap - nodes
+	}
+	if maintenance < minMaintenance {
+		maintenance = minMaintenance
+		nodes = total - gap - maintenance
+	}
+
+	if nodes < 1 {
+		nodes = 1
+	}
+	if maintenance < 1 {
+		maintenance = 1
+	}
+	return nodes, maintenance
 }
 
 // renderFilterBar renders the filter input bar
@@ -1037,9 +1121,6 @@ func (m *LsModel) SetSize(width, height int) {
 	m.height = height
 	m.tabBar.SetWidth(width)
 	m.updateViewSizes()
-	if m.maintenanceModal != nil {
-		m.maintenanceModal.SetSize(width, height)
-	}
 }
 
 // GetActiveTab returns the currently active tab (legacy)
