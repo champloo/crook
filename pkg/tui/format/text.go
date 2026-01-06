@@ -4,23 +4,25 @@ package format
 import (
 	"strings"
 
-	"github.com/mattn/go-runewidth"
+	"github.com/charmbracelet/x/ansi"
 )
 
-// DisplayWidth returns the visible width of an unstyled string (no ANSI escape codes).
+// DisplayWidth returns the visible width of a string in terminal cells.
+// ANSI escape codes are ignored and wide characters (e.g. CJK, emojis) are accounted for.
 func DisplayWidth(s string) int {
-	return runewidth.StringWidth(s)
+	return ansi.StringWidth(s)
 }
 
-// Truncate trims an unstyled string (no ANSI escape codes) to a maximum display width.
+// Truncate trims a string to a maximum display width in terminal cells.
+// ANSI escape codes are preserved and not broken.
 func Truncate(s string, width int) string {
 	if width <= 0 {
 		return ""
 	}
-	if runewidth.StringWidth(s) <= width {
+	if DisplayWidth(s) <= width {
 		return s
 	}
-	return runewidth.Truncate(s, width, "")
+	return ansi.Truncate(s, width, "")
 }
 
 // PadRight pads a string on the right to the target display width.
@@ -28,7 +30,7 @@ func PadRight(s string, width int) string {
 	if width <= 0 {
 		return ""
 	}
-	displayWidth := runewidth.StringWidth(s)
+	displayWidth := DisplayWidth(s)
 	if displayWidth >= width {
 		return Truncate(s, width)
 	}

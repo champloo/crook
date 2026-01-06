@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/andri/crook/pkg/tui/format"
 	"github.com/andri/crook/pkg/tui/styles"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/mattn/go-runewidth"
 )
 
 // PaneConfig holds configuration for a Pane component.
@@ -204,19 +204,16 @@ func (p *Pane) clipContent(content string, width, height int) string {
 	// Process each line: clip or pad to width
 	result := make([]string, 0, height)
 	for _, line := range lines {
-		// Calculate visible width (accounting for ANSI escape codes)
-		visibleWidth := lipgloss.Width(line)
-
+		visibleWidth := format.DisplayWidth(line)
 		if visibleWidth > width {
-			// Need to truncate - this is tricky with ANSI codes
-			// Use a simple approach: try to cut at width and add ellipsis if it fits
 			if width <= 3 {
-				line = truncateWithWidth(line, width)
+				line = format.Truncate(line, width)
 			} else {
-				line = truncateWithWidth(line, width-3) + "..."
+				line = format.Truncate(line, width-3) + "..."
 			}
-		} else if visibleWidth < width {
-			// Pad with spaces to fill width
+			visibleWidth = format.DisplayWidth(line)
+		}
+		if visibleWidth < width {
 			line = line + strings.Repeat(" ", width-visibleWidth)
 		}
 		result = append(result, line)
@@ -228,45 +225,4 @@ func (p *Pane) clipContent(content string, width, height int) string {
 	}
 
 	return strings.Join(result, "\n")
-}
-
-// truncateWithWidth truncates a string to approximately the given display width.
-// This is a best-effort approach that handles most common cases.
-func truncateWithWidth(s string, width int) string {
-	if width <= 0 {
-		return ""
-	}
-
-	// Simple approach: iterate through runes and count visible width
-	// This doesn't perfectly handle ANSI codes but works for most cases
-	result := []rune{}
-	currentWidth := 0
-
-	inEscape := false
-	for _, r := range s {
-		if r == '\x1b' {
-			inEscape = true
-			result = append(result, r)
-			continue
-		}
-
-		if inEscape {
-			result = append(result, r)
-			if r == 'm' {
-				inEscape = false
-			}
-			continue
-		}
-
-		// Count this rune's width (best-effort; matches lipgloss width for most cases)
-		runeWidth := runewidth.RuneWidth(r)
-		if currentWidth+runeWidth > width {
-			break
-		}
-
-		result = append(result, r)
-		currentWidth += runeWidth
-	}
-
-	return string(result)
 }
