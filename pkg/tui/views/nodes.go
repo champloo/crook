@@ -33,6 +33,18 @@ type NodesView struct {
 	height int
 }
 
+type nodesColumnLayout struct {
+	name     int
+	status   int
+	roles    int
+	schedule int
+	cephPods int
+	age      int
+
+	showRoles bool
+	showAge   bool
+}
+
 // NewNodesView creates a new nodes view
 func NewNodesView() *NodesView {
 	return &NodesView{
@@ -131,19 +143,77 @@ func (v *NodesView) View() string {
 	return b.String()
 }
 
+func (v *NodesView) columnLayout() nodesColumnLayout {
+	switch {
+	case v.width >= 100:
+		return nodesColumnLayout{
+			name:      30,
+			status:    10,
+			roles:     20,
+			schedule:  12,
+			cephPods:  10,
+			age:       10,
+			showRoles: true,
+			showAge:   true,
+		}
+	case v.width >= 82:
+		return nodesColumnLayout{
+			name:      24,
+			status:    9,
+			roles:     14,
+			schedule:  11,
+			cephPods:  8,
+			age:       8,
+			showRoles: true,
+			showAge:   true,
+		}
+	case v.width >= 66:
+		return nodesColumnLayout{
+			name:      24,
+			status:    9,
+			schedule:  11,
+			cephPods:  8,
+			age:       8,
+			showRoles: false,
+			showAge:   true,
+		}
+	default:
+		return nodesColumnLayout{
+			name:      max(12, v.width-(8+10+6+6)-4),
+			status:    8,
+			schedule:  10,
+			cephPods:  6,
+			age:       6,
+			showRoles: false,
+			showAge:   true,
+		}
+	}
+}
+
 // renderHeader renders the table header
 func (v *NodesView) renderHeader() string {
 	headerStyle := lipgloss.NewStyle().
 		Bold(true).
 		Foreground(styles.ColorPrimary)
 
+	layout := v.columnLayout()
 	cols := []string{
-		format.PadRight("NAME", 30),
-		format.PadRight("STATUS", 10),
-		format.PadRight("ROLES", 20),
-		format.PadRight("SCHEDULE", 12),
-		format.PadRight("CEPH PODS", 10),
-		format.PadRight("AGE", 10),
+		format.PadRight("NAME", layout.name),
+		format.PadRight("STATUS", layout.status),
+	}
+	if layout.showRoles {
+		cols = append(cols, format.PadRight("ROLES", layout.roles))
+	}
+	cols = append(cols, format.PadRight("SCHEDULE", layout.schedule))
+
+	cephTitle := "CEPH"
+	if layout.cephPods >= 9 {
+		cephTitle = "CEPH PODS"
+	}
+	cols = append(cols, format.PadRight(cephTitle, layout.cephPods))
+
+	if layout.showAge {
+		cols = append(cols, format.PadRight("AGE", layout.age))
 	}
 
 	return headerStyle.Render(strings.Join(cols, " "))
@@ -151,6 +221,8 @@ func (v *NodesView) renderHeader() string {
 
 // renderRow renders a single node row
 func (v *NodesView) renderRow(node NodeInfo, selected bool) string {
+	layout := v.columnLayout()
+
 	// Determine styles based on node state
 	var nameStyle, statusStyle, scheduleStyle lipgloss.Style
 
@@ -191,25 +263,33 @@ func (v *NodesView) renderRow(node NodeInfo, selected bool) string {
 		rolesText = "<none>"
 	}
 
-	// Truncate roles if too long
-	if len(rolesText) > 18 {
-		rolesText = rolesText[:15] + "..."
+	if layout.showRoles {
+		maxLen := max(0, layout.roles-3)
+		if len(rolesText) > maxLen && maxLen > 0 {
+			rolesText = rolesText[:max(0, maxLen-3)] + "..."
+		}
 	}
 
 	cols := []string{
-		nameStyle.Render(format.PadRight(node.Name, 30)),
-		statusStyle.Render(format.PadRight(node.Status, 10)),
-		styles.StyleNormal.Render(format.PadRight(rolesText, 20)),
-		scheduleStyle.Render(format.PadRight(scheduleText, 12)),
-		v.renderCephPodCount(node.CephPodCount, selected),
-		styles.StyleSubtle.Render(format.PadRight(formatAge(node.Age), 10)),
+		nameStyle.Render(format.PadRight(node.Name, layout.name)),
+		statusStyle.Render(format.PadRight(node.Status, layout.status)),
+	}
+	if layout.showRoles {
+		cols = append(cols, styles.StyleNormal.Render(format.PadRight(rolesText, layout.roles)))
+	}
+	cols = append(cols,
+		scheduleStyle.Render(format.PadRight(scheduleText, layout.schedule)),
+		v.renderCephPodCount(node.CephPodCount, selected, layout.cephPods),
+	)
+	if layout.showAge {
+		cols = append(cols, styles.StyleSubtle.Render(format.PadRight(formatAge(node.Age), layout.age)))
 	}
 
 	return strings.Join(cols, " ")
 }
 
 // renderCephPodCount renders the Ceph pod count with appropriate styling
-func (v *NodesView) renderCephPodCount(count int, selected bool) string {
+func (v *NodesView) renderCephPodCount(count int, selected bool, width int) string {
 	countStr := fmt.Sprintf("%d", count)
 
 	var style lipgloss.Style
@@ -224,12 +304,23 @@ func (v *NodesView) renderCephPodCount(count int, selected bool) string {
 		style = styles.StyleSubtle
 	}
 
-	return style.Render(format.PadRight(countStr, 10))
+	return style.Render(format.PadRight(countStr, width))
 }
 
 // getTableWidth returns the total table width
 func (v *NodesView) getTableWidth() int {
-	return 30 + 10 + 20 + 12 + 10 + 10 + 5 // column widths + spacing
+	layout := v.columnLayout()
+	width := layout.name + layout.status + layout.schedule + layout.cephPods
+	cols := 4
+	if layout.showRoles {
+		width += layout.roles
+		cols++
+	}
+	if layout.showAge {
+		width += layout.age
+		cols++
+	}
+	return width + max(0, cols-1)
 }
 
 // SetNodes updates the nodes list

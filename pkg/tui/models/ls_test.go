@@ -498,7 +498,7 @@ func TestLsModel_handleKeyPress_ToggleOnlyWorksOnDeploymentsPane(t *testing.T) {
 	}
 }
 
-func TestLsModel_handleKeyPress_MaintenanceModalOpens(t *testing.T) {
+func TestLsModel_handleKeyPress_MaintenanceFlowOpens(t *testing.T) {
 	model := NewLsModel(LsModelConfig{
 		Context: context.Background(),
 	})
@@ -510,15 +510,15 @@ func TestLsModel_handleKeyPress_MaintenanceModalOpens(t *testing.T) {
 	model.nodesView.SetCursor(1)
 
 	cmd := model.handleKeyPress(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("d")})
-	if model.maintenanceModal == nil {
-		t.Fatal("expected maintenance modal to open on 'd'")
+	if model.maintenanceFlow == nil {
+		t.Fatal("expected maintenance flow to open on 'd'")
 	}
 	if cmd == nil {
-		t.Error("expected init command when opening modal")
+		t.Error("expected init command when opening flow")
 	}
 }
 
-func TestLsModel_handleKeyPress_MaintenanceModalIgnoredOutsideNodesPane(t *testing.T) {
+func TestLsModel_handleKeyPress_MaintenanceFlowIgnoredOutsideNodesPane(t *testing.T) {
 	model := NewLsModel(LsModelConfig{
 		Context: context.Background(),
 	})
@@ -532,27 +532,36 @@ func TestLsModel_handleKeyPress_MaintenanceModalIgnoredOutsideNodesPane(t *testi
 	if cmd != nil {
 		t.Error("did not expect command when not in Nodes pane")
 	}
-	if model.maintenanceModal != nil {
-		t.Error("did not expect modal to open outside Nodes pane")
+	if model.maintenanceFlow != nil {
+		t.Error("did not expect flow to open outside Nodes pane")
 	}
 }
 
-func TestLsModel_Update_MaintenanceExitClosesModal(t *testing.T) {
+type testSizedModel struct{}
+
+func (m *testSizedModel) Init() tea.Cmd { return nil }
+func (m *testSizedModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	return m, nil
+}
+func (m *testSizedModel) View() string              { return "" }
+func (m *testSizedModel) SetSize(width, height int) {}
+
+func TestLsModel_Update_MaintenanceExitClosesFlow(t *testing.T) {
 	model := NewLsModel(LsModelConfig{
 		Context: context.Background(),
 	})
-	model.maintenanceModal = components.NewModal(components.ModalConfig{})
+	model.maintenanceFlow = &testSizedModel{}
 
 	updatedModel, cmd := model.Update(DownFlowExitMsg{Reason: FlowExitDeclined})
 	m, ok := updatedModel.(*LsModel)
 	if !ok {
 		t.Fatal("expected *LsModel type")
 	}
-	if m.maintenanceModal != nil {
-		t.Error("expected maintenance modal to close")
+	if m.maintenanceFlow != nil {
+		t.Error("expected maintenance flow to close")
 	}
 	if cmd == nil {
-		t.Fatal("expected refresh command after closing modal")
+		t.Fatal("expected refresh command after closing flow")
 	}
 	got := cmd()
 	refreshMsg, okRefresh := got.(LsRefreshMsg)
