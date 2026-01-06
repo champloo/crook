@@ -220,15 +220,45 @@ The system SHALL provide a `crook ls` command to display Ceph-related Kubernetes
 - **THEN** refresh intervals are configurable via config file
 - **THEN** user can force immediate refresh with 'r' key
 
+#### Scenario: Multi-pane dashboard layout
+
+- **WHEN** user runs `crook ls`
+- **THEN** system displays all three resource panes simultaneously in stacked rows:
+  - Top: Nodes pane
+  - Middle: Deployments pane (toggleable to Pods view)
+  - Bottom: OSDs pane
+- **THEN** system shows pane navigation bar with badges: `[1:Nodes (3)]  [2:Deps (12)]  [3:OSDs (6)]`
+- **THEN** active pane receives 50% of available height with highlighted border
+- **THEN** inactive panes receive 25% each with muted border
+- **THEN** all panes display their full table columns (same as single-view mode)
+- **THEN** cluster health header remains visible at top of screen
+- **THEN** status bar shows context-sensitive keyboard hints at bottom
+
+#### Scenario: Deployments/Pods toggle in middle pane
+
+- **WHEN** middle pane (Deployments) is active
+- **THEN** user can press `[` to show Deployments view
+- **THEN** user can press `]` to show Pods view
+- **THEN** pane title updates to reflect current view ("Deployments" or "Pods")
+- **THEN** toggle hint `[/]: deps/pods` appears in status bar
+- **THEN** cursor position resets when toggling between views
+
 #### Scenario: Keyboard navigation in ls mode
 
 - **WHEN** user presses keys in ls TUI
 - **THEN** system responds to:
-  - `Tab` or `1-4` → Switch between resource views (Nodes, Deployments, OSDs, Pods)
-  - `↑` / `↓` or `j` / `k` → Navigate within current list
+  - `Tab` → Cycle to next pane (Nodes → Deployments → OSDs → Nodes)
+  - `Shift+Tab` → Cycle to previous pane
+  - `1` → Activate Nodes pane
+  - `2` → Activate Deployments/Pods pane
+  - `3` → Activate OSDs pane
+  - `[` → Show Deployments in middle pane (when active)
+  - `]` → Show Pods in middle pane (when active)
+  - `↑` / `↓` or `j` / `k` → Navigate within active pane only
+  - `g` / `G` → Go to top/bottom of active pane
   - `Enter` → Show detailed view of selected resource
   - `r` → Refresh data immediately
-  - `/` → Filter/search within current view
+  - `/` → Filter/search (applies to all panes)
   - `q` or `Esc` → Exit ls mode
   - `?` → Show help overlay
 

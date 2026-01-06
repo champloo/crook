@@ -33,7 +33,9 @@ Core functionality matches existing bash script:
 - Up phase: uncordon → restore deployments → scale operator → unset noout  
 New functionality beyond bash script:
 - `crook ls` command for viewing Ceph cluster resources (nodes, deployments, OSDs, pods)
-- Tabbed navigation between resource types with filtering and search
+- **Multi-pane dashboard layout** showing Nodes, Deployments, and OSDs simultaneously in stacked rows
+- Pane navigation with Tab/1-3 keys, active pane gets 50% height with highlighted border
+- Deployments/Pods toggle in middle pane using `[` and `]` keys
 - Real-time cluster health summary header
 - Multiple output formats (TUI, table, JSON, YAML) for scripting integration
 
