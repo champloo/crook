@@ -233,6 +233,33 @@ func TestPane_View_MinimalSize(t *testing.T) {
 	}
 }
 
+func TestPane_View_ZeroSize(t *testing.T) {
+	pane := components.NewPane(components.PaneConfig{Title: "Zero", ShortcutKey: "1"})
+	pane.SetBadge("5")
+	pane.SetSize(0, 0) // Zero size - should not panic
+
+	// Should not panic
+	view := pane.View("Content")
+
+	// Should produce some output (with minimum safeguards applied)
+	if view == "" {
+		t.Error("view should not be empty even with zero size")
+	}
+}
+
+func TestPane_View_NegativeSize(t *testing.T) {
+	pane := components.NewPane(components.PaneConfig{Title: "Negative", ShortcutKey: "2"})
+	pane.SetSize(-10, -5) // Negative size - should not panic
+
+	// Should not panic
+	view := pane.View("Content")
+
+	// Should produce some output (with minimum safeguards applied)
+	if view == "" {
+		t.Error("view should not be empty even with negative size")
+	}
+}
+
 func TestPane_FilteredTotalBadge(t *testing.T) {
 	pane := components.NewPane(components.PaneConfig{
 		Title:       "Deployments",

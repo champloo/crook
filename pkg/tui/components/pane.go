@@ -123,12 +123,18 @@ func (p *Pane) View(content string) string {
 	// Build the box manually with title in top border
 	borderStyle := lipgloss.NewStyle().Foreground(borderColor)
 
+	// Ensure minimum width for border rendering
+	borderWidth := p.width
+	if borderWidth < 4 {
+		borderWidth = 4
+	}
+
 	// Top border with title: ╭─[1] Nodes (3)─────────╮
 	topLeft := borderStyle.Render("╭─")
 	renderedTitle := titleStyle.Render(titleText)
 	titleWidth := lipgloss.Width(titleText)
 	// Calculate remaining dashes needed (subtract title width, corners, and some padding)
-	remainingWidth := p.width - 4 - titleWidth // 4 for ╭─ and ─╮
+	remainingWidth := borderWidth - 4 - titleWidth // 4 for ╭─ and ─╮
 	if remainingWidth < 1 {
 		remainingWidth = 1
 	}
@@ -140,7 +146,11 @@ func (p *Pane) View(content string) string {
 	rightBorder := borderStyle.Render(" │")
 
 	// Bottom border: ╰────────────────────────╯
-	bottomBorder := borderStyle.Render("╰" + strings.Repeat("─", p.width-2) + "╯")
+	bottomWidth := borderWidth - 2
+	if bottomWidth < 1 {
+		bottomWidth = 1
+	}
+	bottomBorder := borderStyle.Render("╰" + strings.Repeat("─", bottomWidth) + "╯")
 
 	// Build the complete box
 	var b strings.Builder
