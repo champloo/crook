@@ -7,6 +7,7 @@ import (
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -411,4 +412,92 @@ func extractOsdID(dep *appsv1.Deployment) string {
 		}
 	}
 	return ""
+}
+
+// GetDeploymentTargetNode extracts the target node from a deployment's spec.
+// Returns empty string if deployment is not node-pinned.
+func GetDeploymentTargetNode(dep *appsv1.Deployment) string {
+	// Primary: Check nodeSelector (used by OSDs, MONs, crashcollector, exporter)
+	if ns := dep.Spec.Template.Spec.NodeSelector; ns != nil {
+		if hostname, ok := ns["kubernetes.io/hostname"]; ok {
+			return hostname
+		}
+	}
+
+	// Fallback: Check nodeAffinity requiredDuringScheduling
+	if affinity := dep.Spec.Template.Spec.Affinity; affinity != nil {
+		if na := affinity.NodeAffinity; na != nil {
+			if req := na.RequiredDuringSchedulingIgnoredDuringExecution; req != nil {
+				for _, term := range req.NodeSelectorTerms {
+					for _, expr := range term.MatchExpressions {
+						if expr.Key == "kubernetes.io/hostname" &&
+							expr.Operator == corev1.NodeSelectorOpIn && len(expr.Values) > 0 {
+							return expr.Values[0]
+						}
+					}
+				}
+			}
+		}
+	}
+	return "" // Not node-pinned
+}
+
+// ListNodePinnedDeployments returns deployments pinned to a specific node.
+// Works regardless of replica count - examines deployment spec, not running pods.
+func (c *Client) ListNodePinnedDeployments(
+	ctx context.Context,
+	namespace string,
+	nodeName string,
+) ([]appsv1.Deployment, error) {
+	deployments, err := c.ListDeploymentsInNamespace(ctx, namespace)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list deployments: %w", err)
+	}
+
+	var pinned []appsv1.Deployment
+	for _, dep := range deployments {
+		if GetDeploymentTargetNode(&dep) == nodeName {
+			pinned = append(pinned, dep)
+		}
+	}
+	return pinned, nil
+}
+
+// ListNodePinnedDeployments is a package-level function that uses the global client
+func ListNodePinnedDeployments(ctx context.Context, namespace, nodeName string) ([]appsv1.Deployment, error) {
+	client, err := GetClient(ctx, ClientConfig{})
+	if err != nil {
+		return nil, err
+	}
+	return client.ListNodePinnedDeployments(ctx, namespace, nodeName)
+}
+
+// ListScaledDownDeploymentsForNode returns node-pinned deployments with 0 replicas.
+// Used during UP phase to discover deployments that need restoration.
+func (c *Client) ListScaledDownDeploymentsForNode(
+	ctx context.Context,
+	namespace string,
+	nodeName string,
+) ([]appsv1.Deployment, error) {
+	pinned, err := c.ListNodePinnedDeployments(ctx, namespace, nodeName)
+	if err != nil {
+		return nil, err
+	}
+
+	var scaledDown []appsv1.Deployment
+	for _, dep := range pinned {
+		if dep.Spec.Replicas != nil && *dep.Spec.Replicas == 0 {
+			scaledDown = append(scaledDown, dep)
+		}
+	}
+	return scaledDown, nil
+}
+
+// ListScaledDownDeploymentsForNode is a package-level function that uses the global client
+func ListScaledDownDeploymentsForNode(ctx context.Context, namespace, nodeName string) ([]appsv1.Deployment, error) {
+	client, err := GetClient(ctx, ClientConfig{})
+	if err != nil {
+		return nil, err
+	}
+	return client.ListScaledDownDeploymentsForNode(ctx, namespace, nodeName)
 }

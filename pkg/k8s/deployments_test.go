@@ -6,6 +6,7 @@ import (
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
@@ -281,5 +282,499 @@ func TestDefaultWaitOptions(t *testing.T) {
 	}
 	if opts.Timeout != 5*time.Minute {
 		t.Errorf("expected timeout 5m, got %v", opts.Timeout)
+	}
+}
+
+func TestGetDeploymentTargetNode(t *testing.T) {
+	tests := []struct {
+		name     string
+		dep      *appsv1.Deployment
+		expected string
+	}{
+		{
+			name: "nodeSelector with hostname",
+			dep: &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{Name: "rook-ceph-osd-0"},
+				Spec: appsv1.DeploymentSpec{
+					Template: corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							NodeSelector: map[string]string{
+								"kubernetes.io/hostname": "worker-01",
+							},
+						},
+					},
+				},
+			},
+			expected: "worker-01",
+		},
+		{
+			name: "nodeAffinity required matching hostname",
+			dep: &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{Name: "test-deployment"},
+				Spec: appsv1.DeploymentSpec{
+					Template: corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							Affinity: &corev1.Affinity{
+								NodeAffinity: &corev1.NodeAffinity{
+									RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+										NodeSelectorTerms: []corev1.NodeSelectorTerm{
+											{
+												MatchExpressions: []corev1.NodeSelectorRequirement{
+													{
+														Key:      "kubernetes.io/hostname",
+														Operator: corev1.NodeSelectorOpIn,
+														Values:   []string{"worker-02"},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: "worker-02",
+		},
+		{
+			name: "no nodeSelector or nodeAffinity",
+			dep: &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{Name: "portable-deployment"},
+				Spec: appsv1.DeploymentSpec{
+					Template: corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{},
+					},
+				},
+			},
+			expected: "",
+		},
+		{
+			name: "nodeSelector for different key",
+			dep: &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{Name: "zone-pinned"},
+				Spec: appsv1.DeploymentSpec{
+					Template: corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							NodeSelector: map[string]string{
+								"topology.kubernetes.io/zone": "us-east-1a",
+							},
+						},
+					},
+				},
+			},
+			expected: "",
+		},
+		{
+			name: "preferredDuringScheduling only returns empty",
+			dep: &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{Name: "preferred-deployment"},
+				Spec: appsv1.DeploymentSpec{
+					Template: corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							Affinity: &corev1.Affinity{
+								NodeAffinity: &corev1.NodeAffinity{
+									PreferredDuringSchedulingIgnoredDuringExecution: []corev1.PreferredSchedulingTerm{
+										{
+											Weight: 100,
+											Preference: corev1.NodeSelectorTerm{
+												MatchExpressions: []corev1.NodeSelectorRequirement{
+													{
+														Key:      "kubernetes.io/hostname",
+														Operator: corev1.NodeSelectorOpIn,
+														Values:   []string{"preferred-node"},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: "",
+		},
+		{
+			name: "multiple nodeAffinity values returns first",
+			dep: &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{Name: "multi-value"},
+				Spec: appsv1.DeploymentSpec{
+					Template: corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							Affinity: &corev1.Affinity{
+								NodeAffinity: &corev1.NodeAffinity{
+									RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+										NodeSelectorTerms: []corev1.NodeSelectorTerm{
+											{
+												MatchExpressions: []corev1.NodeSelectorRequirement{
+													{
+														Key:      "kubernetes.io/hostname",
+														Operator: corev1.NodeSelectorOpIn,
+														Values:   []string{"first-node", "second-node"},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: "first-node",
+		},
+		{
+			name: "nodeSelector takes precedence over nodeAffinity",
+			dep: &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{Name: "both-set"},
+				Spec: appsv1.DeploymentSpec{
+					Template: corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							NodeSelector: map[string]string{
+								"kubernetes.io/hostname": "selector-node",
+							},
+							Affinity: &corev1.Affinity{
+								NodeAffinity: &corev1.NodeAffinity{
+									RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+										NodeSelectorTerms: []corev1.NodeSelectorTerm{
+											{
+												MatchExpressions: []corev1.NodeSelectorRequirement{
+													{
+														Key:      "kubernetes.io/hostname",
+														Operator: corev1.NodeSelectorOpIn,
+														Values:   []string{"affinity-node"},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: "selector-node",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := GetDeploymentTargetNode(tt.dep)
+			if result != tt.expected {
+				t.Errorf("GetDeploymentTargetNode() = %q, expected %q", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestListNodePinnedDeployments(t *testing.T) {
+	ctx := context.Background()
+
+	replicas := int32(1)
+	zeroReplicas := int32(0)
+
+	// Deployments pinned to worker-01
+	dep1 := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rook-ceph-osd-0",
+			Namespace: "rook-ceph",
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: &replicas,
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					NodeSelector: map[string]string{
+						"kubernetes.io/hostname": "worker-01",
+					},
+				},
+			},
+		},
+	}
+	dep2 := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rook-ceph-crashcollector-worker-01",
+			Namespace: "rook-ceph",
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: &zeroReplicas, // Scaled down but still pinned
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					NodeSelector: map[string]string{
+						"kubernetes.io/hostname": "worker-01",
+					},
+				},
+			},
+		},
+	}
+
+	// Deployment pinned to worker-02
+	dep3 := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rook-ceph-osd-1",
+			Namespace: "rook-ceph",
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: &replicas,
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					NodeSelector: map[string]string{
+						"kubernetes.io/hostname": "worker-02",
+					},
+				},
+			},
+		},
+	}
+
+	// Portable deployment (no nodeSelector)
+	dep4 := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rook-ceph-operator",
+			Namespace: "rook-ceph",
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: &replicas,
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{},
+			},
+		},
+	}
+
+	clientset := fake.NewClientset(dep1, dep2, dep3, dep4)
+	client := newClientFromClientset(clientset)
+
+	tests := []struct {
+		name          string
+		nodeName      string
+		expectedCount int
+		expectedNames []string
+	}{
+		{
+			name:          "finds deployments pinned to worker-01",
+			nodeName:      "worker-01",
+			expectedCount: 2,
+			expectedNames: []string{"rook-ceph-osd-0", "rook-ceph-crashcollector-worker-01"},
+		},
+		{
+			name:          "finds deployments pinned to worker-02",
+			nodeName:      "worker-02",
+			expectedCount: 1,
+			expectedNames: []string{"rook-ceph-osd-1"},
+		},
+		{
+			name:          "returns empty for non-existent node",
+			nodeName:      "worker-99",
+			expectedCount: 0,
+			expectedNames: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := client.ListNodePinnedDeployments(ctx, "rook-ceph", tt.nodeName)
+			if err != nil {
+				t.Fatalf("ListNodePinnedDeployments() error = %v", err)
+			}
+
+			if len(result) != tt.expectedCount {
+				t.Errorf("ListNodePinnedDeployments() count = %d, expected %d", len(result), tt.expectedCount)
+			}
+
+			resultNames := make(map[string]bool)
+			for _, dep := range result {
+				resultNames[dep.Name] = true
+			}
+
+			for _, expectedName := range tt.expectedNames {
+				if !resultNames[expectedName] {
+					t.Errorf("ListNodePinnedDeployments() missing expected deployment %q", expectedName)
+				}
+			}
+		})
+	}
+}
+
+func TestListNodePinnedDeployments_EmptyNamespace(t *testing.T) {
+	ctx := context.Background()
+	clientset := fake.NewClientset()
+	client := newClientFromClientset(clientset)
+
+	result, err := client.ListNodePinnedDeployments(ctx, "empty-namespace", "worker-01")
+	if err != nil {
+		t.Fatalf("ListNodePinnedDeployments() error = %v", err)
+	}
+
+	if len(result) != 0 {
+		t.Errorf("ListNodePinnedDeployments() expected empty slice, got %d deployments", len(result))
+	}
+}
+
+func TestListScaledDownDeploymentsForNode(t *testing.T) {
+	ctx := context.Background()
+
+	replicas := int32(1)
+	zeroReplicas := int32(0)
+
+	// Deployment at 0 replicas on worker-01
+	depScaledDown1 := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rook-ceph-osd-0",
+			Namespace: "rook-ceph",
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: &zeroReplicas,
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					NodeSelector: map[string]string{
+						"kubernetes.io/hostname": "worker-01",
+					},
+				},
+			},
+		},
+	}
+
+	// Deployment at 0 replicas on worker-01
+	depScaledDown2 := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rook-ceph-crashcollector-worker-01",
+			Namespace: "rook-ceph",
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: &zeroReplicas,
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					NodeSelector: map[string]string{
+						"kubernetes.io/hostname": "worker-01",
+					},
+				},
+			},
+		},
+	}
+
+	// Deployment at 1 replica on worker-01 (not scaled down)
+	depRunning := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rook-ceph-exporter-worker-01",
+			Namespace: "rook-ceph",
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: &replicas,
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					NodeSelector: map[string]string{
+						"kubernetes.io/hostname": "worker-01",
+					},
+				},
+			},
+		},
+	}
+
+	// Deployment at 0 replicas on worker-02
+	depOtherNode := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rook-ceph-osd-1",
+			Namespace: "rook-ceph",
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: &zeroReplicas,
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					NodeSelector: map[string]string{
+						"kubernetes.io/hostname": "worker-02",
+					},
+				},
+			},
+		},
+	}
+
+	clientset := fake.NewClientset(depScaledDown1, depScaledDown2, depRunning, depOtherNode)
+	client := newClientFromClientset(clientset)
+
+	tests := []struct {
+		name          string
+		nodeName      string
+		expectedCount int
+		expectedNames []string
+	}{
+		{
+			name:          "finds scaled-down deployments on worker-01",
+			nodeName:      "worker-01",
+			expectedCount: 2,
+			expectedNames: []string{"rook-ceph-osd-0", "rook-ceph-crashcollector-worker-01"},
+		},
+		{
+			name:          "finds scaled-down deployments on worker-02",
+			nodeName:      "worker-02",
+			expectedCount: 1,
+			expectedNames: []string{"rook-ceph-osd-1"},
+		},
+		{
+			name:          "returns empty for node with no scaled-down deployments",
+			nodeName:      "worker-99",
+			expectedCount: 0,
+			expectedNames: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := client.ListScaledDownDeploymentsForNode(ctx, "rook-ceph", tt.nodeName)
+			if err != nil {
+				t.Fatalf("ListScaledDownDeploymentsForNode() error = %v", err)
+			}
+
+			if len(result) != tt.expectedCount {
+				t.Errorf("ListScaledDownDeploymentsForNode() count = %d, expected %d", len(result), tt.expectedCount)
+			}
+
+			resultNames := make(map[string]bool)
+			for _, dep := range result {
+				resultNames[dep.Name] = true
+			}
+
+			for _, expectedName := range tt.expectedNames {
+				if !resultNames[expectedName] {
+					t.Errorf("ListScaledDownDeploymentsForNode() missing expected deployment %q", expectedName)
+				}
+			}
+		})
+	}
+}
+
+func TestListScaledDownDeploymentsForNode_NilReplicas(t *testing.T) {
+	ctx := context.Background()
+
+	// Deployment with nil Replicas pointer (defaults to 1)
+	depNilReplicas := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rook-ceph-osd-nil",
+			Namespace: "rook-ceph",
+		},
+		Spec: appsv1.DeploymentSpec{
+			// Replicas is nil
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					NodeSelector: map[string]string{
+						"kubernetes.io/hostname": "worker-01",
+					},
+				},
+			},
+		},
+	}
+
+	clientset := fake.NewClientset(depNilReplicas)
+	client := newClientFromClientset(clientset)
+
+	result, err := client.ListScaledDownDeploymentsForNode(ctx, "rook-ceph", "worker-01")
+	if err != nil {
+		t.Fatalf("ListScaledDownDeploymentsForNode() error = %v", err)
+	}
+
+	// Nil replicas should NOT be considered scaled down
+	if len(result) != 0 {
+		t.Errorf("ListScaledDownDeploymentsForNode() expected 0 (nil replicas = default 1), got %d", len(result))
 	}
 }

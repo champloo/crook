@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/andri/crook/internal/logger"
 	"github.com/andri/crook/pkg/config"
 	"github.com/andri/crook/pkg/k8s"
 	"github.com/andri/crook/pkg/state"
@@ -206,5 +207,25 @@ func updateProgress(callback func(DownPhaseProgress), stage, description, deploy
 			Description: description,
 			Deployment:  deployment,
 		})
+	}
+}
+
+// ValidateDeploymentReplicas warns if any deployment has unexpected replica count.
+// Rook-Ceph node-pinned deployments should always have 1 replica.
+// This is a warning-only validation; it does not return an error.
+func ValidateDeploymentReplicas(deployments []appsv1.Deployment) {
+	var warnings []string
+	for _, dep := range deployments {
+		if dep.Spec.Replicas != nil && *dep.Spec.Replicas > 1 {
+			warnings = append(warnings, fmt.Sprintf(
+				"%s/%s has %d replicas (expected 1)",
+				dep.Namespace, dep.Name, *dep.Spec.Replicas,
+			))
+		}
+	}
+	if len(warnings) > 0 {
+		logger.Warn("unexpected replica counts detected",
+			"deployments", warnings,
+			"note", "Rook-Ceph node-pinned deployments should have 1 replica")
 	}
 }
