@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sync"
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -16,7 +15,6 @@ import (
 type Client struct {
 	Clientset kubernetes.Interface
 	config    *rest.Config
-	mu        sync.RWMutex
 }
 
 // ClientConfig holds configuration for creating a Kubernetes client
@@ -30,12 +28,6 @@ type ClientConfig struct {
 	// Context name to use from kubeconfig. If empty, uses current context.
 	Context string
 }
-
-var (
-	// globalClient is the cached client instance
-	globalClient *Client
-	clientMu     sync.Mutex
-)
 
 // NewClient creates a new Kubernetes client with the given configuration
 func NewClient(ctx context.Context, cfg ClientConfig) (*Client, error) {
@@ -62,29 +54,12 @@ func NewClient(ctx context.Context, cfg ClientConfig) (*Client, error) {
 	return client, nil
 }
 
-// GetClient returns the global client instance, creating it if necessary
-// This provides a convenient way to access the client without passing it around
-func GetClient(ctx context.Context, cfg ClientConfig) (*Client, error) {
-	clientMu.Lock()
-	defer clientMu.Unlock()
-
-	if globalClient == nil {
-		client, err := NewClient(ctx, cfg)
-		if err != nil {
-			return nil, err
-		}
-		globalClient = client
+// NewClientFromClientset creates a Client from an existing clientset.
+// This is primarily useful for testing with fake clientsets.
+func NewClientFromClientset(clientset kubernetes.Interface) *Client {
+	return &Client{
+		Clientset: clientset,
 	}
-
-	return globalClient, nil
-}
-
-// SetGlobalClient sets the global client instance
-// Useful for testing or custom initialization
-func SetGlobalClient(client *Client) {
-	clientMu.Lock()
-	defer clientMu.Unlock()
-	globalClient = client
 }
 
 // buildConfig builds a Kubernetes REST config from the given configuration
@@ -151,7 +126,5 @@ func (c *Client) validateConnectivity(_ context.Context) error {
 
 // Config returns the REST config used by this client
 func (c *Client) Config() *rest.Config {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
 	return c.config
 }

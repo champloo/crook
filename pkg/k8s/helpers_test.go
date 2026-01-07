@@ -6,16 +6,13 @@ import (
 
 // newClientFromInterface creates a Client from a kubernetes.Interface for testing.
 // This is used in tests to inject fake clientsets.
+// Deprecated: Use NewClientFromClientset instead.
 func newClientFromInterface(clientset kubernetes.Interface) *Client {
-	return &Client{
-		Clientset: clientset,
-	}
+	return NewClientFromClientset(clientset)
 }
 
 // newClientFromClientset creates a Client from a kubernetes.Interface for testing.
-// This is an alias for newClientFromInterface for backward compatibility.
+// Deprecated: Use NewClientFromClientset instead.
 func newClientFromClientset(clientset kubernetes.Interface) *Client {
-	return &Client{
-		Clientset: clientset,
-	}
+	return NewClientFromClientset(clientset)
 }

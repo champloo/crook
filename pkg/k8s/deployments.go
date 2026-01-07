@@ -43,15 +43,6 @@ func (c *Client) ScaleDeployment(ctx context.Context, namespace, name string, re
 	return nil
 }
 
-// ScaleDeployment is a package-level function that uses the global client
-func ScaleDeployment(ctx context.Context, namespace, name string, replicas int32) error {
-	client, err := GetClient(ctx, ClientConfig{})
-	if err != nil {
-		return err
-	}
-	return client.ScaleDeployment(ctx, namespace, name, replicas)
-}
-
 // GetDeploymentStatus returns the status of a deployment
 func (c *Client) GetDeploymentStatus(ctx context.Context, namespace, name string) (*DeploymentStatus, error) {
 	deployment, err := c.Clientset.AppsV1().Deployments(namespace).Get(ctx, name, metav1.GetOptions{})
@@ -74,15 +65,6 @@ func (c *Client) GetDeploymentStatus(ctx context.Context, namespace, name string
 	}, nil
 }
 
-// GetDeploymentStatus is a package-level function that uses the global client
-func GetDeploymentStatus(ctx context.Context, namespace, name string) (*DeploymentStatus, error) {
-	client, err := GetClient(ctx, ClientConfig{})
-	if err != nil {
-		return nil, err
-	}
-	return client.GetDeploymentStatus(ctx, namespace, name)
-}
-
 // ListDeploymentsInNamespace returns all deployments in a namespace
 func (c *Client) ListDeploymentsInNamespace(ctx context.Context, namespace string) ([]appsv1.Deployment, error) {
 	deploymentList, err := c.Clientset.AppsV1().Deployments(namespace).List(ctx, metav1.ListOptions{})
@@ -91,15 +73,6 @@ func (c *Client) ListDeploymentsInNamespace(ctx context.Context, namespace strin
 	}
 
 	return deploymentList.Items, nil
-}
-
-// ListDeploymentsInNamespace is a package-level function that uses the global client
-func ListDeploymentsInNamespace(ctx context.Context, namespace string) ([]appsv1.Deployment, error) {
-	client, err := GetClient(ctx, ClientConfig{})
-	if err != nil {
-		return nil, err
-	}
-	return client.ListDeploymentsInNamespace(ctx, namespace)
 }
 
 // FilterDeploymentsByPrefix returns deployments whose names start with any of the given prefixes
@@ -148,29 +121,11 @@ func (c *Client) WaitForReplicas(ctx context.Context, namespace, name string, ex
 	}, fmt.Sprintf("replicas to be %d", expectedReplicas))
 }
 
-// WaitForReplicas is a package-level function that uses the global client
-func WaitForReplicas(ctx context.Context, namespace, name string, expectedReplicas int32, opts WaitForReplicasOptions) error {
-	client, err := GetClient(ctx, ClientConfig{})
-	if err != nil {
-		return err
-	}
-	return client.WaitForReplicas(ctx, namespace, name, expectedReplicas, opts)
-}
-
 // WaitForReadyReplicas waits until the deployment has the expected number of ready replicas
 func (c *Client) WaitForReadyReplicas(ctx context.Context, namespace, name string, expectedReady int32, opts WaitForReplicasOptions) error {
 	return c.waitForCondition(ctx, namespace, name, opts, func(deployment *appsv1.Deployment) bool {
 		return deployment.Status.ReadyReplicas == expectedReady
 	}, fmt.Sprintf("ready replicas to be %d", expectedReady))
-}
-
-// WaitForReadyReplicas is a package-level function that uses the global client
-func WaitForReadyReplicas(ctx context.Context, namespace, name string, expectedReady int32, opts WaitForReplicasOptions) error {
-	client, err := GetClient(ctx, ClientConfig{})
-	if err != nil {
-		return err
-	}
-	return client.WaitForReadyReplicas(ctx, namespace, name, expectedReady, opts)
 }
 
 // waitForCondition is a helper that waits for a deployment to meet a condition
@@ -218,15 +173,6 @@ func (c *Client) GetDeployment(ctx context.Context, namespace, name string) (*ap
 		return nil, fmt.Errorf("failed to get deployment %s/%s: %w", namespace, name, err)
 	}
 	return deployment, nil
-}
-
-// GetDeployment is a package-level function that uses the global client
-func GetDeployment(ctx context.Context, namespace, name string) (*appsv1.Deployment, error) {
-	client, err := GetClient(ctx, ClientConfig{})
-	if err != nil {
-		return nil, err
-	}
-	return client.GetDeployment(ctx, namespace, name)
 }
 
 // DeploymentInfoForLS holds deployment information for the ls command view
@@ -324,15 +270,6 @@ func (c *Client) ListCephDeployments(ctx context.Context, namespace string, pref
 	}
 
 	return result, nil
-}
-
-// ListCephDeployments is a package-level function that uses the global client
-func ListCephDeployments(ctx context.Context, namespace string, prefixes []string) ([]DeploymentInfoForLS, error) {
-	client, err := GetClient(ctx, ClientConfig{})
-	if err != nil {
-		return nil, err
-	}
-	return client.ListCephDeployments(ctx, namespace, prefixes)
 }
 
 // getDeploymentDesiredReplicas returns the desired replicas for a deployment
@@ -463,15 +400,6 @@ func (c *Client) ListNodePinnedDeployments(
 	return pinned, nil
 }
 
-// ListNodePinnedDeployments is a package-level function that uses the global client
-func ListNodePinnedDeployments(ctx context.Context, namespace, nodeName string) ([]appsv1.Deployment, error) {
-	client, err := GetClient(ctx, ClientConfig{})
-	if err != nil {
-		return nil, err
-	}
-	return client.ListNodePinnedDeployments(ctx, namespace, nodeName)
-}
-
 // ListScaledDownDeploymentsForNode returns node-pinned deployments with 0 replicas.
 // Used during UP phase to discover deployments that need restoration.
 func (c *Client) ListScaledDownDeploymentsForNode(
@@ -491,13 +419,4 @@ func (c *Client) ListScaledDownDeploymentsForNode(
 		}
 	}
 	return scaledDown, nil
-}
-
-// ListScaledDownDeploymentsForNode is a package-level function that uses the global client
-func ListScaledDownDeploymentsForNode(ctx context.Context, namespace, nodeName string) ([]appsv1.Deployment, error) {
-	client, err := GetClient(ctx, ClientConfig{})
-	if err != nil {
-		return nil, err
-	}
-	return client.ListScaledDownDeploymentsForNode(ctx, namespace, nodeName)
 }

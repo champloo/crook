@@ -73,15 +73,6 @@ func (c *Client) ExecuteCephCommand(ctx context.Context, namespace string, comma
 	return output, nil
 }
 
-// ExecuteCephCommand is a package-level function that uses the global client
-func ExecuteCephCommand(ctx context.Context, namespace string, command []string) (string, error) {
-	client, err := GetClient(ctx, ClientConfig{})
-	if err != nil {
-		return "", err
-	}
-	return client.ExecuteCephCommand(ctx, namespace, command)
-}
-
 // findRookCephToolsPod finds a ready rook-ceph-tools pod in the namespace
 func (c *Client) findRookCephToolsPod(ctx context.Context, namespace string) (*corev1.Pod, error) {
 	// List pods with label selector for rook-ceph-tools
@@ -142,15 +133,6 @@ func (c *Client) SetNoOut(ctx context.Context, namespace string) error {
 	return nil
 }
 
-// SetNoOut is a package-level function that uses the global client
-func SetNoOut(ctx context.Context, namespace string) error {
-	client, err := GetClient(ctx, ClientConfig{})
-	if err != nil {
-		return err
-	}
-	return client.SetNoOut(ctx, namespace)
-}
-
 // UnsetNoOut unsets the Ceph noout flag
 func (c *Client) UnsetNoOut(ctx context.Context, namespace string) error {
 	_, err := c.ExecuteCephCommand(ctx, namespace, []string{"ceph", "osd", "unset", "noout"})
@@ -158,15 +140,6 @@ func (c *Client) UnsetNoOut(ctx context.Context, namespace string) error {
 		return fmt.Errorf("failed to unset noout flag: %w", err)
 	}
 	return nil
-}
-
-// UnsetNoOut is a package-level function that uses the global client
-func UnsetNoOut(ctx context.Context, namespace string) error {
-	client, err := GetClient(ctx, ClientConfig{})
-	if err != nil {
-		return err
-	}
-	return client.UnsetNoOut(ctx, namespace)
 }
 
 // GetCephStatus gets the Ceph cluster status
@@ -184,15 +157,6 @@ func (c *Client) GetCephStatus(ctx context.Context, namespace string) (*CephStat
 	return &status, nil
 }
 
-// GetCephStatus is a package-level function that uses the global client
-func GetCephStatus(ctx context.Context, namespace string) (*CephStatus, error) {
-	client, err := GetClient(ctx, ClientConfig{})
-	if err != nil {
-		return nil, err
-	}
-	return client.GetCephStatus(ctx, namespace)
-}
-
 // GetOSDTree gets the Ceph OSD tree
 func (c *Client) GetOSDTree(ctx context.Context, namespace string) (*CephOSDTree, error) {
 	output, err := c.ExecuteCephCommand(ctx, namespace, []string{"ceph", "osd", "tree", "--format", "json"})
@@ -206,15 +170,6 @@ func (c *Client) GetOSDTree(ctx context.Context, namespace string) (*CephOSDTree
 	}
 
 	return &tree, nil
-}
-
-// GetOSDTree is a package-level function that uses the global client
-func GetOSDTree(ctx context.Context, namespace string) (*CephOSDTree, error) {
-	client, err := GetClient(ctx, ClientConfig{})
-	if err != nil {
-		return nil, err
-	}
-	return client.GetOSDTree(ctx, namespace)
 }
 
 // IsHealthy checks if the Ceph cluster is healthy
@@ -259,15 +214,6 @@ func (c *Client) GetCephFlags(ctx context.Context, namespace string) (*CephFlags
 	}
 
 	return parseCephFlags(output)
-}
-
-// GetCephFlags is a package-level function that uses the global client
-func GetCephFlags(ctx context.Context, namespace string) (*CephFlags, error) {
-	client, err := GetClient(ctx, ClientConfig{})
-	if err != nil {
-		return nil, err
-	}
-	return client.GetCephFlags(ctx, namespace)
 }
 
 // parseCephFlags parses the flags from ceph osd dump output
@@ -409,15 +355,6 @@ func (c *Client) GetStorageUsage(ctx context.Context, namespace string) (*Storag
 	return parseStorageUsage(output)
 }
 
-// GetStorageUsage is a package-level function that uses the global client
-func GetStorageUsage(ctx context.Context, namespace string) (*StorageUsage, error) {
-	client, err := GetClient(ctx, ClientConfig{})
-	if err != nil {
-		return nil, err
-	}
-	return client.GetStorageUsage(ctx, namespace)
-}
-
 // parseStorageUsage parses the output of 'ceph df --format json'
 func parseStorageUsage(output string) (*StorageUsage, error) {
 	var df cephDF
@@ -544,15 +481,6 @@ func (c *Client) GetOSDInfoList(ctx context.Context, namespace string) ([]OSDInf
 	return result, nil
 }
 
-// GetOSDInfoList is a package-level function that uses the global client
-func GetOSDInfoList(ctx context.Context, namespace string) ([]OSDInfoForLS, error) {
-	client, err := GetClient(ctx, ClientConfig{})
-	if err != nil {
-		return nil, err
-	}
-	return client.GetOSDInfoList(ctx, namespace)
-}
-
 // buildHostnameMap builds a map of OSD ID to hostname from the CRUSH tree
 func buildHostnameMap(tree *CephOSDTree) map[int]string {
 	hostMap := make(map[int]string)
@@ -625,15 +553,6 @@ func (c *Client) GetMonitorStatus(ctx context.Context, namespace string) (*Monit
 	}
 
 	return parseMonitorStatus(output)
-}
-
-// GetMonitorStatus is a package-level function that uses the global client
-func GetMonitorStatus(ctx context.Context, namespace string) (*MonitorStatus, error) {
-	client, err := GetClient(ctx, ClientConfig{})
-	if err != nil {
-		return nil, err
-	}
-	return client.GetMonitorStatus(ctx, namespace)
 }
 
 // parseMonitorStatus parses the output of 'ceph quorum_status --format json'

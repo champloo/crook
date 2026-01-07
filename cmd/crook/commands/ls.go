@@ -123,8 +123,11 @@ func runLs(opts *LsOptions) error {
 	}
 	cfg := result.Config
 
-	// Initialize Kubernetes client
-	client, err := k8s.GetClient(ctx, k8s.ClientConfig{})
+	// Initialize Kubernetes client with config-derived settings
+	client, err := k8s.NewClient(ctx, k8s.ClientConfig{
+		Kubeconfig: cfg.Kubernetes.Kubeconfig,
+		Context:    cfg.Kubernetes.Context,
+	})
 	if err != nil {
 		return fmt.Errorf("failed to create kubernetes client: %w", err)
 	}

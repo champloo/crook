@@ -48,15 +48,6 @@ func (c *Client) CordonNode(ctx context.Context, nodeName string) error {
 	return nil
 }
 
-// CordonNode is a package-level function that uses the global client
-func CordonNode(ctx context.Context, nodeName string) error {
-	client, err := GetClient(ctx, ClientConfig{})
-	if err != nil {
-		return err
-	}
-	return client.CordonNode(ctx, nodeName)
-}
-
 // UncordonNode marks a node as schedulable
 func (c *Client) UncordonNode(ctx context.Context, nodeName string) error {
 	// Get the node first to verify it exists
@@ -86,15 +77,6 @@ func (c *Client) UncordonNode(ctx context.Context, nodeName string) error {
 	return nil
 }
 
-// UncordonNode is a package-level function that uses the global client
-func UncordonNode(ctx context.Context, nodeName string) error {
-	client, err := GetClient(ctx, ClientConfig{})
-	if err != nil {
-		return err
-	}
-	return client.UncordonNode(ctx, nodeName)
-}
-
 // GetNodeStatus returns the status of a node
 func (c *Client) GetNodeStatus(ctx context.Context, nodeName string) (*NodeStatus, error) {
 	node, err := c.Clientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
@@ -120,15 +102,6 @@ func (c *Client) GetNodeStatus(ctx context.Context, nodeName string) (*NodeStatu
 	return status, nil
 }
 
-// GetNodeStatus is a package-level function that uses the global client
-func GetNodeStatus(ctx context.Context, nodeName string) (*NodeStatus, error) {
-	client, err := GetClient(ctx, ClientConfig{})
-	if err != nil {
-		return nil, err
-	}
-	return client.GetNodeStatus(ctx, nodeName)
-}
-
 // GetNode returns a node by name
 func (c *Client) GetNode(ctx context.Context, nodeName string) (*corev1.Node, error) {
 	node, err := c.Clientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
@@ -138,15 +111,6 @@ func (c *Client) GetNode(ctx context.Context, nodeName string) (*corev1.Node, er
 	return node, nil
 }
 
-// GetNode is a package-level function that uses the global client
-func GetNode(ctx context.Context, nodeName string) (*corev1.Node, error) {
-	client, err := GetClient(ctx, ClientConfig{})
-	if err != nil {
-		return nil, err
-	}
-	return client.GetNode(ctx, nodeName)
-}
-
 // ListNodes returns all nodes in the cluster
 func (c *Client) ListNodes(ctx context.Context) ([]corev1.Node, error) {
 	nodeList, err := c.Clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
@@ -154,15 +118,6 @@ func (c *Client) ListNodes(ctx context.Context) ([]corev1.Node, error) {
 		return nil, fmt.Errorf("failed to list nodes: %w", err)
 	}
 	return nodeList.Items, nil
-}
-
-// ListNodes is a package-level function that uses the global client
-func ListNodes(ctx context.Context) ([]corev1.Node, error) {
-	client, err := GetClient(ctx, ClientConfig{})
-	if err != nil {
-		return nil, err
-	}
-	return client.ListNodes(ctx)
 }
 
 // NodeInfoForLS holds node information for the ls command view
@@ -236,15 +191,6 @@ func (c *Client) ListNodesWithCephPods(ctx context.Context, namespace string, pr
 	return result, nil
 }
 
-// ListNodesWithCephPods is a package-level function that uses the global client
-func ListNodesWithCephPods(ctx context.Context, namespace string, prefixes []string) ([]NodeInfoForLS, error) {
-	client, err := GetClient(ctx, ClientConfig{})
-	if err != nil {
-		return nil, err
-	}
-	return client.ListNodesWithCephPods(ctx, namespace, prefixes)
-}
-
 // getNodeStatus extracts the status string from a node
 func getNodeStatus(node *corev1.Node) string {
 	for _, condition := range node.Status.Conditions {
@@ -296,13 +242,4 @@ func (c *Client) NodeExists(ctx context.Context, nodeName string) (bool, error) 
 		return false, fmt.Errorf("failed to check node %s: %w", nodeName, err)
 	}
 	return true, nil
-}
-
-// NodeExists is a package-level function that uses the global client
-func NodeExists(ctx context.Context, nodeName string) (bool, error) {
-	client, err := GetClient(ctx, ClientConfig{})
-	if err != nil {
-		return false, err
-	}
-	return client.NodeExists(ctx, nodeName)
 }

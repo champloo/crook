@@ -49,15 +49,6 @@ func (c *Client) ListPodsOnNode(ctx context.Context, nodeName string) ([]corev1.
 	return podList.Items, nil
 }
 
-// ListPodsOnNode is a package-level function that uses the global client
-func ListPodsOnNode(ctx context.Context, nodeName string) ([]corev1.Pod, error) {
-	client, err := GetClient(ctx, ClientConfig{})
-	if err != nil {
-		return nil, err
-	}
-	return client.ListPodsOnNode(ctx, nodeName)
-}
-
 // GetOwnerChain traverses the ownership chain of a pod
 func (c *Client) GetOwnerChain(ctx context.Context, pod *corev1.Pod) (*OwnerChain, error) {
 	chain := &OwnerChain{
@@ -115,15 +106,6 @@ func (c *Client) GetOwnerChain(ctx context.Context, pod *corev1.Pod) (*OwnerChai
 	}
 
 	return chain, nil
-}
-
-// GetOwnerChain is a package-level function that uses the global client
-func GetOwnerChain(ctx context.Context, pod *corev1.Pod) (*OwnerChain, error) {
-	client, err := GetClient(ctx, ClientConfig{})
-	if err != nil {
-		return nil, err
-	}
-	return client.GetOwnerChain(ctx, pod)
 }
 
 // traverseReplicaSetOwner finds the deployment that owns a ReplicaSet
@@ -208,15 +190,6 @@ func (c *Client) ExecInPod(ctx context.Context, namespace, podName, containerNam
 	return stdout.String(), nil
 }
 
-// ExecInPod is a package-level function that uses the global client
-func ExecInPod(ctx context.Context, namespace, podName, containerName string, command []string) (string, error) {
-	client, err := GetClient(ctx, ClientConfig{})
-	if err != nil {
-		return "", err
-	}
-	return client.ExecInPod(ctx, namespace, podName, containerName, command)
-}
-
 // GetPod returns a pod by namespace and name
 func (c *Client) GetPod(ctx context.Context, namespace, name string) (*corev1.Pod, error) {
 	pod, err := c.Clientset.CoreV1().Pods(namespace).Get(ctx, name, metav1.GetOptions{})
@@ -226,15 +199,6 @@ func (c *Client) GetPod(ctx context.Context, namespace, name string) (*corev1.Po
 	return pod, nil
 }
 
-// GetPod is a package-level function that uses the global client
-func GetPod(ctx context.Context, namespace, name string) (*corev1.Pod, error) {
-	client, err := GetClient(ctx, ClientConfig{})
-	if err != nil {
-		return nil, err
-	}
-	return client.GetPod(ctx, namespace, name)
-}
-
 // ListPodsInNamespace returns all pods in a namespace
 func (c *Client) ListPodsInNamespace(ctx context.Context, namespace string) ([]corev1.Pod, error) {
 	podList, err := c.Clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
@@ -242,15 +206,6 @@ func (c *Client) ListPodsInNamespace(ctx context.Context, namespace string) ([]c
 		return nil, fmt.Errorf("failed to list pods in namespace %s: %w", namespace, err)
 	}
 	return podList.Items, nil
-}
-
-// ListPodsInNamespace is a package-level function that uses the global client
-func ListPodsInNamespace(ctx context.Context, namespace string) ([]corev1.Pod, error) {
-	client, err := GetClient(ctx, ClientConfig{})
-	if err != nil {
-		return nil, err
-	}
-	return client.ListPodsInNamespace(ctx, namespace)
 }
 
 // PodInfoForLS holds pod information for the ls command view
@@ -340,15 +295,6 @@ func (c *Client) ListCephPods(ctx context.Context, namespace string, prefixes []
 	}
 
 	return result, nil
-}
-
-// ListCephPods is a package-level function that uses the global client
-func ListCephPods(ctx context.Context, namespace string, prefixes []string, nodeFilter string) ([]PodInfoForLS, error) {
-	client, err := GetClient(ctx, ClientConfig{})
-	if err != nil {
-		return nil, err
-	}
-	return client.ListCephPods(ctx, namespace, prefixes, nodeFilter)
 }
 
 // matchesPodPrefix checks if a pod name matches any of the given prefixes

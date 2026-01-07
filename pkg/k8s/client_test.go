@@ -55,20 +55,15 @@ func TestBuildConfig(t *testing.T) {
 	}
 }
 
-func TestSetGlobalClient(t *testing.T) {
-	// Save original global client
-	original := globalClient
-	defer func() {
-		globalClient = original
-	}()
+func TestNewClientFromClientset(t *testing.T) {
+	// Create a client from nil clientset (for testing)
+	client := NewClientFromClientset(nil)
 
-	// Create a dummy client
-	client := &Client{}
-
-	SetGlobalClient(client)
-
-	if globalClient != client {
-		t.Error("SetGlobalClient did not set the global client")
+	if client == nil {
+		t.Fatal("NewClientFromClientset returned nil")
+	}
+	if client.Clientset != nil {
+		t.Error("expected nil clientset")
 	}
 }
 
