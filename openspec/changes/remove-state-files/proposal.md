@@ -29,6 +29,8 @@ Kubernetes already contains all information needed via deployment `nodeSelector`
   - `pkg/maintenance/down.go` - Use nodeSelector discovery
   - `pkg/maintenance/up.go` - Use nodeSelector discovery
   - `pkg/maintenance/discovery.go` - Simplify or remove
+  - `pkg/tui/models/up.go` - Remove state file loading, use nodeSelector
+  - `pkg/tui/models/down.go` - Remove stateFilePath field
   - `pkg/config/config.go` - Remove StateConfig, DeploymentFilterConfig
   - `cmd/crook/commands/up.go` - Remove state file flags
   - `cmd/crook/commands/down.go` - Remove state file flags
