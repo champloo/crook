@@ -209,7 +209,7 @@ func getNodeStatus(node *corev1.Node) string {
 
 // extractNodeRoles extracts roles from node labels
 func extractNodeRoles(node *corev1.Node) []string {
-	roles := make([]string, 0)
+	var roles []string
 	const rolePrefix = "node-role.kubernetes.io/"
 
 	for label := range node.Labels {

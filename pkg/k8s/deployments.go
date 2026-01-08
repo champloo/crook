@@ -96,7 +96,7 @@ func FilterDeploymentsByPrefix(deployments []appsv1.Deployment, prefixes []strin
 		prefixes = DefaultRookCephPrefixes()
 	}
 
-	filtered := make([]appsv1.Deployment, 0)
+	var filtered []appsv1.Deployment
 	for _, deployment := range deployments {
 		for _, prefix := range prefixes {
 			if strings.HasPrefix(deployment.Name, prefix) {

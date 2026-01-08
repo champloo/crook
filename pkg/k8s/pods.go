@@ -262,7 +262,7 @@ func (c *Client) ListCephPods(ctx context.Context, namespace string, nodeFilter 
 	}
 
 	// Build result
-	result := make([]PodInfoForLS, 0)
+	var result []PodInfoForLS
 	now := time.Now()
 
 	for _, pod := range podList.Items {
