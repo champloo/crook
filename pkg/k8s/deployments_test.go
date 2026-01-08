@@ -459,6 +459,96 @@ func TestGetDeploymentTargetNode(t *testing.T) {
 			},
 			expected: "selector-node",
 		},
+		{
+			name: "nodeAffinity with NotIn operator returns empty",
+			dep: &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{Name: "wrong-operator"},
+				Spec: appsv1.DeploymentSpec{
+					Template: corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							Affinity: &corev1.Affinity{
+								NodeAffinity: &corev1.NodeAffinity{
+									RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+										NodeSelectorTerms: []corev1.NodeSelectorTerm{
+											{
+												MatchExpressions: []corev1.NodeSelectorRequirement{
+													{
+														Key:      "kubernetes.io/hostname",
+														Operator: corev1.NodeSelectorOpNotIn,
+														Values:   []string{"worker-01"},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: "",
+		},
+		{
+			name: "nodeAffinity with wrong key returns empty",
+			dep: &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{Name: "wrong-key"},
+				Spec: appsv1.DeploymentSpec{
+					Template: corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							Affinity: &corev1.Affinity{
+								NodeAffinity: &corev1.NodeAffinity{
+									RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+										NodeSelectorTerms: []corev1.NodeSelectorTerm{
+											{
+												MatchExpressions: []corev1.NodeSelectorRequirement{
+													{
+														Key:      "topology.kubernetes.io/zone",
+														Operator: corev1.NodeSelectorOpIn,
+														Values:   []string{"us-east-1a"},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: "",
+		},
+		{
+			name: "nodeAffinity with empty values returns empty",
+			dep: &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{Name: "empty-values"},
+				Spec: appsv1.DeploymentSpec{
+					Template: corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							Affinity: &corev1.Affinity{
+								NodeAffinity: &corev1.NodeAffinity{
+									RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+										NodeSelectorTerms: []corev1.NodeSelectorTerm{
+											{
+												MatchExpressions: []corev1.NodeSelectorRequirement{
+													{
+														Key:      "kubernetes.io/hostname",
+														Operator: corev1.NodeSelectorOpIn,
+														Values:   []string{},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: "",
+		},
 	}
 
 	for _, tt := range tests {
