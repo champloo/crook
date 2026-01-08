@@ -112,7 +112,7 @@ setup_minikube_env() {
     minikube_driver="$(get_minikube_driver)"
     echo "Setting up minikube env for profile '$ROOK_PROFILE_NAME' (using $minikube_driver driver)"
     $MINIKUBE delete
-    $MINIKUBE start --memory='3072m' --disk-size="$MINIKUBE_DISK_SIZE" --extra-disks="$MINIKUBE_EXTRA_DISKS" --driver "$minikube_driver" --embed-certs=true -n "$MINIKUBE_NODES" $ROOK_MINIKUBE_EXTRA_ARGS
+    $MINIKUBE start --memory='4096m' --disk-size="$MINIKUBE_DISK_SIZE" --extra-disks="$MINIKUBE_EXTRA_DISKS" --driver "$minikube_driver" --embed-certs=true -n "$MINIKUBE_NODES" $ROOK_MINIKUBE_EXTRA_ARGS
 }
 
 create_rook_cluster() {
