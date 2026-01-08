@@ -251,18 +251,12 @@ func collectUnknownKeys(settings map[string]interface{}, prefix string, known ma
 
 		// Check if this key is known
 		if !known[fullKey] {
-			// For nested maps, also check if the parent section is known
-			// (allows for section-level recognition)
-			if prefix == "" {
-				// Top-level key that's unknown
-				*unknown = append(*unknown, fullKey)
-			} else if !known[prefix] {
-				// Nested key under unknown parent - skip (parent already reported)
+			// Skip nested keys under unknown parent (parent already reported)
+			if prefix != "" && !known[prefix] {
 				continue
-			} else {
-				// Known parent but unknown child key
-				*unknown = append(*unknown, fullKey)
 			}
+			// Report unknown key (top-level or under known parent)
+			*unknown = append(*unknown, fullKey)
 		}
 
 		// Recurse into nested maps
