@@ -78,7 +78,7 @@ func ExecuteDownPhase(
 	// Step 5: Discover node-pinned deployments via nodeSelector
 	updateProgress(opts.ProgressCallback, "discover", fmt.Sprintf("Discovering node-pinned deployments on %s", nodeName), "")
 
-	deployments, err := client.ListNodePinnedDeployments(ctx, cfg.Kubernetes.RookClusterNamespace, nodeName, cfg.DeploymentFilters.Prefixes)
+	deployments, err := client.ListNodePinnedDeployments(ctx, cfg.Kubernetes.RookClusterNamespace, nodeName)
 	if err != nil {
 		return fmt.Errorf("failed to discover node-pinned deployments: %w", err)
 	}

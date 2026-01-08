@@ -62,7 +62,7 @@ func ExecuteUpPhase(
 	} else {
 		// Discover deployments (CLI non-TUI mode)
 		sendUpProgress(opts.ProgressCallback, "discover", fmt.Sprintf("Discovering scaled-down deployments on %s", nodeName), "")
-		discovered, discoverErr := client.ListScaledDownDeploymentsForNode(ctx, cfg.Kubernetes.RookClusterNamespace, nodeName, cfg.DeploymentFilters.Prefixes)
+		discovered, discoverErr := client.ListScaledDownDeploymentsForNode(ctx, cfg.Kubernetes.RookClusterNamespace, nodeName)
 		if discoverErr != nil {
 			return fmt.Errorf("failed to discover scaled-down deployments: %w", discoverErr)
 		}
