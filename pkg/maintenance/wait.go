@@ -96,7 +96,9 @@ func waitForCondition(
 	defer ticker.Stop()
 
 	// Check immediately before first poll
-	status, err := client.GetDeploymentStatus(timeoutCtx, namespace, name)
+	callCtx, callCancel := context.WithTimeout(timeoutCtx, opts.APITimeout)
+	status, err := client.GetDeploymentStatus(callCtx, namespace, name)
+	callCancel()
 	if err != nil {
 		return fmt.Errorf("failed to get deployment %s/%s status: %w", namespace, name, err)
 	}
@@ -137,7 +139,9 @@ func waitForCondition(
 			return fmt.Errorf("context cancelled while waiting for deployment %s/%s to %s", namespace, name, conditionDesc)
 
 		case <-ticker.C:
-			status, err = client.GetDeploymentStatus(timeoutCtx, namespace, name)
+			pollCtx, pollCancel := context.WithTimeout(timeoutCtx, opts.APITimeout)
+			status, err = client.GetDeploymentStatus(pollCtx, namespace, name)
+			pollCancel()
 			if err != nil {
 				return fmt.Errorf("failed to get deployment %s/%s status: %w", namespace, name, err)
 			}
@@ -203,6 +207,9 @@ func WaitForMonitorQuorum(ctx context.Context, client *k8s.Client, namespace str
 	if opts.Timeout == 0 {
 		opts.Timeout = 300 * time.Second
 	}
+	if opts.APITimeout == 0 {
+		opts.APITimeout = 30 * time.Second
+	}
 
 	// Create timeout context
 	timeoutCtx, cancel := context.WithTimeout(ctx, opts.Timeout)
@@ -212,7 +219,9 @@ func WaitForMonitorQuorum(ctx context.Context, client *k8s.Client, namespace str
 	defer ticker.Stop()
 
 	// Check immediately before first poll
-	status, err := client.GetMonitorStatus(timeoutCtx, namespace)
+	callCtx, callCancel := context.WithTimeout(timeoutCtx, opts.APITimeout)
+	status, err := client.GetMonitorStatus(callCtx, namespace)
+	callCancel()
 	if err != nil {
 		// First check may fail if tools pod isn't ready yet - continue polling
 		status = nil
@@ -245,7 +254,9 @@ func WaitForMonitorQuorum(ctx context.Context, client *k8s.Client, namespace str
 			return fmt.Errorf("context cancelled while waiting for monitor quorum")
 
 		case <-ticker.C:
-			status, err = client.GetMonitorStatus(timeoutCtx, namespace)
+			pollCtx, pollCancel := context.WithTimeout(timeoutCtx, opts.APITimeout)
+			status, err = client.GetMonitorStatus(pollCtx, namespace)
+			pollCancel()
 			if err != nil {
 				lastErr = err
 				continue // Keep polling on transient errors
