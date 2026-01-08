@@ -565,10 +565,9 @@ func (m *DownModel) updateStateFromProgress(msg DownPhaseProgressMsg) {
 		}
 	case "complete":
 		m.updateStatusItem(5, components.StatusTypeSuccess)
-		// Clear the details and show final count
+		// Keep deployment list visible with final count
 		if item := m.statusList.Get(5); item != nil {
 			item.SetLabel(fmt.Sprintf("Scale deployments (%d/%d)", m.deploymentsScaled, m.deploymentCount))
-			item.SetDetails("")
 		}
 	}
 }
@@ -581,9 +580,11 @@ func (m *DownModel) updateStatusItem(index int, status components.StatusType) {
 }
 
 // updateDeploymentStatus updates the status of a deployment in the down plan
+// deploymentName should be in "namespace/name" format
 func (m *DownModel) updateDeploymentStatus(deploymentName, status string) {
 	for i := range m.downPlan {
-		if m.downPlan[i].Name == deploymentName {
+		fullName := fmt.Sprintf("%s/%s", m.downPlan[i].Namespace, m.downPlan[i].Name)
+		if fullName == deploymentName {
 			m.downPlan[i].Status = status
 			return
 		}

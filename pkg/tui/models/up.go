@@ -545,10 +545,9 @@ func (m *UpModel) updateStateFromProgress(msg UpPhaseProgressMsg) {
 		m.state = UpStateScalingOperator
 		m.updateStatusItem(3, components.StatusTypeSuccess)
 		m.updateStatusItem(4, components.StatusTypeRunning)
-		// Clear deployment details and show final count
+		// Keep deployment list visible with final count
 		if item := m.statusList.Get(3); item != nil {
 			item.SetLabel(fmt.Sprintf("Restore deployments (%d/%d)", m.deploymentsRestored, len(m.restorePlan)))
-			item.SetDetails("")
 		}
 	case "unset-noout":
 		m.state = UpStateUnsettingNoOut
@@ -567,9 +566,11 @@ func (m *UpModel) updateStatusItem(index int, status components.StatusType) {
 }
 
 // updateDeploymentStatus updates the status of a deployment in the restore plan
+// deploymentName should be in "namespace/name" format
 func (m *UpModel) updateDeploymentStatus(deploymentName, status string) {
 	for i := range m.restorePlan {
-		if m.restorePlan[i].Name == deploymentName {
+		fullName := fmt.Sprintf("%s/%s", m.restorePlan[i].Namespace, m.restorePlan[i].Name)
+		if fullName == deploymentName {
 			m.restorePlan[i].Status = status
 			return
 		}
