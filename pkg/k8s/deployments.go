@@ -321,47 +321,56 @@ func getDeploymentStatusString(dep *appsv1.Deployment) string {
 	return "Scaling"
 }
 
-// extractDeploymentType extracts the deployment type from the name
-func extractDeploymentType(name string) string {
-	typeMap := map[string]string{
-		"rook-ceph-osd":                    "osd",
-		"rook-ceph-mon":                    "mon",
-		"rook-ceph-mgr":                    "mgr",
-		"rook-ceph-mds":                    "mds",
-		"rook-ceph-rgw":                    "rgw",
-		"rook-ceph-exporter":               "exporter",
-		"rook-ceph-crashcollector":         "crashcollector",
-		"csi-cephfsplugin-provisioner":     "csi",
-		"csi-rbdplugin-provisioner":        "csi",
-		"rook-ceph-tools":                  "tools",
-		"rook-ceph-operator":               "operator",
-		"rook-ceph-detect-version":         "detect",
-		"rook-ceph-csi-detect-version":     "detect",
-		"rook-ceph-filesystem-mirror":      "mirror",
-		"rook-ceph-mirror":                 "mirror",
-		"rook-ceph-purge-osd":              "purge",
-		"rook-ceph-remove-mon":             "remove",
-		"rook-ceph-nfs":                    "nfs",
-		"rook-ceph-object-realm":           "realm",
-		"rook-ceph-object-store":           "store",
-		"rook-ceph-object-zone":            "zone",
-		"rook-ceph-osd-prepare":            "prepare",
-		"rook-ceph-direct-mount":           "mount",
-		"rook-ceph-cleanup":                "cleanup",
-		"rook-ceph-csi-cephfs-provisioner": "csi",
-		"rook-ceph-csi-rbd-provisioner":    "csi",
-		"rook-ceph-csi-nfs-provisioner":    "csi",
-		"rook-ceph-csi-addons-controller":  "csi",
-		"ceph-volumemodechange":            "volumemode",
-	}
+// deploymentTypePrefixes maps deployment name prefixes to their types.
+// Sorted by prefix length descending to ensure longest (most specific) match wins.
+// This prevents non-deterministic matching when prefixes overlap
+// (e.g., "rook-ceph-osd-prepare" must match before "rook-ceph-osd").
+var deploymentTypePrefixes = []struct {
+	prefix string
+	typ    string
+}{
+	// Longest prefixes first (32+ chars)
+	{"rook-ceph-csi-cephfs-provisioner", "csi"},
+	{"rook-ceph-csi-addons-controller", "csi"},
+	{"rook-ceph-csi-nfs-provisioner", "csi"},
+	{"rook-ceph-csi-rbd-provisioner", "csi"},
+	{"csi-cephfsplugin-provisioner", "csi"},
+	{"rook-ceph-csi-detect-version", "detect"},
+	{"rook-ceph-filesystem-mirror", "mirror"},
+	{"csi-rbdplugin-provisioner", "csi"},
+	{"rook-ceph-crashcollector", "crashcollector"},
+	{"rook-ceph-detect-version", "detect"},
+	{"rook-ceph-object-realm", "realm"},
+	{"rook-ceph-object-store", "store"},
+	{"rook-ceph-direct-mount", "mount"},
+	{"rook-ceph-object-zone", "zone"},
+	{"rook-ceph-osd-prepare", "prepare"},
+	{"rook-ceph-remove-mon", "remove"},
+	{"ceph-volumemodechange", "volumemode"},
+	{"rook-ceph-purge-osd", "purge"},
+	{"rook-ceph-exporter", "exporter"},
+	{"rook-ceph-operator", "operator"},
+	{"rook-ceph-cleanup", "cleanup"},
+	{"rook-ceph-mirror", "mirror"},
+	{"rook-ceph-tools", "tools"},
+	// Shorter prefixes last
+	{"rook-ceph-osd", "osd"},
+	{"rook-ceph-mon", "mon"},
+	{"rook-ceph-mgr", "mgr"},
+	{"rook-ceph-mds", "mds"},
+	{"rook-ceph-rgw", "rgw"},
+	{"rook-ceph-nfs", "nfs"},
+}
 
-	// Check for exact or prefix matches
-	for prefix, typ := range typeMap {
-		if strings.HasPrefix(name, prefix) {
-			return typ
+// extractDeploymentType extracts the deployment type from the name.
+// Uses longest-prefix-first matching to ensure deterministic results
+// when prefixes overlap (e.g., "rook-ceph-osd-prepare" vs "rook-ceph-osd").
+func extractDeploymentType(name string) string {
+	for _, entry := range deploymentTypePrefixes {
+		if strings.HasPrefix(name, entry.prefix) {
+			return entry.typ
 		}
 	}
-
 	return "other"
 }
 

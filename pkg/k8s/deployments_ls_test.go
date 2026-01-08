@@ -373,6 +373,14 @@ func TestExtractDeploymentType(t *testing.T) {
 		{"rook-ceph-operator", "operator"},
 		{"unknown-deployment", "other"},
 		{"", "other"},
+		// Overlapping prefix tests - "prepare" must match before "osd"
+		{"rook-ceph-osd-prepare-worker-01", "prepare"},
+		{"rook-ceph-osd-prepare-node-abc", "prepare"},
+		// Other overlapping prefixes
+		{"rook-ceph-csi-detect-version-xyz", "detect"},
+		{"rook-ceph-detect-version-abc", "detect"},
+		{"rook-ceph-purge-osd-123", "purge"},
+		{"rook-ceph-remove-mon-a", "remove"},
 	}
 
 	for _, tt := range tests {
