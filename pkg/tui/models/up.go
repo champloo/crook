@@ -165,6 +165,10 @@ type UpModel struct {
 	lastError           error
 	operationInProgress bool
 
+	// Deployment scaling progress (for display)
+	currentDeployment   string
+	deploymentsRestored int
+
 	// Cancellation and progress
 	cancelFunc     context.CancelFunc // Cancel function for ongoing operation
 	progressChan   chan maintenance.UpPhaseProgress
@@ -524,6 +528,11 @@ func (m *UpModel) updateStateFromProgress(msg UpPhaseProgressMsg) {
 		m.state = UpStateRestoringDeployments
 		m.updateStatusItem(2, components.StatusTypeSuccess)
 		m.updateStatusItem(3, components.StatusTypeRunning)
+		// Track deployment progress when a deployment name is provided
+		if msg.Deployment != "" {
+			m.currentDeployment = msg.Deployment
+			m.deploymentsRestored++
+		}
 	case "operator":
 		m.state = UpStateScalingOperator
 		m.updateStatusItem(3, components.StatusTypeSuccess)
@@ -678,9 +687,17 @@ func (m *UpModel) renderProgress() string {
 	// Status list
 	b.WriteString(m.statusList.View())
 
-	// Current operation details
-	b.WriteString("\n\n")
-	b.WriteString(m.progress.View())
+	// Current operation details (show deployment progress when scaling)
+	if m.currentDeployment != "" {
+		b.WriteString("\n\n")
+		b.WriteString(m.progress.View())
+		b.WriteString("\n")
+		b.WriteString(styles.StyleSubtle.Render(
+			fmt.Sprintf("  %s (%d/%d)",
+				m.currentDeployment,
+				m.deploymentsRestored,
+				len(m.restorePlan))))
+	}
 
 	return b.String()
 }
