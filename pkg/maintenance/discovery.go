@@ -4,8 +4,6 @@ import (
 	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
-
-	"github.com/andri/crook/pkg/k8s"
 )
 
 // OrderDeploymentsForDown returns deployments ordered for safe down phase.
@@ -21,8 +19,13 @@ import (
 // and waits for quorum before scaling OSDs, since OSDs require MON quorum
 // to recover properly.
 func OrderDeploymentsForDown(deployments []appsv1.Deployment) []appsv1.Deployment {
-	// Uses default Rook-Ceph prefixes which are already in the correct order for DOWN phase
-	return orderByPrefixes(deployments, k8s.DefaultRookCephPrefixes())
+	downOrder := []string{
+		"rook-ceph-osd",
+		"rook-ceph-mon",
+		"rook-ceph-exporter",
+		"rook-ceph-crashcollector",
+	}
+	return orderByPrefixes(deployments, downOrder)
 }
 
 // OrderDeploymentsForUp returns non-MON deployments ordered for the UP phase.
