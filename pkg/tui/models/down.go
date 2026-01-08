@@ -13,6 +13,7 @@ import (
 	"github.com/andri/crook/pkg/tui/components"
 	"github.com/andri/crook/pkg/tui/styles"
 	tea "github.com/charmbracelet/bubbletea"
+	appsv1 "k8s.io/api/apps/v1"
 )
 
 // DownPhaseState represents the current state in the down phase workflow
@@ -119,6 +120,14 @@ type DownModelConfig struct {
 	Context context.Context
 }
 
+// DownPlanItem represents a deployment to be scaled down
+type DownPlanItem struct {
+	Namespace       string
+	Name            string
+	CurrentReplicas int
+	Status          string // "pending", "scaling", "success", "error"
+}
+
 // DownModel is the Bubble Tea model for the down phase workflow
 type DownModel struct {
 	// Configuration
@@ -145,8 +154,13 @@ type DownModel struct {
 	lastError           error
 	operationInProgress bool
 
-	// Results for display
-	discoveredDeployments []string
+	// Down plan (discovered deployments to scale down)
+	downPlan []DownPlanItem
+
+	// discoveredDeployments holds the actual Deployment objects discovered during
+	// the confirmation phase. These are passed to ExecuteDownPhase to avoid plan drift
+	// (where the confirmed plan differs from what actually gets executed).
+	discoveredDeployments []appsv1.Deployment
 
 	// Cancellation and progress
 	cancelFunc     context.CancelFunc // Cancel function for ongoing operation
@@ -162,6 +176,7 @@ func NewDownModel(cfg DownModelConfig) *DownModel {
 		confirmPrompt: components.NewConfirmPrompt("Proceed with down phase?"),
 		statusList:    components.NewStatusList(),
 		progress:      components.NewIndeterminateProgress(""),
+		downPlan:      make([]DownPlanItem, 0),
 	}
 }
 
@@ -191,7 +206,10 @@ type DownPhaseTickMsg struct{}
 
 // DeploymentsDiscoveredMsg reports discovered deployments for confirmation
 type DeploymentsDiscoveredMsg struct {
-	Deployments []string
+	DownPlan []DownPlanItem
+	// Deployments contains the actual Deployment objects for execution.
+	// This avoids plan drift between confirmation and execution.
+	Deployments []appsv1.Deployment
 }
 
 // DownProgressChannelClosedMsg signals that the progress channel was closed
@@ -219,12 +237,26 @@ func (m *DownModel) discoverDeploymentsCmd() tea.Cmd {
 			return DownPhaseErrorMsg{Err: err, Stage: "discover"}
 		}
 
-		names := make([]string, len(deployments))
-		for i, d := range deployments {
-			names[i] = fmt.Sprintf("%s/%s", d.Namespace, d.Name)
+		// Build down plan for display
+		downPlan := make([]DownPlanItem, 0, len(deployments))
+		for _, dep := range deployments {
+			currentReplicas := int32(0)
+			if dep.Spec.Replicas != nil {
+				currentReplicas = *dep.Spec.Replicas
+			}
+			item := DownPlanItem{
+				Namespace:       dep.Namespace,
+				Name:            dep.Name,
+				CurrentReplicas: int(currentReplicas),
+				Status:          "pending",
+			}
+			downPlan = append(downPlan, item)
 		}
 
-		return DeploymentsDiscoveredMsg{Deployments: names}
+		return DeploymentsDiscoveredMsg{
+			DownPlan:    downPlan,
+			Deployments: deployments, // Include actual deployments for execution
+		}
 	}
 }
 
@@ -341,8 +373,9 @@ func (m *DownModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, m.tickCmd())
 
 	case DeploymentsDiscoveredMsg:
-		m.discoveredDeployments = msg.Deployments
-		m.deploymentCount = len(msg.Deployments)
+		m.downPlan = msg.DownPlan
+		m.discoveredDeployments = msg.Deployments // Store for execution
+		m.deploymentCount = len(msg.DownPlan)
 		m.state = DownStateConfirm
 		m.confirmPrompt.Details = fmt.Sprintf("%d deployment(s) will be scaled to 0", m.deploymentCount)
 
@@ -549,32 +582,46 @@ func (m *DownModel) renderLoading() string {
 		m.config.NodeName)
 }
 
-// renderConfirmation renders the confirmation screen
+// renderConfirmation renders the confirmation screen with down plan
 func (m *DownModel) renderConfirmation() string {
 	var b strings.Builder
 
+	// Target node info
 	b.WriteString(styles.StyleStatus.Render("Target Node: "))
 	b.WriteString(m.config.NodeName)
 	b.WriteString("\n\n")
 
-	if len(m.discoveredDeployments) > 0 {
+	// Down plan table
+	if len(m.downPlan) > 0 {
 		b.WriteString(styles.StyleStatus.Render("Deployments to scale down:"))
 		b.WriteString("\n")
-		for _, d := range m.discoveredDeployments {
-			b.WriteString(fmt.Sprintf("  %s %s\n", styles.IconArrow, d))
+
+		// Create table
+		table := components.NewSimpleTable("Deployment", "Current", "Target", "Status")
+		for _, item := range m.downPlan {
+			deployName := fmt.Sprintf("%s/%s", item.Namespace, item.Name)
+			currentStr := fmt.Sprintf("%d", item.CurrentReplicas)
+			targetStr := "0" // All deployments will be scaled to 0
+
+			statusStyle := styles.StyleSubtle
+			table.AddStyledRow(statusStyle, deployName, currentStr, targetStr, item.Status)
 		}
+		table.SetMaxRows(10)
+		b.WriteString(table.View())
 	} else {
 		b.WriteString(styles.StyleWarning.Render("No deployments found on this node."))
 		b.WriteString("\n")
 	}
+	b.WriteString("\n")
 
+	// What will happen
 	b.WriteString("\n")
 	b.WriteString(styles.StyleWarning.Render("This will:"))
 	b.WriteString("\n")
 	b.WriteString("  1. Cordon the node (mark unschedulable)\n")
 	b.WriteString("  2. Set Ceph noout flag\n")
 	b.WriteString("  3. Scale down rook-ceph-operator\n")
-	b.WriteString(fmt.Sprintf("  4. Scale down %d deployment(s)\n", m.deploymentCount))
+	b.WriteString(fmt.Sprintf("  4. Scale down %d deployment(s) to 0 replicas\n", m.deploymentCount))
 
 	b.WriteString("\n")
 	b.WriteString(m.confirmPrompt.View())

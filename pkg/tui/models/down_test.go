@@ -9,6 +9,8 @@ import (
 	"github.com/andri/crook/pkg/config"
 	"github.com/andri/crook/pkg/tui/components"
 	tea "github.com/charmbracelet/bubbletea"
+	appsv1 "k8s.io/api/apps/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestDownPhaseState_String(t *testing.T) {
@@ -144,8 +146,22 @@ func TestDownModel_Update_DeploymentsDiscovered(t *testing.T) {
 		Context:  context.Background(),
 	})
 
-	deployments := []string{"rook-ceph/osd-1", "rook-ceph/mon-a"}
-	msg := DeploymentsDiscoveredMsg{Deployments: deployments}
+	replicas := int32(1)
+	deployments := []appsv1.Deployment{
+		{
+			ObjectMeta: metav1.ObjectMeta{Namespace: "rook-ceph", Name: "osd-1"},
+			Spec:       appsv1.DeploymentSpec{Replicas: &replicas},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{Namespace: "rook-ceph", Name: "mon-a"},
+			Spec:       appsv1.DeploymentSpec{Replicas: &replicas},
+		},
+	}
+	downPlan := []DownPlanItem{
+		{Namespace: "rook-ceph", Name: "osd-1", CurrentReplicas: 1, Status: "pending"},
+		{Namespace: "rook-ceph", Name: "mon-a", CurrentReplicas: 1, Status: "pending"},
+	}
+	msg := DeploymentsDiscoveredMsg{DownPlan: downPlan, Deployments: deployments}
 
 	updatedModel, _ := model.Update(msg)
 	m, ok := updatedModel.(*DownModel)
@@ -159,6 +175,10 @@ func TestDownModel_Update_DeploymentsDiscovered(t *testing.T) {
 
 	if m.deploymentCount != 2 {
 		t.Errorf("deploymentCount = %d, want 2", m.deploymentCount)
+	}
+
+	if len(m.downPlan) != 2 {
+		t.Errorf("downPlan length = %d, want 2", len(m.downPlan))
 	}
 
 	if len(m.discoveredDeployments) != 2 {
@@ -513,7 +533,10 @@ func TestDownModel_View_Confirm(t *testing.T) {
 	model.width = 80
 	model.height = 24
 	model.state = DownStateConfirm
-	model.discoveredDeployments = []string{"ns/deploy1", "ns/deploy2"}
+	model.downPlan = []DownPlanItem{
+		{Namespace: "ns", Name: "deploy1", CurrentReplicas: 1, Status: "pending"},
+		{Namespace: "ns", Name: "deploy2", CurrentReplicas: 1, Status: "pending"},
+	}
 	model.deploymentCount = 2
 
 	view := model.View()
