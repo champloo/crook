@@ -112,9 +112,9 @@ func waitForCondition(
 			// that could block indefinitely if API server is unhealthy
 			finalStatus := status
 
-			// Attempt a quick final status fetch with a bounded timeout (2 seconds)
+			// Attempt a final status fetch with a bounded timeout (10 seconds)
 			// This is best-effort and won't block the timeout/cancellation return
-			finalFetchCtx, finalFetchCancel := context.WithTimeout(context.Background(), 2*time.Second)
+			finalFetchCtx, finalFetchCancel := context.WithTimeout(context.Background(), 10*time.Second)
 			if fetchedStatus, fetchErr := client.GetDeploymentStatus(finalFetchCtx, namespace, name); fetchErr == nil {
 				finalStatus = fetchedStatus
 			}
