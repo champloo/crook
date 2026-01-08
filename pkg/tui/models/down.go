@@ -243,9 +243,12 @@ func (m *DownModel) discoverDeploymentsCmd() tea.Cmd {
 			return DownPhaseErrorMsg{Err: err, Stage: "discover"}
 		}
 
+		// Order deployments for down phase (same order as actual scaling)
+		orderedDeployments := maintenance.OrderDeploymentsForDown(deployments)
+
 		// Build down plan for display
-		downPlan := make([]DownPlanItem, 0, len(deployments))
-		for _, dep := range deployments {
+		downPlan := make([]DownPlanItem, 0, len(orderedDeployments))
+		for _, dep := range orderedDeployments {
 			currentReplicas := int32(0)
 			if dep.Spec.Replicas != nil {
 				currentReplicas = *dep.Spec.Replicas
@@ -261,7 +264,7 @@ func (m *DownModel) discoverDeploymentsCmd() tea.Cmd {
 
 		return DeploymentsDiscoveredMsg{
 			DownPlan:    downPlan,
-			Deployments: deployments, // Include actual deployments for execution
+			Deployments: orderedDeployments, // Include ordered deployments for execution
 		}
 	}
 }

@@ -244,9 +244,12 @@ func (m *UpModel) discoverDeploymentsCmd() tea.Cmd {
 			return UpPhaseErrorMsg{Err: fmt.Errorf("failed to discover deployments: %w", err), Stage: "discover"}
 		}
 
+		// Order deployments for up phase (same order as actual scaling: MONs first, then others)
+		orderedDeployments := maintenance.OrderDeploymentsForUp(deployments)
+
 		// Build restore plan for display
-		restorePlan := make([]RestorePlanItem, 0, len(deployments))
-		for _, dep := range deployments {
+		restorePlan := make([]RestorePlanItem, 0, len(orderedDeployments))
+		for _, dep := range orderedDeployments {
 			item := RestorePlanItem{
 				Namespace:       dep.Namespace,
 				Name:            dep.Name,
@@ -258,7 +261,7 @@ func (m *UpModel) discoverDeploymentsCmd() tea.Cmd {
 
 		return DeploymentsDiscoveredForUpMsg{
 			RestorePlan: restorePlan,
-			Deployments: deployments, // Include actual deployments for execution
+			Deployments: orderedDeployments, // Include ordered deployments for execution
 		}
 	}
 }
