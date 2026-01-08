@@ -530,10 +530,14 @@ func (m *UpModel) updateStateFromProgress(msg UpPhaseProgressMsg) {
 		m.updateStatusItem(3, components.StatusTypeRunning)
 		// Track deployment progress when a deployment name is provided
 		if msg.Deployment != "" {
+			// If there was a previous deployment being restored, mark it as complete
+			if m.currentDeployment != "" {
+				m.updateDeploymentStatus(m.currentDeployment, "success")
+				m.deploymentsRestored++
+			}
+			// Mark the new deployment as in-progress
 			m.currentDeployment = msg.Deployment
-			m.deploymentsRestored++
-			// Mark the deployment as restored in the plan
-			m.updateDeploymentStatus(msg.Deployment, "success")
+			m.updateDeploymentStatus(msg.Deployment, "restoring")
 			// Update status item to show progress counter and deployment list
 			if item := m.statusList.Get(3); item != nil {
 				item.SetLabel(fmt.Sprintf("Restore deployments (%d/%d)", m.deploymentsRestored, len(m.restorePlan)))
@@ -543,11 +547,18 @@ func (m *UpModel) updateStateFromProgress(msg UpPhaseProgressMsg) {
 		}
 	case "operator":
 		m.state = UpStateScalingOperator
+		// Mark the last deployment as complete before moving to operator
+		if m.currentDeployment != "" {
+			m.updateDeploymentStatus(m.currentDeployment, "success")
+			m.deploymentsRestored++
+			m.currentDeployment = ""
+		}
 		m.updateStatusItem(3, components.StatusTypeSuccess)
 		m.updateStatusItem(4, components.StatusTypeRunning)
 		// Keep deployment list visible with final count
 		if item := m.statusList.Get(3); item != nil {
 			item.SetLabel(fmt.Sprintf("Restore deployments (%d/%d)", m.deploymentsRestored, len(m.restorePlan)))
+			item.SetDetails(m.buildDeploymentListDetails())
 		}
 	case "unset-noout":
 		m.state = UpStateUnsettingNoOut

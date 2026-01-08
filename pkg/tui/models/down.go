@@ -553,10 +553,14 @@ func (m *DownModel) updateStateFromProgress(msg DownPhaseProgressMsg) {
 		m.state = DownStateScalingDeployments
 		m.updateStatusItem(4, components.StatusTypeSuccess)
 		m.updateStatusItem(5, components.StatusTypeRunning)
+		// If there was a previous deployment being scaled, mark it as complete
+		if m.currentDeployment != "" {
+			m.updateDeploymentStatus(m.currentDeployment, "success")
+			m.deploymentsScaled++
+		}
+		// Mark the new deployment as in-progress
 		m.currentDeployment = msg.Deployment
-		m.deploymentsScaled++
-		// Mark the deployment as scaled in the plan
-		m.updateDeploymentStatus(msg.Deployment, "success")
+		m.updateDeploymentStatus(msg.Deployment, "scaling")
 		// Update status item to show progress counter and deployment list
 		if item := m.statusList.Get(5); item != nil {
 			item.SetLabel(fmt.Sprintf("Scale deployments (%d/%d)", m.deploymentsScaled, m.deploymentCount))
@@ -564,10 +568,16 @@ func (m *DownModel) updateStateFromProgress(msg DownPhaseProgressMsg) {
 			item.DetailsOnNewLine = true
 		}
 	case "complete":
+		// Mark the last deployment as complete
+		if m.currentDeployment != "" {
+			m.updateDeploymentStatus(m.currentDeployment, "success")
+			m.deploymentsScaled++
+		}
 		m.updateStatusItem(5, components.StatusTypeSuccess)
 		// Keep deployment list visible with final count
 		if item := m.statusList.Get(5); item != nil {
 			item.SetLabel(fmt.Sprintf("Scale deployments (%d/%d)", m.deploymentsScaled, m.deploymentCount))
+			item.SetDetails(m.buildDeploymentListDetails())
 		}
 	}
 }
