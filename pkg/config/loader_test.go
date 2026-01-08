@@ -231,22 +231,22 @@ unknown-section:
 		t.Fatalf("write config file: %v", err)
 	}
 
-	// Unknown keys should be warnings, not errors (backwards compatibility)
+	// Unknown keys should cause validation errors
 	result, err := config.LoadConfig(config.LoadOptions{ConfigFile: configPath})
-	if err != nil {
-		t.Fatalf("unknown config keys should not cause error (backwards compatibility): %v", err)
+	if err == nil {
+		t.Fatalf("expected error for unknown config key")
 	}
 
-	// Check that a warning was issued for the unknown key
+	// Check that an error was reported for the unknown key
 	found := false
-	for _, warning := range result.Validation.Warnings {
-		if strings.Contains(warning, "unknown-section") {
+	for _, errMsg := range result.Validation.Errors {
+		if strings.Contains(errMsg.Error(), "unknown-section") {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Errorf("expected warning for unknown-section, got warnings: %v", result.Validation.Warnings)
+		t.Errorf("expected error for unknown-section, got errors: %v", result.Validation.Errors)
 	}
 }
 
@@ -262,22 +262,22 @@ func TestLoadConfigUnknownNestedKey(t *testing.T) {
 		t.Fatalf("write config file: %v", err)
 	}
 
-	// Unknown keys should be warnings, not errors (backwards compatibility)
+	// Unknown keys should cause validation errors
 	result, err := config.LoadConfig(config.LoadOptions{ConfigFile: configPath})
-	if err != nil {
-		t.Fatalf("unknown config keys should not cause error (backwards compatibility): %v", err)
+	if err == nil {
+		t.Fatalf("expected error for unknown config key")
 	}
 
-	// Check that a warning was issued for the unknown nested key
+	// Check that an error was reported for the unknown nested key
 	found := false
-	for _, warning := range result.Validation.Warnings {
-		if strings.Contains(warning, "kubernetes.invalid-key") {
+	for _, errMsg := range result.Validation.Errors {
+		if strings.Contains(errMsg.Error(), "kubernetes.invalid-key") {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Errorf("expected warning for kubernetes.invalid-key, got warnings: %v", result.Validation.Warnings)
+		t.Errorf("expected error for kubernetes.invalid-key, got errors: %v", result.Validation.Errors)
 	}
 }
 
@@ -292,22 +292,22 @@ func TestLoadConfigTypoInKnownKey(t *testing.T) {
 		t.Fatalf("write config file: %v", err)
 	}
 
-	// Typos in keys should be warnings, not errors (backwards compatibility)
+	// Typos in keys should cause validation errors
 	result, err := config.LoadConfig(config.LoadOptions{ConfigFile: configPath})
-	if err != nil {
-		t.Fatalf("typo in config key should not cause error (backwards compatibility): %v", err)
+	if err == nil {
+		t.Fatalf("expected error for typo in config key")
 	}
 
-	// Check that a warning was issued for the typo
+	// Check that an error was reported for the typo
 	found := false
-	for _, warning := range result.Validation.Warnings {
-		if strings.Contains(warning, "rook-operator-namesapce") {
+	for _, errMsg := range result.Validation.Errors {
+		if strings.Contains(errMsg.Error(), "rook-operator-namesapce") {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Errorf("expected warning for typo key, got warnings: %v", result.Validation.Warnings)
+		t.Errorf("expected error for typo key, got errors: %v", result.Validation.Errors)
 	}
 }
 
@@ -323,61 +323,6 @@ func TestLoadConfigValidKeysDoNotWarn(t *testing.T) {
 		if strings.Contains(warning, "unknown config key") {
 			t.Errorf("unexpected unknown key warning for valid config: %v", warning)
 		}
-	}
-}
-
-func TestLoadConfigDeprecatedSectionsBackwardsCompatible(t *testing.T) {
-	// Test that old configs with deprecated state and deployment-filters sections
-	// still work (with warnings). This ensures backwards compatibility for users
-	// upgrading from older versions that used state files.
-	tempDir := t.TempDir()
-	configPath := filepath.Join(tempDir, "config.yaml")
-	configContents := []byte(`kubernetes:
-  rook-operator-namespace: test
-  rook-cluster-namespace: test
-
-# Deprecated sections that should be ignored with warnings
-state:
-  file-path-template: "./crook-state-{{.Node}}.json"
-  backup-enabled: true
-
-deployment-filters:
-  prefixes:
-    - rook-ceph-osd
-    - rook-ceph-mon
-`)
-	if err := os.WriteFile(configPath, configContents, 0o600); err != nil {
-		t.Fatalf("write config file: %v", err)
-	}
-
-	// Config should load successfully (deprecated sections are warnings, not errors)
-	result, err := config.LoadConfig(config.LoadOptions{ConfigFile: configPath})
-	if err != nil {
-		t.Fatalf("config with deprecated sections should load successfully: %v", err)
-	}
-
-	// Verify the valid config was applied
-	if result.Config.Kubernetes.RookOperatorNamespace != "test" {
-		t.Errorf("expected rook-operator-namespace to be 'test', got %s",
-			result.Config.Kubernetes.RookOperatorNamespace)
-	}
-
-	// Verify warnings were issued for deprecated sections
-	foundState := false
-	foundFilters := false
-	for _, warning := range result.Validation.Warnings {
-		if strings.Contains(warning, "state") {
-			foundState = true
-		}
-		if strings.Contains(warning, "deployment-filters") {
-			foundFilters = true
-		}
-	}
-	if !foundState {
-		t.Errorf("expected warning for deprecated 'state' section, got: %v", result.Validation.Warnings)
-	}
-	if !foundFilters {
-		t.Errorf("expected warning for deprecated 'deployment-filters' section, got: %v", result.Validation.Warnings)
 	}
 }
 
