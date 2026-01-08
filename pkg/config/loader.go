@@ -57,10 +57,12 @@ func LoadConfig(opts LoadOptions) (LoadResult, error) {
 	validation := ValidateConfig(cfg)
 
 	// Check for unknown keys (only if config file was loaded)
+	// Unknown keys are warnings, not errors, for backwards compatibility
+	// with configs that may contain deprecated sections (e.g., state, deployment-filters)
 	if configPath != "" {
 		unknownKeys := detectUnknownKeys(v)
 		for _, key := range unknownKeys {
-			validation.Errors = append(validation.Errors, fmt.Errorf("unknown config key: %s", key))
+			validation.Warnings = append(validation.Warnings, fmt.Sprintf("unknown config key: %s (ignored)", key))
 		}
 	}
 
