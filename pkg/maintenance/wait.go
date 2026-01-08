@@ -108,11 +108,17 @@ func waitForCondition(
 	for {
 		select {
 		case <-timeoutCtx.Done():
-			// Get final status for error message
-			finalStatus, _ := client.GetDeploymentStatus(context.Background(), namespace, name)
-			if finalStatus == nil {
-				finalStatus = status // Use last known status
+			// Use last known status for error message; avoid unbounded API calls
+			// that could block indefinitely if API server is unhealthy
+			finalStatus := status
+
+			// Attempt a quick final status fetch with a bounded timeout (2 seconds)
+			// This is best-effort and won't block the timeout/cancellation return
+			finalFetchCtx, finalFetchCancel := context.WithTimeout(context.Background(), 2*time.Second)
+			if fetchedStatus, fetchErr := client.GetDeploymentStatus(finalFetchCtx, namespace, name); fetchErr == nil {
+				finalStatus = fetchedStatus
 			}
+			finalFetchCancel()
 
 			if timeoutCtx.Err() == context.DeadlineExceeded {
 				return fmt.Errorf(
