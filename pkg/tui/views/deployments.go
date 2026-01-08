@@ -166,7 +166,7 @@ func (v *DeploymentsView) renderGrouped(startIdx, endIdx int) string {
 
 	// Group deployments by type
 	groups := make(map[string][]int)
-	typeOrder := []string{"osd", "mon", "mgr", "mds", "rgw", "exporter", "crashcollector", "other"}
+	typeOrder := []string{"operator", "osd", "mon", "mgr", "mds", "rgw", "exporter", "crashcollector", "other"}
 
 	for i, d := range v.deployments {
 		typ := d.Type

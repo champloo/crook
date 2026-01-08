@@ -138,6 +138,7 @@ deployment-filters:
     - rook-ceph-mon
     - rook-ceph-exporter
     - rook-ceph-crashcollector
+    - rook-ceph-operator
 
 ui:
   theme: default  # Future: support custom themes

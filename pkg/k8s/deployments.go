@@ -20,6 +20,7 @@ func DefaultRookCephPrefixes() []string {
 		"rook-ceph-mon",
 		"rook-ceph-exporter",
 		"rook-ceph-crashcollector",
+		"rook-ceph-operator",
 	}
 }
 
