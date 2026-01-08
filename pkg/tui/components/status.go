@@ -44,6 +44,9 @@ type StatusIndicator struct {
 	// Inline renders icon and label on same line (default: true)
 	Inline bool
 
+	// DetailsOnNewLine renders details on a new line with indentation (default: false)
+	DetailsOnNewLine bool
+
 	// spinnerFrame for running state animation
 	spinnerFrame int
 }
@@ -137,7 +140,10 @@ func (s *StatusIndicator) View() string {
 
 	if s.Details != "" {
 		detailStyle := styles.StyleSubtle
-		if s.Inline {
+		if s.DetailsOnNewLine {
+			// Details on new line with indentation
+			result = fmt.Sprintf("%s\n    %s", result, detailStyle.Render(s.Details))
+		} else if s.Inline {
 			result = fmt.Sprintf("%s %s", result, detailStyle.Render(s.Details))
 		} else {
 			result = fmt.Sprintf("%s\n%s", result, detailStyle.Render(s.Details))

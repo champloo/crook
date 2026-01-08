@@ -536,6 +536,7 @@ func (m *UpModel) updateStateFromProgress(msg UpPhaseProgressMsg) {
 			if item := m.statusList.Get(3); item != nil {
 				item.SetLabel(fmt.Sprintf("Restore deployments (%d/%d)", m.deploymentsRestored, len(m.restorePlan)))
 				item.SetDetails(msg.Deployment)
+				item.DetailsOnNewLine = true
 			}
 		}
 	case "operator":

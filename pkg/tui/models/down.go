@@ -559,6 +559,7 @@ func (m *DownModel) updateStateFromProgress(msg DownPhaseProgressMsg) {
 		if item := m.statusList.Get(5); item != nil {
 			item.SetLabel(fmt.Sprintf("Scale deployments (%d/%d)", m.deploymentsScaled, m.deploymentCount))
 			item.SetDetails(msg.Deployment)
+			item.DetailsOnNewLine = true
 		}
 	case "complete":
 		m.updateStatusItem(5, components.StatusTypeSuccess)
