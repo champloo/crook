@@ -46,16 +46,27 @@ func TestListPodsOnNode(t *testing.T) {
 	clientset := fake.NewClientset(pod1, pod2, pod3)
 	client := newClientFromInterface(clientset)
 
-	pods, err := client.ListPodsOnNode(ctx, "node-1")
+	// Test cluster-wide listing (empty namespace)
+	pods, err := client.ListPodsOnNode(ctx, "node-1", "")
 	if err != nil {
-		t.Fatalf("failed to list pods on node: %v", err)
+		t.Fatalf("failed to list pods on node (cluster-wide): %v", err)
 	}
 
 	// Note: fake clientset doesn't support field selectors, so it returns all pods
 	// In real usage, the field selector would filter by node
 	// For this test, we just verify the API call succeeds
 	if len(pods) == 0 {
-		t.Error("expected at least some pods")
+		t.Error("expected at least some pods (cluster-wide)")
+	}
+
+	// Test namespace-scoped listing
+	podsInNs, err := client.ListPodsOnNode(ctx, "node-1", "default")
+	if err != nil {
+		t.Fatalf("failed to list pods on node (namespace-scoped): %v", err)
+	}
+
+	if len(podsInNs) == 0 {
+		t.Error("expected at least some pods in default namespace")
 	}
 }
 
@@ -64,13 +75,24 @@ func TestListPodsOnNode_NoPods(t *testing.T) {
 	clientset := fake.NewClientset()
 	client := newClientFromInterface(clientset)
 
-	pods, err := client.ListPodsOnNode(ctx, "nonexistent-node")
+	// Test with empty namespace (cluster-wide)
+	pods, err := client.ListPodsOnNode(ctx, "nonexistent-node", "")
 	if err != nil {
-		t.Fatalf("failed to list pods: %v", err)
+		t.Fatalf("failed to list pods (cluster-wide): %v", err)
 	}
 
 	if len(pods) != 0 {
-		t.Errorf("expected 0 pods on nonexistent node, got %d", len(pods))
+		t.Errorf("expected 0 pods on nonexistent node (cluster-wide), got %d", len(pods))
+	}
+
+	// Test with specific namespace
+	podsInNs, err := client.ListPodsOnNode(ctx, "nonexistent-node", "default")
+	if err != nil {
+		t.Fatalf("failed to list pods (namespace-scoped): %v", err)
+	}
+
+	if len(podsInNs) != 0 {
+		t.Errorf("expected 0 pods on nonexistent node (namespace-scoped), got %d", len(podsInNs))
 	}
 }
 

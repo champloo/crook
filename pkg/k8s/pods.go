@@ -34,16 +34,21 @@ type OwnerChain struct {
 	Other []OwnerInfo
 }
 
-// ListPodsOnNode returns all pods running on a specific node
-func (c *Client) ListPodsOnNode(ctx context.Context, nodeName string) ([]corev1.Pod, error) {
+// ListPodsOnNode returns all pods running on a specific node.
+// If namespace is empty, lists pods across all namespaces (requires cluster-wide RBAC).
+// If namespace is provided, lists only pods in that namespace (least-privilege RBAC).
+func (c *Client) ListPodsOnNode(ctx context.Context, nodeName string, namespace string) ([]corev1.Pod, error) {
 	// Use field selector to efficiently filter pods by node
 	fieldSelector := fmt.Sprintf("spec.nodeName=%s", nodeName)
 
-	podList, err := c.Clientset.CoreV1().Pods("").List(ctx, metav1.ListOptions{
+	podList, err := c.Clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
 		FieldSelector: fieldSelector,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to list pods on node %s: %w", nodeName, err)
+		if namespace == "" {
+			return nil, fmt.Errorf("failed to list pods on node %s (cluster-wide): %w", nodeName, err)
+		}
+		return nil, fmt.Errorf("failed to list pods on node %s in namespace %s: %w", nodeName, namespace, err)
 	}
 
 	return podList.Items, nil
