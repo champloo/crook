@@ -306,7 +306,7 @@ go test -bench=. ./...           # Benchmarks
   - `deployment-filters.prefixes` (default: `[rook-ceph-osd, rook-ceph-mon, ...]`)
 
 - **RBAC Permissions Required:**
-  - Nodes: get, list, patch (cordon/uncordon)
-  - Deployments: get, list, patch (scale)
-  - Pods: get, list, exec (Ceph commands via rook-ceph-tools)
-  - ReplicaSets: get, list (ownership chain traversal)
+  - Nodes: get, patch (cordon/uncordon, validation)
+  - Deployments: get, list (discovery)
+  - Deployments/scale: get, update (scaling via /scale subresource for least-privilege)
+  - Pods: list, exec (Ceph commands via rook-ceph-tools)

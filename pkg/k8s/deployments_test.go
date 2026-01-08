@@ -2,14 +2,68 @@ package k8s
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
+	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 )
+
+// addScaleReactors adds reactors for GetScale and UpdateScale operations.
+// The fake clientset doesn't handle scale subresource by default.
+// deploymentReplicas is a map of "namespace/name" -> replicas that tracks state.
+func addScaleReactors(clientset *fake.Clientset, deploymentReplicas map[string]*int32) {
+	// Add reactor for GetScale
+	clientset.PrependReactor("get", "deployments/scale", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		getAction, ok := action.(k8stesting.GetAction)
+		if !ok {
+			return true, nil, fmt.Errorf("unexpected action type: %T", action)
+		}
+		key := getAction.GetNamespace() + "/" + getAction.GetName()
+		replicas, found := deploymentReplicas[key]
+		if !found {
+			return true, nil, fmt.Errorf("deployment %q not found", key)
+		}
+		replicaVal := int32(1)
+		if replicas != nil {
+			replicaVal = *replicas
+		}
+		scale := &autoscalingv1.Scale{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      getAction.GetName(),
+				Namespace: getAction.GetNamespace(),
+			},
+			Spec: autoscalingv1.ScaleSpec{
+				Replicas: replicaVal,
+			},
+		}
+		return true, scale, nil
+	})
+
+	// Add reactor for UpdateScale
+	clientset.PrependReactor("update", "deployments/scale", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		updateAction, ok := action.(k8stesting.UpdateAction)
+		if !ok {
+			return true, nil, fmt.Errorf("unexpected action type: %T", action)
+		}
+		scale, ok := updateAction.GetObject().(*autoscalingv1.Scale)
+		if !ok {
+			return true, nil, fmt.Errorf("unexpected object type: %T", updateAction.GetObject())
+		}
+		key := updateAction.GetNamespace() + "/" + scale.Name
+		if _, found := deploymentReplicas[key]; !found {
+			return true, nil, fmt.Errorf("deployment %q not found", key)
+		}
+		deploymentReplicas[key] = &scale.Spec.Replicas
+		return true, scale, nil
+	})
+}
 
 func TestScaleDeployment(t *testing.T) {
 	ctx := context.Background()
@@ -27,6 +81,13 @@ func TestScaleDeployment(t *testing.T) {
 	}
 
 	clientset := fake.NewClientset(deployment)
+
+	// Track deployment replicas for scale reactors
+	deploymentReplicas := map[string]*int32{
+		"default/test-deployment": &initialReplicas,
+	}
+	addScaleReactors(clientset, deploymentReplicas)
+
 	client := newClientFromClientset(clientset)
 
 	// Scale deployment to 0
@@ -35,20 +96,20 @@ func TestScaleDeployment(t *testing.T) {
 		t.Fatalf("failed to scale deployment: %v", err)
 	}
 
-	// Verify the deployment was scaled
-	updated, err := clientset.AppsV1().Deployments("default").Get(ctx, "test-deployment", metav1.GetOptions{})
-	if err != nil {
-		t.Fatalf("failed to get deployment: %v", err)
-	}
-
-	if *updated.Spec.Replicas != 0 {
-		t.Errorf("expected replicas to be 0, got %d", *updated.Spec.Replicas)
+	// Verify the deployment was scaled via our tracked state
+	if *deploymentReplicas["default/test-deployment"] != 0 {
+		t.Errorf("expected replicas to be 0, got %d", *deploymentReplicas["default/test-deployment"])
 	}
 }
 
 func TestScaleDeployment_NotFound(t *testing.T) {
 	ctx := context.Background()
 	clientset := fake.NewClientset()
+
+	// Empty map means no deployments exist
+	deploymentReplicas := map[string]*int32{}
+	addScaleReactors(clientset, deploymentReplicas)
+
 	client := newClientFromClientset(clientset)
 
 	err := client.ScaleDeployment(ctx, "default", "nonexistent", 1)

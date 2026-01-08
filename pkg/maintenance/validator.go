@@ -161,10 +161,13 @@ func validateRBACPermissions(ctx context.Context, client *k8s.Client, cfg config
 		// Namespaced: deployments in cluster namespace (for node-pinned deployments)
 		{Group: "apps", Resource: "deployments", Verb: "get", Namespace: cfg.Kubernetes.RookClusterNamespace},
 		{Group: "apps", Resource: "deployments", Verb: "list", Namespace: cfg.Kubernetes.RookClusterNamespace},
-		{Group: "apps", Resource: "deployments", Verb: "update", Namespace: cfg.Kubernetes.RookClusterNamespace},
+		// Scale subresource for scaling deployments (least-privilege)
+		{Group: "apps", Resource: "deployments", Subresource: "scale", Verb: "get", Namespace: cfg.Kubernetes.RookClusterNamespace},
+		{Group: "apps", Resource: "deployments", Subresource: "scale", Verb: "update", Namespace: cfg.Kubernetes.RookClusterNamespace},
 		// Namespaced: deployments in operator namespace (for rook-ceph-operator)
 		{Group: "apps", Resource: "deployments", Verb: "get", Namespace: cfg.Kubernetes.RookOperatorNamespace},
-		{Group: "apps", Resource: "deployments", Verb: "update", Namespace: cfg.Kubernetes.RookOperatorNamespace},
+		{Group: "apps", Resource: "deployments", Subresource: "scale", Verb: "get", Namespace: cfg.Kubernetes.RookOperatorNamespace},
+		{Group: "apps", Resource: "deployments", Subresource: "scale", Verb: "update", Namespace: cfg.Kubernetes.RookOperatorNamespace},
 		// Namespaced: pods (for exec to rook-ceph-tools)
 		{Resource: "pods", Verb: "list", Namespace: cfg.Kubernetes.RookClusterNamespace},
 		{Resource: "pods", Subresource: "exec", Verb: "create", Namespace: cfg.Kubernetes.RookClusterNamespace},

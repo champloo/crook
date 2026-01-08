@@ -21,21 +21,23 @@ type DeploymentStatus struct {
 	UpdatedReplicas   int32
 }
 
-// ScaleDeployment scales a deployment to the specified number of replicas
+// ScaleDeployment scales a deployment to the specified number of replicas.
+// Uses the /scale subresource API for least-privilege RBAC (only requires
+// deployments/scale permission, not full deployments update permission).
 func (c *Client) ScaleDeployment(ctx context.Context, namespace, name string, replicas int32) error {
 	deploymentsClient := c.Clientset.AppsV1().Deployments(namespace)
 
-	// Get the current deployment
-	deployment, err := deploymentsClient.Get(ctx, name, metav1.GetOptions{})
+	// Get the current scale
+	scale, err := deploymentsClient.GetScale(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to get deployment %s/%s: %w", namespace, name, err)
+		return fmt.Errorf("failed to get scale for deployment %s/%s: %w", namespace, name, err)
 	}
 
 	// Update the replicas
-	deployment.Spec.Replicas = &replicas
+	scale.Spec.Replicas = replicas
 
-	// Update the deployment
-	_, err = deploymentsClient.Update(ctx, deployment, metav1.UpdateOptions{})
+	// Update the scale subresource
+	_, err = deploymentsClient.UpdateScale(ctx, name, scale, metav1.UpdateOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to scale deployment %s/%s to %d replicas: %w", namespace, name, replicas, err)
 	}
