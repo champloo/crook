@@ -25,6 +25,8 @@ const (
 	FlowExitDeclined
 	// FlowExitError indicates the flow exited after an error.
 	FlowExitError
+	// FlowExitNothingToDo indicates there was nothing to do (deployments already at target state).
+	FlowExitNothingToDo
 )
 
 // DownFlowExitMsg is emitted when a down flow exits in embedded mode.

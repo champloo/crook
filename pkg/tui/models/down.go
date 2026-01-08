@@ -24,6 +24,8 @@ const (
 	DownStateInit DownPhaseState = iota
 	// DownStateConfirm waits for user confirmation
 	DownStateConfirm
+	// DownStateNothingToDo indicates all deployments are already at 0 replicas
+	DownStateNothingToDo
 	// DownStatePreFlight runs pre-flight validation checks
 	DownStatePreFlight
 	// DownStateCordoning marks the node as unschedulable
@@ -49,6 +51,8 @@ func (s DownPhaseState) String() string {
 		return "Initializing"
 	case DownStateConfirm:
 		return "Awaiting Confirmation"
+	case DownStateNothingToDo:
+		return "Nothing To Do"
 	case DownStatePreFlight:
 		return "Pre-flight Checks"
 	case DownStateCordoning:
@@ -77,6 +81,8 @@ func (s DownPhaseState) Description() string {
 		return "Preparing down phase workflow..."
 	case DownStateConfirm:
 		return "Review the impact and confirm to proceed"
+	case DownStateNothingToDo:
+		return "All deployments are already scaled down"
 	case DownStatePreFlight:
 		return "Validating cluster prerequisites and permissions"
 	case DownStateCordoning:
@@ -376,8 +382,14 @@ func (m *DownModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.downPlan = msg.DownPlan
 		m.discoveredDeployments = msg.Deployments // Store for execution
 		m.deploymentCount = len(msg.DownPlan)
-		m.state = DownStateConfirm
-		m.confirmPrompt.Details = fmt.Sprintf("%d deployment(s) will be scaled to 0", m.deploymentCount)
+
+		// Check if all deployments are already at 0 replicas
+		if m.allDeploymentsAlreadyScaledDown() {
+			m.state = DownStateNothingToDo
+		} else {
+			m.state = DownStateConfirm
+			m.confirmPrompt.Details = fmt.Sprintf("%d deployment(s) will be scaled to 0", m.deploymentCount)
+		}
 
 	case DownPhaseProgressMsg:
 		m.updateStateFromProgress(msg)
@@ -450,6 +462,12 @@ func (m *DownModel) handleKeyPress(msg tea.KeyMsg) tea.Cmd {
 			return m.exitCmd(FlowExitCompleted, nil)
 		}
 
+	case DownStateNothingToDo:
+		switch msg.String() {
+		case "enter", "q", "esc":
+			return m.exitCmd(FlowExitNothingToDo, nil)
+		}
+
 	case DownStateConfirm:
 		// Let the confirm prompt handle it
 		return nil
@@ -490,6 +508,23 @@ func (m *DownModel) initStatusList() {
 	m.statusList.AddStatus("Scale operator", components.StatusTypePending)
 	m.statusList.AddStatus("Discover deployments", components.StatusTypePending)
 	m.statusList.AddStatus("Scale deployments", components.StatusTypePending)
+}
+
+// allDeploymentsAlreadyScaledDown returns true if all deployments in the down plan
+// are already at 0 replicas (nothing to do).
+func (m *DownModel) allDeploymentsAlreadyScaledDown() bool {
+	// If there are no deployments to scale down, there's nothing to do
+	if len(m.downPlan) == 0 {
+		return true
+	}
+
+	// Check if all deployments are already at 0 replicas
+	for _, item := range m.downPlan {
+		if item.CurrentReplicas > 0 {
+			return false
+		}
+	}
+	return true
 }
 
 // updateStateFromProgress updates the model state based on progress messages
@@ -546,6 +581,8 @@ func (m *DownModel) View() string {
 		b.WriteString(m.renderLoading())
 	case DownStateConfirm:
 		b.WriteString(m.renderConfirmation())
+	case DownStateNothingToDo:
+		b.WriteString(m.renderNothingToDo())
 	case DownStateError:
 		b.WriteString(m.renderError())
 	case DownStateComplete:
@@ -629,6 +666,23 @@ func (m *DownModel) renderConfirmation() string {
 	return b.String()
 }
 
+// renderNothingToDo renders the view when all deployments are already scaled down
+func (m *DownModel) renderNothingToDo() string {
+	var b strings.Builder
+
+	b.WriteString(styles.StyleSuccess.Render(fmt.Sprintf("%s All deployments are already scaled down", styles.IconCheckmark)))
+	b.WriteString("\n\n")
+
+	// Target node info
+	b.WriteString(styles.StyleStatus.Render("Target Node: "))
+	b.WriteString(m.config.NodeName)
+	b.WriteString("\n\n")
+
+	b.WriteString(styles.StyleSubtle.Render("No scaling action needed - the node is already prepared for maintenance."))
+
+	return b.String()
+}
+
 // renderProgress renders the progress view during operations
 func (m *DownModel) renderProgress() string {
 	var b strings.Builder
@@ -703,6 +757,8 @@ func (m *DownModel) renderFooter() string {
 	switch m.state { //nolint:exhaustive // default handles all operation states uniformly
 	case DownStateConfirm:
 		help = "y: proceed  n: cancel  ?: help"
+	case DownStateNothingToDo:
+		help = "Enter/q: exit"
 	case DownStateError:
 		help = "r: retry  q: quit  ?: help"
 	case DownStateComplete:

@@ -20,6 +20,7 @@ func TestDownPhaseState_String(t *testing.T) {
 	}{
 		{DownStateInit, "Initializing"},
 		{DownStateConfirm, "Awaiting Confirmation"},
+		{DownStateNothingToDo, "Nothing To Do"},
 		{DownStatePreFlight, "Pre-flight Checks"},
 		{DownStateCordoning, "Cordoning Node"},
 		{DownStateSettingNoOut, "Setting NoOut Flag"},
@@ -47,6 +48,7 @@ func TestDownPhaseState_Description(t *testing.T) {
 	}{
 		{DownStateInit, true},
 		{DownStateConfirm, true},
+		{DownStateNothingToDo, true},
 		{DownStatePreFlight, true},
 		{DownStateCordoning, true},
 		{DownStateSettingNoOut, true},
@@ -183,6 +185,63 @@ func TestDownModel_Update_DeploymentsDiscovered(t *testing.T) {
 
 	if len(m.discoveredDeployments) != 2 {
 		t.Errorf("discoveredDeployments length = %d, want 2", len(m.discoveredDeployments))
+	}
+}
+
+func TestDownModel_Update_DeploymentsDiscovered_AllAlreadyScaledDown(t *testing.T) {
+	model := NewDownModel(DownModelConfig{
+		NodeName: "test-node",
+		Context:  context.Background(),
+	})
+
+	// Deployments with 0 replicas (already scaled down)
+	zero := int32(0)
+	deployments := []appsv1.Deployment{
+		{
+			ObjectMeta: metav1.ObjectMeta{Namespace: "rook-ceph", Name: "osd-1"},
+			Spec:       appsv1.DeploymentSpec{Replicas: &zero},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{Namespace: "rook-ceph", Name: "mon-a"},
+			Spec:       appsv1.DeploymentSpec{Replicas: &zero},
+		},
+	}
+	downPlan := []DownPlanItem{
+		{Namespace: "rook-ceph", Name: "osd-1", CurrentReplicas: 0, Status: "pending"},
+		{Namespace: "rook-ceph", Name: "mon-a", CurrentReplicas: 0, Status: "pending"},
+	}
+	msg := DeploymentsDiscoveredMsg{DownPlan: downPlan, Deployments: deployments}
+
+	updatedModel, _ := model.Update(msg)
+	m, ok := updatedModel.(*DownModel)
+	if !ok {
+		t.Fatal("expected *DownModel type")
+	}
+
+	// Should transition to NothingToDo state instead of Confirm
+	if m.state != DownStateNothingToDo {
+		t.Errorf("state = %v, want %v", m.state, DownStateNothingToDo)
+	}
+}
+
+func TestDownModel_Update_DeploymentsDiscovered_EmptyPlan(t *testing.T) {
+	model := NewDownModel(DownModelConfig{
+		NodeName: "test-node",
+		Context:  context.Background(),
+	})
+
+	// Empty down plan (no deployments to scale down)
+	msg := DeploymentsDiscoveredMsg{DownPlan: []DownPlanItem{}, Deployments: []appsv1.Deployment{}}
+
+	updatedModel, _ := model.Update(msg)
+	m, ok := updatedModel.(*DownModel)
+	if !ok {
+		t.Fatal("expected *DownModel type")
+	}
+
+	// Should transition to NothingToDo state
+	if m.state != DownStateNothingToDo {
+		t.Errorf("state = %v, want %v", m.state, DownStateNothingToDo)
 	}
 }
 
@@ -424,6 +483,51 @@ func TestDownModel_handleKeyPress_CompleteState_Embedded(t *testing.T) {
 	}
 }
 
+func TestDownModel_handleKeyPress_NothingToDoState(t *testing.T) {
+	model := NewDownModel(DownModelConfig{
+		NodeName: "test-node",
+		Context:  context.Background(),
+	})
+	model.state = DownStateNothingToDo
+
+	// Test Enter to exit
+	enterMsg := tea.KeyMsg{Type: tea.KeyEnter}
+	cmd := model.handleKeyPress(enterMsg)
+	if cmd == nil {
+		t.Error("Enter in nothing-to-do state should return quit command")
+	}
+
+	// Test 'q' to exit
+	quitMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}
+	cmd = model.handleKeyPress(quitMsg)
+	if cmd == nil {
+		t.Error("'q' in nothing-to-do state should return quit command")
+	}
+}
+
+func TestDownModel_handleKeyPress_NothingToDoState_Embedded(t *testing.T) {
+	model := NewDownModel(DownModelConfig{
+		NodeName:     "test-node",
+		Context:      context.Background(),
+		ExitBehavior: FlowExitMessage,
+	})
+	model.state = DownStateNothingToDo
+
+	enterMsg := tea.KeyMsg{Type: tea.KeyEnter}
+	cmd := model.handleKeyPress(enterMsg)
+	if cmd == nil {
+		t.Fatal("Enter in nothing-to-do state should return exit message command")
+	}
+
+	exitMsg, ok := cmd().(DownFlowExitMsg)
+	if !ok {
+		t.Fatalf("expected DownFlowExitMsg, got %T", cmd())
+	}
+	if exitMsg.Reason != FlowExitNothingToDo {
+		t.Errorf("Reason = %v, want %v", exitMsg.Reason, FlowExitNothingToDo)
+	}
+}
+
 func TestDownModel_handleKeyPress_OperationInProgress(t *testing.T) {
 	model := NewDownModel(DownModelConfig{
 		NodeName: "test-node",
@@ -550,6 +654,30 @@ func TestDownModel_View_Confirm(t *testing.T) {
 	}
 }
 
+func TestDownModel_View_NothingToDo(t *testing.T) {
+	model := NewDownModel(DownModelConfig{
+		NodeName: "test-node",
+		Context:  context.Background(),
+	})
+	model.width = 80
+	model.height = 24
+	model.state = DownStateNothingToDo
+
+	view := model.View()
+
+	if !contains(view, "All deployments are already scaled down") {
+		t.Errorf("View should contain 'All deployments are already scaled down', got %q", view)
+	}
+
+	if !contains(view, "test-node") {
+		t.Errorf("View should contain node name, got %q", view)
+	}
+
+	if !contains(view, "No scaling action needed") {
+		t.Errorf("View should contain 'No scaling action needed', got %q", view)
+	}
+}
+
 func TestDownModel_View_Error(t *testing.T) {
 	model := NewDownModel(DownModelConfig{
 		NodeName: "test-node",
@@ -607,5 +735,57 @@ func TestDownModel_SetSize(t *testing.T) {
 
 	if model.height != 50 {
 		t.Errorf("height = %d, want 50", model.height)
+	}
+}
+
+func TestDownModel_allDeploymentsAlreadyScaledDown(t *testing.T) {
+	tests := []struct {
+		name     string
+		downPlan []DownPlanItem
+		expected bool
+	}{
+		{
+			name:     "empty plan returns true",
+			downPlan: []DownPlanItem{},
+			expected: true,
+		},
+		{
+			name: "all at zero returns true",
+			downPlan: []DownPlanItem{
+				{Name: "dep1", CurrentReplicas: 0},
+				{Name: "dep2", CurrentReplicas: 0},
+			},
+			expected: true,
+		},
+		{
+			name: "one at non-zero returns false",
+			downPlan: []DownPlanItem{
+				{Name: "dep1", CurrentReplicas: 0},
+				{Name: "dep2", CurrentReplicas: 1},
+			},
+			expected: false,
+		},
+		{
+			name: "all at non-zero returns false",
+			downPlan: []DownPlanItem{
+				{Name: "dep1", CurrentReplicas: 1},
+				{Name: "dep2", CurrentReplicas: 2},
+			},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			model := NewDownModel(DownModelConfig{
+				NodeName: "test-node",
+				Context:  context.Background(),
+			})
+			model.downPlan = tt.downPlan
+
+			if got := model.allDeploymentsAlreadyScaledDown(); got != tt.expected {
+				t.Errorf("allDeploymentsAlreadyScaledDown() = %v, want %v", got, tt.expected)
+			}
+		})
 	}
 }
