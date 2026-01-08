@@ -267,7 +267,7 @@ func (c *Client) ListCephPods(ctx context.Context, namespace string, nodeFilter 
 
 	for _, pod := range podList.Items {
 		// Check if pod matches any of the prefixes
-		if !matchesPodPrefix(pod.Name, prefixes) {
+		if !matchesAnyPrefix(pod.Name, prefixes) {
 			continue
 		}
 
@@ -298,16 +298,6 @@ func (c *Client) ListCephPods(ctx context.Context, namespace string, nodeFilter 
 	}
 
 	return result, nil
-}
-
-// matchesPodPrefix checks if a pod name matches any of the given prefixes
-func matchesPodPrefix(name string, prefixes []string) bool {
-	for _, prefix := range prefixes {
-		if strings.HasPrefix(name, prefix) {
-			return true
-		}
-	}
-	return false
 }
 
 // getPodStatus returns a human-readable status for a pod
