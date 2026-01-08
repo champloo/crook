@@ -13,6 +13,7 @@ import (
 	"github.com/andri/crook/pkg/tui/components"
 	"github.com/andri/crook/pkg/tui/styles"
 	tea "github.com/charmbracelet/bubbletea"
+	appsv1 "k8s.io/api/apps/v1"
 )
 
 // UpPhaseState represents the current state in the up phase workflow
@@ -141,6 +142,11 @@ type UpModel struct {
 	// Restore plan (discovered scaled-down deployments)
 	restorePlan []RestorePlanItem
 
+	// discoveredDeployments holds the actual Deployment objects discovered during
+	// the confirmation phase. These are passed to ExecuteUpPhase to avoid plan drift
+	// (where the confirmed plan differs from what actually gets executed).
+	discoveredDeployments []appsv1.Deployment
+
 	// Operation state
 	startTime           time.Time
 	elapsedTime         time.Duration
@@ -192,6 +198,9 @@ type UpPhaseTickMsg struct{}
 // DeploymentsDiscoveredForUpMsg reports discovered scaled-down deployments
 type DeploymentsDiscoveredForUpMsg struct {
 	RestorePlan []RestorePlanItem
+	// Deployments contains the actual Deployment objects for execution.
+	// This avoids plan drift between confirmation and execution.
+	Deployments []appsv1.Deployment
 }
 
 // UpProgressChannelClosedMsg signals that the progress channel was closed
@@ -221,7 +230,7 @@ func (m *UpModel) discoverDeploymentsCmd() tea.Cmd {
 			return UpPhaseErrorMsg{Err: fmt.Errorf("failed to discover deployments: %w", err), Stage: "discover"}
 		}
 
-		// Build restore plan
+		// Build restore plan for display
 		restorePlan := make([]RestorePlanItem, 0, len(deployments))
 		for _, dep := range deployments {
 			item := RestorePlanItem{
@@ -235,6 +244,7 @@ func (m *UpModel) discoverDeploymentsCmd() tea.Cmd {
 
 		return DeploymentsDiscoveredForUpMsg{
 			RestorePlan: restorePlan,
+			Deployments: deployments, // Include actual deployments for execution
 		}
 	}
 }
@@ -271,6 +281,7 @@ func (m *UpModel) runUpPhase(ctx context.Context) tea.Cmd {
 	client := m.config.Client
 	cfg := m.config.Config
 	nodeName := m.config.NodeName
+	deployments := m.discoveredDeployments // Capture discovered deployments
 
 	return func() tea.Msg {
 		opts := maintenance.UpPhaseOptions{
@@ -282,6 +293,9 @@ func (m *UpModel) runUpPhase(ctx context.Context) tea.Cmd {
 					// Channel full, skip this update
 				}
 			},
+			// Pass pre-discovered deployments to avoid plan drift between
+			// confirmation and execution (what user confirmed is what executes)
+			Deployments: deployments,
 		}
 
 		err := maintenance.ExecuteUpPhase(
@@ -353,6 +367,7 @@ func (m *UpModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case DeploymentsDiscoveredForUpMsg:
 		m.restorePlan = msg.RestorePlan
+		m.discoveredDeployments = msg.Deployments // Store for execution
 		m.state = UpStateConfirm
 		m.confirmPrompt.Details = fmt.Sprintf("%d deployment(s) will be restored to 1 replica", len(m.restorePlan))
 

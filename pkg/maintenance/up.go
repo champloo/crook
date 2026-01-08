@@ -25,6 +25,12 @@ type UpPhaseOptions struct {
 
 	// WaitOptions for deployment scaling operations
 	WaitOptions WaitOptions
+
+	// Deployments provides pre-discovered deployments to restore.
+	// When set, ExecuteUpPhase uses these directly instead of re-discovering.
+	// This ensures the confirmed plan matches the executed plan (avoiding TUI plan drift).
+	// If nil, ExecuteUpPhase will discover deployments via ListScaledDownDeploymentsForNode.
+	Deployments []appsv1.Deployment
 }
 
 // ExecuteUpPhase orchestrates the complete node up phase workflow
@@ -47,12 +53,20 @@ func ExecuteUpPhase(
 		return fmt.Errorf("pre-flight validation failed:\n%s", validationResults.String())
 	}
 
-	// Step 2: Discover scaled-down deployments via nodeSelector
-	sendUpProgress(opts.ProgressCallback, "discover", fmt.Sprintf("Discovering scaled-down deployments on %s", nodeName), "")
-
-	deployments, err := client.ListScaledDownDeploymentsForNode(ctx, cfg.Kubernetes.RookClusterNamespace, nodeName, cfg.DeploymentFilters.Prefixes)
-	if err != nil {
-		return fmt.Errorf("failed to discover scaled-down deployments: %w", err)
+	// Step 2: Use pre-discovered deployments or discover via nodeSelector
+	var deployments []appsv1.Deployment
+	if len(opts.Deployments) > 0 {
+		// Use pre-discovered deployments (TUI confirmed plan)
+		sendUpProgress(opts.ProgressCallback, "discover", fmt.Sprintf("Using %d pre-discovered deployments on %s", len(opts.Deployments), nodeName), "")
+		deployments = opts.Deployments
+	} else {
+		// Discover deployments (CLI non-TUI mode)
+		sendUpProgress(opts.ProgressCallback, "discover", fmt.Sprintf("Discovering scaled-down deployments on %s", nodeName), "")
+		discovered, discoverErr := client.ListScaledDownDeploymentsForNode(ctx, cfg.Kubernetes.RookClusterNamespace, nodeName, cfg.DeploymentFilters.Prefixes)
+		if discoverErr != nil {
+			return fmt.Errorf("failed to discover scaled-down deployments: %w", discoverErr)
+		}
+		deployments = discovered
 	}
 
 	// Step 3: Uncordon node FIRST so pods can schedule when deployments scale up
