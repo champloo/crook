@@ -6,7 +6,7 @@ A Kubernetes node maintenance automation tool for Rook-Ceph clusters. Safely man
 
 - **Safe Node Maintenance** - Automated procedures that prevent data loss during node maintenance
 - **Ceph Health Protection** - Manages OSDs, monitors, and noout flags to prevent rebalancing
-- **State Preservation** - Tracks deployment replica counts for accurate restoration
+- **No External State** - Uses Kubernetes nodeSelector as source of truth for deployment discovery
 - **Interactive TUI** - Real-time feedback with tabbed views for nodes, deployments, OSDs, and pods
 - **Non-Interactive Mode** - Scriptable for automation and CI/CD pipelines
 - **Pre-flight Validation** - Health checks before operations begin
@@ -128,13 +128,11 @@ Prepare a node for maintenance by safely scaling down Rook-Ceph workloads.
 2. Cordons the node (marks it unschedulable)
 3. Sets the Ceph `noout` flag to prevent data rebalancing
 4. Scales down the rook-ceph-operator
-5. Discovers and scales down Rook-Ceph deployments on the node
-6. Saves state to a JSON file for later restoration
+5. Discovers node-pinned deployments via nodeSelector and scales them to 0
 
 **Flags:**
 | Flag | Description |
 |------|-------------|
-| `--state-file` | Path to save state file (default: from config template) |
 | `--no-tui` | Disable interactive TUI |
 | `-y, --yes` | Auto-confirm prompts (implies --no-tui) |
 | `--timeout` | Operation timeout (default: 10m) |
@@ -144,20 +142,18 @@ Prepare a node for maintenance by safely scaling down Rook-Ceph workloads.
 Restore a node after maintenance by scaling up Rook-Ceph workloads.
 
 **What it does:**
-1. Loads the state file from the down phase
+1. Discovers scaled-down deployments for the node via nodeSelector
 2. Uncordons the node (marks it schedulable)
-3. Restores Rook-Ceph deployments to original replica counts
+3. Restores Rook-Ceph deployments to 1 replica
 4. Scales up the rook-ceph-operator
 5. Unsets the Ceph `noout` flag
 
 **Flags:**
 | Flag | Description |
 |------|-------------|
-| `--state-file` | Path to load state file (default: from config template) |
 | `--no-tui` | Disable interactive TUI |
 | `-y, --yes` | Auto-confirm prompts (implies --no-tui) |
 | `--timeout` | Operation timeout (default: 15m) |
-| `--skip-missing` | Continue if deployments from state file don't exist |
 
 ### `crook ls [node]`
 
@@ -196,20 +192,6 @@ kubernetes:
   rook-cluster-namespace: rook-ceph
   kubeconfig: ~/.kube/config
   # context: my-cluster-context
-
-# State file configuration
-state:
-  file-path-template: "./crook-state-{{.Node}}.json"
-  backup-enabled: true
-  backup-directory: ~/.local/state/crook/backups
-
-# Deployment discovery and filtering
-deployment-filters:
-  prefixes:
-    - rook-ceph-osd
-    - rook-ceph-mon
-    - rook-ceph-exporter
-    - rook-ceph-crashcollector
 
 # Terminal UI configuration
 ui:
@@ -331,11 +313,6 @@ crook ls --output json | jq '.nodes[] | select(.schedulable == false)'
 - Deploy rook-ceph-tools: `kubectl -n rook-ceph get deploy rook-ceph-tools`
 - Check namespace configuration
 
-**"state file not found" during up phase**
-- Verify state file exists: `ls crook-state-*.json`
-- Check state file template in config
-- Use `--state-file` to specify explicit path
-
 **"Ceph health not OK"**
 - Check Ceph status: `kubectl -n rook-ceph exec deploy/rook-ceph-tools -- ceph status`
 - Resolve Ceph health issues before maintenance
@@ -351,14 +328,6 @@ crook down worker-1 --log-level debug
 export CROOK_LOGGING_LEVEL=debug
 ```
 
-### State File Recovery
-
-If the up phase fails partway through:
-
-1. Check current state: `crook ls`
-2. View state file: `cat crook-state-worker-1.json | jq`
-3. Retry with skip-missing if deployments were removed: `crook up worker-1 --skip-missing`
-
 ## Architecture
 
 ```
@@ -370,7 +339,6 @@ crook/
 │   ├── k8s/             # Kubernetes client operations
 │   ├── maintenance/     # Down/up phase business logic
 │   ├── monitoring/      # Resource monitoring
-│   ├── state/           # State file handling
 │   └── tui/             # Bubble Tea UI components
 │       ├── components/  # Reusable UI components
 │       ├── models/      # Bubble Tea models
