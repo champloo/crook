@@ -605,16 +605,16 @@ func (m *DownModel) updateDeploymentStatus(deploymentName, status string) {
 func (m *DownModel) buildDeploymentListDetails() string {
 	var lines []string
 	for _, item := range m.downPlan {
-		var icon string
+		var styledIcon string
 		switch item.Status {
 		case "success":
-			icon = styles.IconCheckmark
+			styledIcon = styles.StyleSuccess.Render(styles.IconCheckmark)
 		case "scaling":
-			icon = styles.IconSpinner
+			styledIcon = styles.StyleStatus.Render(styles.IconSpinner)
 		default: // pending
-			icon = "○"
+			styledIcon = styles.StyleSubtle.Render("○")
 		}
-		lines = append(lines, fmt.Sprintf("%s %s", icon, item.Name))
+		lines = append(lines, fmt.Sprintf("%s %s", styledIcon, item.Name))
 	}
 	return strings.Join(lines, "\n    ")
 }
