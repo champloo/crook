@@ -329,3 +329,69 @@ func TestGetPod_NotFound(t *testing.T) {
 		t.Error("expected error when getting nonexistent pod, got nil")
 	}
 }
+
+func TestExtractPodType(t *testing.T) {
+	tests := []struct {
+		name string
+		want string
+	}{
+		// Basic type extraction
+		{"rook-ceph-osd-0-xyz", "osd"},
+		{"rook-ceph-osd-10-abc", "osd"},
+		{"rook-ceph-mon-a-xyz", "mon"},
+		{"rook-ceph-mon-b-abc", "mon"},
+		{"rook-ceph-mgr-a-xyz", "mgr"},
+		{"rook-ceph-mds-a-xyz", "mds"},
+		{"rook-ceph-rgw-a-xyz", "rgw"},
+		{"rook-ceph-crashcollector-worker-1-xyz", "crashcollector"},
+		{"rook-ceph-exporter-worker-1-xyz", "exporter"},
+		{"rook-ceph-tools-xyz", "tools"},
+		{"rook-ceph-operator-xyz", "operator"},
+		{"rook-ceph-cleanup-xyz", "cleanup"},
+		{"csi-cephfsplugin-xyz", "csi"},
+		{"csi-rbdplugin-xyz", "csi"},
+		{"unknown-pod", "other"},
+		{"", "other"},
+
+		// Overlapping prefix tests - "prepare" must match before "osd"
+		// This is the key test case for the determinism fix
+		{"rook-ceph-osd-prepare-worker-01-xyz", "prepare"},
+		{"rook-ceph-osd-prepare-node-abc-123", "prepare"},
+		{"rook-ceph-osd-prepare-rook", "prepare"},
+		{"rook-ceph-osd-prepare-rook-m02", "prepare"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := extractPodType(tt.name); got != tt.want {
+				t.Errorf("extractPodType(%q) = %s, want %s", tt.name, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestExtractPodType_Deterministic(t *testing.T) {
+	// Run extractPodType many times on overlapping prefix names
+	// to verify deterministic behavior (the original map-based implementation
+	// would produce random results due to Go's map iteration order)
+	testCases := []struct {
+		name string
+		want string
+	}{
+		{"rook-ceph-osd-prepare-worker-01", "prepare"},
+		{"rook-ceph-osd-0", "osd"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Run 100 times to catch non-determinism
+			for i := 0; i < 100; i++ {
+				got := extractPodType(tc.name)
+				if got != tc.want {
+					t.Errorf("iteration %d: extractPodType(%q) = %s, want %s",
+						i, tc.name, got, tc.want)
+				}
+			}
+		})
+	}
+}

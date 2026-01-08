@@ -352,30 +352,39 @@ func getPodContainerStats(pod *corev1.Pod) (ready int, total int, restarts int32
 	return ready, total, restarts
 }
 
-// extractPodType extracts the pod type from the name
-func extractPodType(name string) string {
-	typeMap := map[string]string{
-		"rook-ceph-osd":            "osd",
-		"rook-ceph-mon":            "mon",
-		"rook-ceph-mgr":            "mgr",
-		"rook-ceph-mds":            "mds",
-		"rook-ceph-rgw":            "rgw",
-		"rook-ceph-exporter":       "exporter",
-		"rook-ceph-crashcollector": "crashcollector",
-		"csi-cephfsplugin":         "csi",
-		"csi-rbdplugin":            "csi",
-		"rook-ceph-tools":          "tools",
-		"rook-ceph-operator":       "operator",
-		"rook-ceph-osd-prepare":    "prepare",
-		"rook-ceph-cleanup":        "cleanup",
-	}
+// podTypePrefixes maps pod name prefixes to their types.
+// Sorted by prefix length descending to ensure longest (most specific) match wins.
+// This prevents non-deterministic matching when prefixes overlap
+// (e.g., "rook-ceph-osd-prepare" must match before "rook-ceph-osd").
+var podTypePrefixes = []struct {
+	prefix string
+	typ    string
+}{
+	// Longest prefixes first
+	{"rook-ceph-crashcollector", "crashcollector"},
+	{"rook-ceph-osd-prepare", "prepare"},
+	{"rook-ceph-exporter", "exporter"},
+	{"rook-ceph-operator", "operator"},
+	{"rook-ceph-cleanup", "cleanup"},
+	{"csi-cephfsplugin", "csi"},
+	{"rook-ceph-tools", "tools"},
+	{"csi-rbdplugin", "csi"},
+	// Shorter prefixes last
+	{"rook-ceph-osd", "osd"},
+	{"rook-ceph-mon", "mon"},
+	{"rook-ceph-mgr", "mgr"},
+	{"rook-ceph-mds", "mds"},
+	{"rook-ceph-rgw", "rgw"},
+}
 
-	// Check for prefix matches
-	for prefix, typ := range typeMap {
-		if strings.HasPrefix(name, prefix) {
-			return typ
+// extractPodType extracts the pod type from the name.
+// Uses longest-prefix-first matching to ensure deterministic results
+// when prefixes overlap (e.g., "rook-ceph-osd-prepare" vs "rook-ceph-osd").
+func extractPodType(name string) string {
+	for _, entry := range podTypePrefixes {
+		if strings.HasPrefix(name, entry.prefix) {
+			return entry.typ
 		}
 	}
-
 	return "other"
 }
