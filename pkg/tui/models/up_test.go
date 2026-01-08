@@ -19,6 +19,7 @@ func TestUpPhaseState_String(t *testing.T) {
 		{UpStateInit, "Initializing"},
 		{UpStateDiscovering, "Discovering Deployments"},
 		{UpStateConfirm, "Awaiting Confirmation"},
+		{UpStateNothingToDo, "Nothing To Do"},
 		{UpStatePreFlight, "Pre-flight Checks"},
 		{UpStateUncordoning, "Uncordoning Node"},
 		{UpStateRestoringDeployments, "Restoring Deployments"},
@@ -46,6 +47,7 @@ func TestUpPhaseState_Description(t *testing.T) {
 		{UpStateInit, true},
 		{UpStateDiscovering, true},
 		{UpStateConfirm, true},
+		{UpStateNothingToDo, true},
 		{UpStatePreFlight, true},
 		{UpStateRestoringDeployments, true},
 		{UpStateUncordoning, true},
@@ -617,5 +619,136 @@ func TestRestorePlanItem(t *testing.T) {
 
 	if item.Status != "pending" {
 		t.Errorf("Status = %q, want 'pending'", item.Status)
+	}
+}
+
+func TestUpModel_Update_DeploymentsDiscovered_EmptyPlan(t *testing.T) {
+	model := NewUpModel(UpModelConfig{
+		NodeName: "test-node",
+		Context:  context.Background(),
+	})
+
+	// Empty restore plan (no deployments to restore)
+	msg := DeploymentsDiscoveredForUpMsg{RestorePlan: []RestorePlanItem{}}
+
+	updatedModel, _ := model.Update(msg)
+	m, ok := updatedModel.(*UpModel)
+	if !ok {
+		t.Fatal("expected *UpModel type")
+	}
+
+	// Should transition to NothingToDo state
+	if m.state != UpStateNothingToDo {
+		t.Errorf("state = %v, want %v", m.state, UpStateNothingToDo)
+	}
+}
+
+func TestUpModel_handleKeyPress_NothingToDoState(t *testing.T) {
+	model := NewUpModel(UpModelConfig{
+		NodeName: "test-node",
+		Context:  context.Background(),
+	})
+	model.state = UpStateNothingToDo
+
+	// Test Enter to exit
+	enterMsg := tea.KeyMsg{Type: tea.KeyEnter}
+	cmd := model.handleKeyPress(enterMsg)
+	if cmd == nil {
+		t.Error("Enter in nothing-to-do state should return quit command")
+	}
+
+	// Test 'q' to exit
+	quitMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}
+	cmd = model.handleKeyPress(quitMsg)
+	if cmd == nil {
+		t.Error("'q' in nothing-to-do state should return quit command")
+	}
+}
+
+func TestUpModel_handleKeyPress_NothingToDoState_Embedded(t *testing.T) {
+	model := NewUpModel(UpModelConfig{
+		NodeName:     "test-node",
+		Context:      context.Background(),
+		ExitBehavior: FlowExitMessage,
+	})
+	model.state = UpStateNothingToDo
+
+	enterMsg := tea.KeyMsg{Type: tea.KeyEnter}
+	cmd := model.handleKeyPress(enterMsg)
+	if cmd == nil {
+		t.Fatal("Enter in nothing-to-do state should return exit message command")
+	}
+
+	exitMsg, ok := cmd().(UpFlowExitMsg)
+	if !ok {
+		t.Fatalf("expected UpFlowExitMsg, got %T", cmd())
+	}
+	if exitMsg.Reason != FlowExitNothingToDo {
+		t.Errorf("Reason = %v, want %v", exitMsg.Reason, FlowExitNothingToDo)
+	}
+}
+
+func TestUpModel_View_NothingToDo(t *testing.T) {
+	model := NewUpModel(UpModelConfig{
+		NodeName: "test-node",
+		Context:  context.Background(),
+	})
+	model.width = 80
+	model.height = 24
+	model.state = UpStateNothingToDo
+
+	view := model.View()
+
+	if !contains(view, "All deployments are already scaled up") {
+		t.Errorf("View should contain 'All deployments are already scaled up', got %q", view)
+	}
+
+	if !contains(view, "test-node") {
+		t.Errorf("View should contain node name, got %q", view)
+	}
+
+	if !contains(view, "No scaling action needed") {
+		t.Errorf("View should contain 'No scaling action needed', got %q", view)
+	}
+}
+
+func TestUpModel_allDeploymentsAlreadyScaledUp(t *testing.T) {
+	tests := []struct {
+		name        string
+		restorePlan []RestorePlanItem
+		expected    bool
+	}{
+		{
+			name:        "empty plan returns true",
+			restorePlan: []RestorePlanItem{},
+			expected:    true,
+		},
+		{
+			name:        "nil plan returns true",
+			restorePlan: nil,
+			expected:    true,
+		},
+		{
+			name: "has deployments returns false",
+			restorePlan: []RestorePlanItem{
+				{Name: "dep1", CurrentReplicas: 0},
+				{Name: "dep2", CurrentReplicas: 0},
+			},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			model := NewUpModel(UpModelConfig{
+				NodeName: "test-node",
+				Context:  context.Background(),
+			})
+			model.restorePlan = tt.restorePlan
+
+			if got := model.allDeploymentsAlreadyScaledUp(); got != tt.expected {
+				t.Errorf("allDeploymentsAlreadyScaledUp() = %v, want %v", got, tt.expected)
+			}
+		})
 	}
 }

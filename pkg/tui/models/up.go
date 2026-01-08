@@ -26,6 +26,8 @@ const (
 	UpStateDiscovering
 	// UpStateConfirm waits for user confirmation of restore plan
 	UpStateConfirm
+	// UpStateNothingToDo indicates all deployments are already at target replicas
+	UpStateNothingToDo
 	// UpStatePreFlight runs pre-flight validation checks
 	UpStatePreFlight
 	// UpStateUncordoning uncordons the node
@@ -51,6 +53,8 @@ func (s UpPhaseState) String() string {
 		return "Discovering Deployments"
 	case UpStateConfirm:
 		return "Awaiting Confirmation"
+	case UpStateNothingToDo:
+		return "Nothing To Do"
 	case UpStatePreFlight:
 		return "Pre-flight Checks"
 	case UpStateUncordoning:
@@ -79,6 +83,8 @@ func (s UpPhaseState) Description() string {
 		return "Discovering scaled-down deployments..."
 	case UpStateConfirm:
 		return "Review the restore plan and confirm to proceed"
+	case UpStateNothingToDo:
+		return "All deployments are already scaled up"
 	case UpStatePreFlight:
 		return "Validating cluster prerequisites and permissions"
 	case UpStateUncordoning:
@@ -372,8 +378,14 @@ func (m *UpModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case DeploymentsDiscoveredForUpMsg:
 		m.restorePlan = msg.RestorePlan
 		m.discoveredDeployments = msg.Deployments // Store for execution
-		m.state = UpStateConfirm
-		m.confirmPrompt.Details = fmt.Sprintf("%d deployment(s) will be restored to 1 replica", len(m.restorePlan))
+
+		// Check if all deployments are already at target replicas (nothing to do)
+		if m.allDeploymentsAlreadyScaledUp() {
+			m.state = UpStateNothingToDo
+		} else {
+			m.state = UpStateConfirm
+			m.confirmPrompt.Details = fmt.Sprintf("%d deployment(s) will be restored to 1 replica", len(m.restorePlan))
+		}
 
 	case UpPhaseProgressMsg:
 		m.updateStateFromProgress(msg)
@@ -444,6 +456,12 @@ func (m *UpModel) handleKeyPress(msg tea.KeyMsg) tea.Cmd {
 		switch msg.String() {
 		case "enter", "q", "esc":
 			return m.exitCmd(FlowExitCompleted, nil)
+		}
+
+	case UpStateNothingToDo:
+		switch msg.String() {
+		case "enter", "q", "esc":
+			return m.exitCmd(FlowExitNothingToDo, nil)
 		}
 
 	case UpStateConfirm:
@@ -526,6 +544,13 @@ func (m *UpModel) updateStatusItem(index int, status components.StatusType) {
 	}
 }
 
+// allDeploymentsAlreadyScaledUp returns true if there are no deployments to restore
+// (either no deployments at 0 replicas were found, or the restore plan is empty).
+func (m *UpModel) allDeploymentsAlreadyScaledUp() bool {
+	// If there are no deployments to restore, there's nothing to do
+	return len(m.restorePlan) == 0
+}
+
 // View implements tea.Model
 func (m *UpModel) View() string {
 	var b strings.Builder
@@ -540,6 +565,8 @@ func (m *UpModel) View() string {
 		b.WriteString(m.renderLoading())
 	case UpStateConfirm:
 		b.WriteString(m.renderConfirmation())
+	case UpStateNothingToDo:
+		b.WriteString(m.renderNothingToDo())
 	case UpStateError:
 		b.WriteString(m.renderError())
 	case UpStateComplete:
@@ -623,6 +650,23 @@ func (m *UpModel) renderConfirmation() string {
 	return b.String()
 }
 
+// renderNothingToDo renders the view when all deployments are already scaled up
+func (m *UpModel) renderNothingToDo() string {
+	var b strings.Builder
+
+	b.WriteString(styles.StyleSuccess.Render(fmt.Sprintf("%s All deployments are already scaled up", styles.IconCheckmark)))
+	b.WriteString("\n\n")
+
+	// Target node info
+	b.WriteString(styles.StyleStatus.Render("Target Node: "))
+	b.WriteString(m.config.NodeName)
+	b.WriteString("\n\n")
+
+	b.WriteString(styles.StyleSubtle.Render("No scaling action needed - the node is already operational."))
+
+	return b.String()
+}
+
 // renderProgress renders the progress view during operations
 func (m *UpModel) renderProgress() string {
 	var b strings.Builder
@@ -689,6 +733,8 @@ func (m *UpModel) renderFooter() string {
 	switch m.state { //nolint:exhaustive // default handles all operation states uniformly
 	case UpStateConfirm:
 		help = "y: proceed  n: cancel  ?: help"
+	case UpStateNothingToDo:
+		help = "Enter/q: exit"
 	case UpStateError:
 		help = "r: retry  q: quit  ?: help"
 	case UpStateComplete:
