@@ -158,8 +158,9 @@ func WaitForMultipleDeploymentsScaleDown(
 	return nil
 }
 
-// WaitForMultipleDeploymentsScaleUp waits for multiple deployments to scale up
-// Each deployment is restored to its original replica count from the deployment spec
+// WaitForMultipleDeploymentsScaleUp waits for multiple deployments to scale up.
+// Target replicas: uses spec.Replicas if set and non-zero, otherwise defaults to 1.
+// For Rook-Ceph node-pinned deployments, the target is typically 1 replica.
 func WaitForMultipleDeploymentsScaleUp(
 	ctx context.Context,
 	client *k8s.Client,
