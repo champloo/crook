@@ -51,6 +51,14 @@ lint:
 lint-fix:
     golangci-lint run --fix
 
+# Find unreachable code in production
+deadcode:
+    deadcode ./...
+
+# Find unreachable code (including test coverage)
+deadcode-all:
+    deadcode -test ./...
+
 # Format code
 fmt:
     go fmt ./...
