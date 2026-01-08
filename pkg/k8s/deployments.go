@@ -11,13 +11,16 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// DefaultRookCephPrefixes are the deployment name prefixes for Rook-Ceph components.
+// DefaultRookCephPrefixes returns the deployment name prefixes for Rook-Ceph components.
 // These prefixes identify node-pinned Ceph deployments that need management during maintenance.
-var DefaultRookCephPrefixes = []string{
-	"rook-ceph-osd",
-	"rook-ceph-mon",
-	"rook-ceph-exporter",
-	"rook-ceph-crashcollector",
+// Returns a new slice each call to prevent mutation.
+func DefaultRookCephPrefixes() []string {
+	return []string{
+		"rook-ceph-osd",
+		"rook-ceph-mon",
+		"rook-ceph-exporter",
+		"rook-ceph-crashcollector",
+	}
 }
 
 // DeploymentStatus holds the status information for a deployment
@@ -87,10 +90,10 @@ func (c *Client) ListDeploymentsInNamespace(ctx context.Context, namespace strin
 }
 
 // FilterDeploymentsByPrefix returns deployments whose names start with any of the given prefixes.
-// If prefixes is nil or empty, uses DefaultRookCephPrefixes.
+// If prefixes is nil or empty, uses DefaultRookCephPrefixes().
 func FilterDeploymentsByPrefix(deployments []appsv1.Deployment, prefixes []string) []appsv1.Deployment {
 	if len(prefixes) == 0 {
-		prefixes = DefaultRookCephPrefixes
+		prefixes = DefaultRookCephPrefixes()
 	}
 
 	filtered := make([]appsv1.Deployment, 0)
@@ -217,16 +220,17 @@ type DeploymentInfoForLS struct {
 	OsdID string
 }
 
-// ListCephDeployments returns Ceph deployments with detailed info
-func (c *Client) ListCephDeployments(ctx context.Context, namespace string, prefixes []string) ([]DeploymentInfoForLS, error) {
+// ListCephDeployments returns Ceph deployments with detailed info.
+// Uses DefaultRookCephPrefixes() to filter deployments.
+func (c *Client) ListCephDeployments(ctx context.Context, namespace string) ([]DeploymentInfoForLS, error) {
 	// Get all deployments in the namespace
 	deployments, err := c.ListDeploymentsInNamespace(ctx, namespace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list deployments: %w", err)
 	}
 
-	// Filter by prefixes
-	filtered := FilterDeploymentsByPrefix(deployments, prefixes)
+	// Filter by default prefixes
+	filtered := FilterDeploymentsByPrefix(deployments, nil)
 
 	// Get pods in namespace to map deployments to nodes
 	podList, err := c.Clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})

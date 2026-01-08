@@ -279,7 +279,7 @@ func fetchClusterHealth(ctx context.Context, client *k8s.Client, namespace strin
 
 // fetchNodes fetches node data
 func fetchNodes(ctx context.Context, client *k8s.Client, namespace string) ([]NodeOutput, error) {
-	nodes, err := client.ListNodesWithCephPods(ctx, namespace, nil)
+	nodes, err := client.ListNodesWithCephPods(ctx, namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -302,7 +302,7 @@ func fetchNodes(ctx context.Context, client *k8s.Client, namespace string) ([]No
 
 // fetchDeployments fetches deployment data
 func fetchDeployments(ctx context.Context, client *k8s.Client, namespace string, nodeFilter string) ([]DeploymentOutput, error) {
-	deployments, err := client.ListCephDeployments(ctx, namespace, nil)
+	deployments, err := client.ListCephDeployments(ctx, namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -360,7 +360,7 @@ func fetchOSDs(ctx context.Context, client *k8s.Client, namespace, nodeFilter st
 
 // fetchPods fetches pod data
 func fetchPods(ctx context.Context, client *k8s.Client, namespace string, nodeFilter string) ([]PodOutput, error) {
-	pods, err := client.ListCephPods(ctx, namespace, nil, nodeFilter)
+	pods, err := client.ListCephPods(ctx, namespace, nodeFilter)
 	if err != nil {
 		return nil, err
 	}

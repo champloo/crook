@@ -245,11 +245,9 @@ type PodInfoForLS struct {
 }
 
 // ListCephPods returns Ceph pods with detailed info.
-// If prefixes is nil or empty, uses DefaultRookCephPrefixes.
-func (c *Client) ListCephPods(ctx context.Context, namespace string, prefixes []string, nodeFilter string) ([]PodInfoForLS, error) {
-	if len(prefixes) == 0 {
-		prefixes = DefaultRookCephPrefixes
-	}
+// Uses DefaultRookCephPrefixes() to filter pods.
+func (c *Client) ListCephPods(ctx context.Context, namespace string, nodeFilter string) ([]PodInfoForLS, error) {
+	prefixes := DefaultRookCephPrefixes()
 
 	// Build list options
 	listOpts := metav1.ListOptions{}

@@ -210,7 +210,7 @@ func (m *LsMonitor) startNodesPoller() <-chan []views.NodeInfo {
 
 // fetchNodes fetches all nodes with Ceph pods
 func (m *LsMonitor) fetchNodes() ([]views.NodeInfo, error) {
-	nodes, err := m.config.Client.ListNodesWithCephPods(m.ctx, m.config.Namespace, nil)
+	nodes, err := m.config.Client.ListNodesWithCephPods(m.ctx, m.config.Namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -245,7 +245,7 @@ func (m *LsMonitor) startDeploymentsPoller() <-chan []views.DeploymentInfo {
 
 // fetchDeployments fetches all Ceph deployments
 func (m *LsMonitor) fetchDeployments() ([]views.DeploymentInfo, error) {
-	deployments, err := m.config.Client.ListCephDeployments(m.ctx, m.config.Namespace, nil)
+	deployments, err := m.config.Client.ListCephDeployments(m.ctx, m.config.Namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -285,7 +285,7 @@ func (m *LsMonitor) startPodsPoller() <-chan []views.PodInfo {
 
 // fetchPods fetches all Ceph pods
 func (m *LsMonitor) fetchPods() ([]views.PodInfo, error) {
-	pods, err := m.config.Client.ListCephPods(m.ctx, m.config.Namespace, nil, m.config.NodeFilter)
+	pods, err := m.config.Client.ListCephPods(m.ctx, m.config.Namespace, m.config.NodeFilter)
 	if err != nil {
 		return nil, err
 	}

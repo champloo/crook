@@ -125,9 +125,8 @@ func TestListNodesWithCephPods(t *testing.T) {
 	clientset := fake.NewClientset(nodes, pods)
 	client := &Client{Clientset: clientset}
 
-	// Test with Ceph prefixes
-	prefixes := []string{"rook-ceph-osd", "rook-ceph-mon"}
-	result, err := client.ListNodesWithCephPods(ctx, "rook-ceph", prefixes)
+	// Test ListNodesWithCephPods (uses default prefixes)
+	result, err := client.ListNodesWithCephPods(ctx, "rook-ceph")
 
 	if err != nil {
 		t.Fatalf("ListNodesWithCephPods() error = %v", err)

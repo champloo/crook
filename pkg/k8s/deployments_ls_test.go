@@ -113,9 +113,8 @@ func TestListCephDeployments(t *testing.T) {
 	clientset := fake.NewClientset(deployments, pods)
 	client := &Client{Clientset: clientset}
 
-	// Test with Ceph prefixes
-	prefixes := []string{"rook-ceph-osd", "rook-ceph-mon", "rook-ceph-crashcollector"}
-	result, err := client.ListCephDeployments(ctx, "rook-ceph", prefixes)
+	// Test ListCephDeployments (uses default prefixes)
+	result, err := client.ListCephDeployments(ctx, "rook-ceph")
 
 	if err != nil {
 		t.Fatalf("ListCephDeployments() error = %v", err)
@@ -270,8 +269,7 @@ func TestListCephDeployments_OverlappingNames(t *testing.T) {
 	clientset := fake.NewClientset(deployments, pods)
 	client := &Client{Clientset: clientset}
 
-	prefixes := []string{"rook-ceph-exporter"}
-	result, err := client.ListCephDeployments(ctx, "rook-ceph", prefixes)
+	result, err := client.ListCephDeployments(ctx, "rook-ceph")
 
 	if err != nil {
 		t.Fatalf("ListCephDeployments() error = %v", err)

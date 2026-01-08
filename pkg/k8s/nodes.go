@@ -148,11 +148,9 @@ type NodeInfoForLS struct {
 }
 
 // ListNodesWithCephPods returns all nodes with Ceph pod counts.
-// If prefixes is nil or empty, uses DefaultRookCephPrefixes.
-func (c *Client) ListNodesWithCephPods(ctx context.Context, namespace string, prefixes []string) ([]NodeInfoForLS, error) {
-	if len(prefixes) == 0 {
-		prefixes = DefaultRookCephPrefixes
-	}
+// Uses DefaultRookCephPrefixes() to filter pods.
+func (c *Client) ListNodesWithCephPods(ctx context.Context, namespace string) ([]NodeInfoForLS, error) {
+	prefixes := DefaultRookCephPrefixes()
 
 	// Get all nodes
 	nodes, err := c.ListNodes(ctx)
