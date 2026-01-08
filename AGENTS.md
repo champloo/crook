@@ -40,7 +40,9 @@ Make sure to review @openspec/project.md for project conventions.
 * When creating tasks make sure that tasks are detailed focusing carefully on dependencies, detailed designs and potential parallelization.
   * Put enough detail and context in the Beads tasks to enable you to execute them at a later time
   * Add references relevan openspec specs, design and proposals to allow you to fetch data later on
-* When I ask you to work on multiple tasks do tasks one by
-  * Provide a summary for each task as soon as you finish it and then commit the changes to git.
+* When I ask you to work on multiple beads tasks then do tasks one by one and for each task
+  * Mark the task as In Progress whens starting the task
+  * Print out a work summary for each task as soon as you finish it and then commit the changes to git.
+  * Mark task as complete in beads once you have completed it
   * Don't stop until you have completed all tasks
-  * Finally provide overall summary for all tasks
+  * Finally provide overall summary for all completedtasks
