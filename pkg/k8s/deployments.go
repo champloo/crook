@@ -255,12 +255,20 @@ func (c *Client) ListCephDeployments(ctx context.Context, namespace string, pref
 	now := time.Now()
 
 	for _, dep := range filtered {
+		// Use nodeSelector as primary source (works for 0-replica deployments)
+		nodeName := GetDeploymentTargetNode(&dep)
+
+		// Fallback: If no nodeSelector, try pod-based detection
+		if nodeName == "" {
+			nodeName = deploymentNodes[dep.Name]
+		}
+
 		info := DeploymentInfoForLS{
 			Name:            dep.Name,
 			Namespace:       dep.Namespace,
 			ReadyReplicas:   dep.Status.ReadyReplicas,
 			DesiredReplicas: getDeploymentDesiredReplicas(&dep),
-			NodeName:        deploymentNodes[dep.Name],
+			NodeName:        nodeName,
 			Age:             now.Sub(dep.CreationTimestamp.Time),
 			Status:          getDeploymentStatusString(&dep),
 			Type:            extractDeploymentType(dep.Name),

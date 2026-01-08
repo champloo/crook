@@ -96,9 +96,6 @@ type DownModelConfig struct {
 	// NodeName is the target node for the down phase
 	NodeName string
 
-	// StateFilePath optionally overrides the default state file location
-	StateFilePath string
-
 	// ExitBehavior controls how the flow exits (quit vs message).
 	ExitBehavior FlowExitBehavior
 
@@ -137,7 +134,6 @@ type DownModel struct {
 	deploymentCount     int
 	currentDeployment   string
 	deploymentsScaled   int
-	stateFilePath       string
 	startTime           time.Time
 	elapsedTime         time.Duration
 	lastError           error
@@ -176,9 +172,7 @@ type DownPhaseProgressMsg struct {
 }
 
 // DownPhaseCompleteMsg signals successful completion
-type DownPhaseCompleteMsg struct {
-	StateFilePath string
-}
+type DownPhaseCompleteMsg struct{}
 
 // DownPhaseErrorMsg signals an error occurred
 type DownPhaseErrorMsg struct {
@@ -209,12 +203,11 @@ func (m *DownModel) Init() tea.Cmd {
 // discoverDeploymentsCmd discovers deployments for the confirmation screen
 func (m *DownModel) discoverDeploymentsCmd() tea.Cmd {
 	return func() tea.Msg {
-		deployments, err := maintenance.DiscoverDeployments(
+		// Use nodeSelector-based discovery instead of pod-based
+		deployments, err := m.config.Client.ListNodePinnedDeployments(
 			m.config.Context,
-			m.config.Client,
-			m.config.NodeName,
 			m.config.Config.Kubernetes.RookClusterNamespace,
-			m.config.Config.DeploymentFilters.Prefixes,
+			m.config.NodeName,
 		)
 		if err != nil {
 			return DownPhaseErrorMsg{Err: err, Stage: "discover"}
@@ -258,7 +251,6 @@ func (m *DownModel) executeDownPhaseCmd() tea.Cmd {
 // runDownPhase executes the maintenance operation in a goroutine
 func (m *DownModel) runDownPhase(ctx context.Context) tea.Cmd {
 	progressChan := m.progressChan
-	stateFilePath := m.config.StateFilePath
 	client := m.config.Client
 	cfg := m.config.Config
 	nodeName := m.config.NodeName
@@ -273,7 +265,6 @@ func (m *DownModel) runDownPhase(ctx context.Context) tea.Cmd {
 					// Channel full, skip this update
 				}
 			},
-			StateFilePath: stateFilePath,
 		}
 
 		err := maintenance.ExecuteDownPhase(
@@ -291,9 +282,7 @@ func (m *DownModel) runDownPhase(ctx context.Context) tea.Cmd {
 			return DownPhaseErrorMsg{Err: err, Stage: "execute"}
 		}
 
-		// Resolve the state file path for display
-		statePath := resolveDownStatePath(cfg, stateFilePath, nodeName)
-		return DownPhaseCompleteMsg{StateFilePath: statePath}
+		return DownPhaseCompleteMsg{}
 	}
 }
 
@@ -364,7 +353,6 @@ func (m *DownModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case DownPhaseCompleteMsg:
 		m.state = DownStateComplete
-		m.stateFilePath = msg.StateFilePath
 		m.operationInProgress = false
 		m.cancelFunc = nil // Clear cancel func
 		m.progress.Complete()
@@ -463,7 +451,6 @@ func (m *DownModel) initStatusList() {
 	m.statusList.AddStatus("Scale operator", components.StatusTypePending)
 	m.statusList.AddStatus("Discover deployments", components.StatusTypePending)
 	m.statusList.AddStatus("Scale deployments", components.StatusTypePending)
-	m.statusList.AddStatus("Save state", components.StatusTypePending)
 }
 
 // updateStateFromProgress updates the model state based on progress messages
@@ -493,11 +480,8 @@ func (m *DownModel) updateStateFromProgress(msg DownPhaseProgressMsg) {
 		m.updateStatusItem(5, components.StatusTypeRunning)
 		m.currentDeployment = msg.Deployment
 		m.deploymentsScaled++
-	case "save-state":
-		m.updateStatusItem(5, components.StatusTypeSuccess)
-		m.updateStatusItem(6, components.StatusTypeRunning)
 	case "complete":
-		m.updateStatusItem(6, components.StatusTypeSuccess)
+		m.updateStatusItem(5, components.StatusTypeSuccess)
 	}
 }
 
@@ -584,7 +568,6 @@ func (m *DownModel) renderConfirmation() string {
 	b.WriteString("  2. Set Ceph noout flag\n")
 	b.WriteString("  3. Scale down rook-ceph-operator\n")
 	b.WriteString(fmt.Sprintf("  4. Scale down %d deployment(s)\n", m.deploymentCount))
-	b.WriteString("  5. Save state for restoration\n")
 
 	b.WriteString("\n")
 	b.WriteString(m.confirmPrompt.View())
@@ -649,7 +632,6 @@ func (m *DownModel) renderComplete() string {
 	kv.Add("Node", m.config.NodeName)
 	kv.Add("Deployments Scaled", fmt.Sprintf("%d", m.deploymentCount))
 	kv.Add("Duration", m.elapsedTime.Round(time.Second).String())
-	kv.Add("State File", m.stateFilePath)
 	b.WriteString(kv.View())
 
 	b.WriteString("\n\n")
@@ -682,17 +664,4 @@ func (m *DownModel) renderFooter() string {
 func (m *DownModel) SetSize(width, height int) {
 	m.width = width
 	m.height = height
-}
-
-// resolveDownStatePath resolves the state file path (helper)
-func resolveDownStatePath(cfg config.Config, overridePath, nodeName string) string {
-	if overridePath != "" {
-		return overridePath
-	}
-	// Use template from config
-	tmpl := cfg.State.FilePathTemplate
-	if tmpl == "" {
-		tmpl = "./crook-state-{{.Node}}.json"
-	}
-	return strings.ReplaceAll(tmpl, "{{.Node}}", nodeName)
 }

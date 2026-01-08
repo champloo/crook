@@ -3,10 +3,11 @@ package maintenance
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/andri/crook/pkg/config"
 	"github.com/andri/crook/pkg/k8s"
-	"github.com/andri/crook/pkg/state"
+	appsv1 "k8s.io/api/apps/v1"
 )
 
 // UpPhaseProgress tracks progress of the up phase operation
@@ -24,17 +25,10 @@ type UpPhaseOptions struct {
 
 	// WaitOptions for deployment scaling operations
 	WaitOptions WaitOptions
-
-	// StateFilePath optionally overrides the config template path
-	StateFilePath string
-
-	// SkipMissingDeployments continues execution even if some deployments in state file don't exist
-	// When false (default), the operation fails if any deployment is missing
-	SkipMissingDeployments bool
 }
 
 // ExecuteUpPhase orchestrates the complete node up phase workflow
-// Steps: load state → validate → uncordon → restore deployments → scale operator → unset noout
+// Steps: pre-flight → discover scaled-down deployments → uncordon → restore deployments → scale operator → unset noout
 func ExecuteUpPhase(
 	ctx context.Context,
 	client *k8s.Client,
@@ -53,122 +47,63 @@ func ExecuteUpPhase(
 		return fmt.Errorf("pre-flight validation failed:\n%s", validationResults.String())
 	}
 
-	// Step 2: Load and validate state file
-	maintenanceState, statePath, err := loadAndValidateState(cfg, opts, nodeName)
+	// Step 2: Discover scaled-down deployments via nodeSelector
+	sendUpProgress(opts.ProgressCallback, "discover", fmt.Sprintf("Discovering scaled-down deployments on %s", nodeName), "")
+
+	deployments, err := client.ListScaledDownDeploymentsForNode(ctx, cfg.Kubernetes.RookClusterNamespace, nodeName)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to discover scaled-down deployments: %w", err)
 	}
 
-	// Step 3: Validate deployments exist
-	missingDeployments, err := validateDeploymentsExist(ctx, client, maintenanceState, opts)
-	if err != nil {
-		return err
-	}
-
-	// Step 4: Uncordon node FIRST so pods can schedule when deployments scale up
+	// Step 3: Uncordon node FIRST so pods can schedule when deployments scale up
 	sendUpProgress(opts.ProgressCallback, "uncordon", fmt.Sprintf("Uncordoning node %s", nodeName), "")
 	if uncordonErr := client.UncordonNode(ctx, nodeName); uncordonErr != nil {
 		return fmt.Errorf("failed to uncordon node %s: %w", nodeName, uncordonErr)
 	}
 
-	// Step 5: Restore deployments in order (pods can now schedule to uncordoned node)
-	if restoreErr := restoreDeployments(ctx, client, cfg, maintenanceState, missingDeployments, opts); restoreErr != nil {
+	// Step 4: Restore deployments in order
+	if restoreErr := restoreDeployments(ctx, client, cfg, deployments, opts); restoreErr != nil {
 		return restoreErr
 	}
 
-	// Step 6: Scale up rook-ceph-operator
-	if scaleErr := scaleOperator(ctx, client, cfg, maintenanceState, opts); scaleErr != nil {
+	// Step 5: Scale up rook-ceph-operator to 1
+	if scaleErr := scaleOperator(ctx, client, cfg, opts); scaleErr != nil {
 		return scaleErr
 	}
 
-	// Step 7: Finalize - unset noout flag to allow normal Ceph rebalancing
+	// Step 6: Finalize - unset noout flag to allow normal Ceph rebalancing
 	if finalizeErr := finalizeUpPhase(ctx, client, cfg, opts); finalizeErr != nil {
 		return finalizeErr
 	}
 
-	sendUpProgress(opts.ProgressCallback, "complete", fmt.Sprintf("Up phase completed successfully - node %s is operational (state file: %s)", nodeName, statePath), "")
+	sendUpProgress(opts.ProgressCallback, "complete", fmt.Sprintf("Up phase completed successfully - node %s is operational", nodeName), "")
 	return nil
-}
-
-// loadAndValidateState loads the state file and validates it matches the target node
-func loadAndValidateState(cfg config.Config, opts UpPhaseOptions, nodeName string) (*state.State, string, error) {
-	sendUpProgress(opts.ProgressCallback, "load-state", "Loading maintenance state file", "")
-
-	statePath, err := resolveStatePath(cfg, opts.StateFilePath, nodeName)
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to resolve state file path: %w", err)
-	}
-
-	maintenanceState, err := state.ParseFile(statePath)
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to load state file %s: %w", statePath, err)
-	}
-
-	if maintenanceState.Node != nodeName {
-		return nil, "", fmt.Errorf("state file node mismatch: expected %s, got %s", nodeName, maintenanceState.Node)
-	}
-
-	return maintenanceState, statePath, nil
-}
-
-// validateDeploymentsExist checks that all deployments in state file exist in cluster
-func validateDeploymentsExist(ctx context.Context, client *k8s.Client, maintenanceState *state.State, opts UpPhaseOptions) ([]string, error) {
-	sendUpProgress(opts.ProgressCallback, "validate-deployments", "Validating deployments exist", "")
-
-	missingDeployments := make([]string, 0)
-	for _, resource := range maintenanceState.Resources {
-		if resource.Kind != "Deployment" {
-			continue
-		}
-
-		_, err := client.GetDeployment(ctx, resource.Namespace, resource.Name)
-		if err != nil {
-			deploymentName := fmt.Sprintf("%s/%s", resource.Namespace, resource.Name)
-			missingDeployments = append(missingDeployments, deploymentName)
-		}
-	}
-
-	if len(missingDeployments) > 0 && !opts.SkipMissingDeployments {
-		return nil, fmt.Errorf("deployments missing from cluster: %v - cannot restore safely", missingDeployments)
-	}
-
-	if len(missingDeployments) > 0 {
-		sendUpProgress(opts.ProgressCallback, "warning", fmt.Sprintf("Warning: %d deployments missing from cluster", len(missingDeployments)), "")
-	}
-
-	return missingDeployments, nil
 }
 
 // restoreDeployments scales up deployments in the correct order
 // MON deployments are scaled first, then quorum is verified before scaling OSDs
-func restoreDeployments(ctx context.Context, client *k8s.Client, cfg config.Config, maintenanceState *state.State, missingDeployments []string, opts UpPhaseOptions) error {
-	deploymentResources := make([]state.Resource, 0)
-	for _, resource := range maintenanceState.Resources {
-		if resource.Kind == "Deployment" {
-			deploymentResources = append(deploymentResources, resource)
-		}
+// All deployments are scaled to 1 replica (Rook-Ceph node-pinned deployments always use 1)
+func restoreDeployments(ctx context.Context, client *k8s.Client, cfg config.Config, deployments []appsv1.Deployment, opts UpPhaseOptions) error {
+	if len(deployments) == 0 {
+		sendUpProgress(opts.ProgressCallback, "skip", "No scaled-down deployments to restore", "")
+		return nil
 	}
 
 	// Separate MON deployments from others
-	monResources, otherResources := separateMonDeployments(deploymentResources)
+	monDeployments, otherDeployments := separateMonDeploymentsFromList(deployments)
 
 	// First scale up MON deployments
-	if len(monResources) > 0 {
-		for _, resource := range monResources {
-			deploymentName := fmt.Sprintf("%s/%s", resource.Namespace, resource.Name)
+	if len(monDeployments) > 0 {
+		for _, deployment := range monDeployments {
+			deploymentName := fmt.Sprintf("%s/%s", deployment.Namespace, deployment.Name)
 
-			if contains(missingDeployments, deploymentName) {
-				sendUpProgress(opts.ProgressCallback, "skip", fmt.Sprintf("Skipping missing MON deployment %s", deploymentName), deploymentName)
-				continue
+			sendUpProgress(opts.ProgressCallback, "scale-up", fmt.Sprintf("Scaling up MON %s to 1 replica", deploymentName), deploymentName)
+
+			if err := client.ScaleDeployment(ctx, deployment.Namespace, deployment.Name, 1); err != nil {
+				return fmt.Errorf("failed to scale MON deployment %s to 1: %w", deploymentName, err)
 			}
 
-			sendUpProgress(opts.ProgressCallback, "scale-up", fmt.Sprintf("Scaling up MON %s to %d replicas", deploymentName, resource.Replicas), deploymentName)
-
-			if err := client.ScaleDeployment(ctx, resource.Namespace, resource.Name, safeInt32(resource.Replicas)); err != nil {
-				return fmt.Errorf("failed to scale MON deployment %s to %d: %w", deploymentName, resource.Replicas, err)
-			}
-
-			if err := WaitForDeploymentScaleUp(ctx, client, resource.Namespace, resource.Name, safeInt32(resource.Replicas), opts.WaitOptions); err != nil {
+			if err := WaitForDeploymentScaleUp(ctx, client, deployment.Namespace, deployment.Name, 1, opts.WaitOptions); err != nil {
 				return fmt.Errorf("failed waiting for MON deployment %s to scale up: %w", deploymentName, err)
 			}
 		}
@@ -182,22 +117,17 @@ func restoreDeployments(ctx context.Context, client *k8s.Client, cfg config.Conf
 	}
 
 	// Now scale up remaining deployments (OSDs and others) in order
-	orderedOther := orderResourcesForUp(otherResources)
-	for _, resource := range orderedOther {
-		deploymentName := fmt.Sprintf("%s/%s", resource.Namespace, resource.Name)
+	orderedOther := OrderDeploymentsForUp(otherDeployments)
+	for _, deployment := range orderedOther {
+		deploymentName := fmt.Sprintf("%s/%s", deployment.Namespace, deployment.Name)
 
-		if contains(missingDeployments, deploymentName) {
-			sendUpProgress(opts.ProgressCallback, "skip", fmt.Sprintf("Skipping missing deployment %s", deploymentName), deploymentName)
-			continue
+		sendUpProgress(opts.ProgressCallback, "scale-up", fmt.Sprintf("Scaling up %s to 1 replica", deploymentName), deploymentName)
+
+		if err := client.ScaleDeployment(ctx, deployment.Namespace, deployment.Name, 1); err != nil {
+			return fmt.Errorf("failed to scale deployment %s to 1: %w", deploymentName, err)
 		}
 
-		sendUpProgress(opts.ProgressCallback, "scale-up", fmt.Sprintf("Scaling up %s to %d replicas", deploymentName, resource.Replicas), deploymentName)
-
-		if err := client.ScaleDeployment(ctx, resource.Namespace, resource.Name, safeInt32(resource.Replicas)); err != nil {
-			return fmt.Errorf("failed to scale deployment %s to %d: %w", deploymentName, resource.Replicas, err)
-		}
-
-		if err := WaitForDeploymentScaleUp(ctx, client, resource.Namespace, resource.Name, safeInt32(resource.Replicas), opts.WaitOptions); err != nil {
+		if err := WaitForDeploymentScaleUp(ctx, client, deployment.Namespace, deployment.Name, 1, opts.WaitOptions); err != nil {
 			return fmt.Errorf("failed waiting for deployment %s to scale up: %w", deploymentName, err)
 		}
 	}
@@ -205,30 +135,30 @@ func restoreDeployments(ctx context.Context, client *k8s.Client, cfg config.Conf
 	return nil
 }
 
-// separateMonDeployments separates MON deployments from other deployments
-func separateMonDeployments(resources []state.Resource) (monResources, otherResources []state.Resource) {
-	for _, resource := range resources {
-		if startsWithPrefix(resource.Name, "rook-ceph-mon") {
-			monResources = append(monResources, resource)
+// separateMonDeploymentsFromList separates MON deployments from other deployments
+func separateMonDeploymentsFromList(deployments []appsv1.Deployment) (monDeployments, otherDeployments []appsv1.Deployment) {
+	for _, deployment := range deployments {
+		if strings.HasPrefix(deployment.Name, "rook-ceph-mon") {
+			monDeployments = append(monDeployments, deployment)
 		} else {
-			otherResources = append(otherResources, resource)
+			otherDeployments = append(otherDeployments, deployment)
 		}
 	}
-	return monResources, otherResources
+	return monDeployments, otherDeployments
 }
 
-// scaleOperator scales up the rook-ceph-operator deployment
-func scaleOperator(ctx context.Context, client *k8s.Client, cfg config.Config, maintenanceState *state.State, opts UpPhaseOptions) error {
-	sendUpProgress(opts.ProgressCallback, "operator", fmt.Sprintf("Scaling up rook-ceph-operator to %d", maintenanceState.OperatorReplicas), "")
+// scaleOperator scales up the rook-ceph-operator deployment to 1
+func scaleOperator(ctx context.Context, client *k8s.Client, cfg config.Config, opts UpPhaseOptions) error {
+	sendUpProgress(opts.ProgressCallback, "operator", "Scaling up rook-ceph-operator to 1", "")
 
 	operatorName := "rook-ceph-operator"
 	operatorNamespace := cfg.Kubernetes.RookOperatorNamespace
 
-	if err := client.ScaleDeployment(ctx, operatorNamespace, operatorName, safeInt32(maintenanceState.OperatorReplicas)); err != nil {
-		return fmt.Errorf("failed to scale operator to %d: %w", maintenanceState.OperatorReplicas, err)
+	if err := client.ScaleDeployment(ctx, operatorNamespace, operatorName, 1); err != nil {
+		return fmt.Errorf("failed to scale operator to 1: %w", err)
 	}
 
-	if err := WaitForDeploymentScaleUp(ctx, client, operatorNamespace, operatorName, safeInt32(maintenanceState.OperatorReplicas), opts.WaitOptions); err != nil {
+	if err := WaitForDeploymentScaleUp(ctx, client, operatorNamespace, operatorName, 1, opts.WaitOptions); err != nil {
 		return fmt.Errorf("failed waiting for operator to scale up: %w", err)
 	}
 
@@ -246,91 +176,6 @@ func finalizeUpPhase(ctx context.Context, client *k8s.Client, cfg config.Config,
 	return nil
 }
 
-// safeInt32 safely converts an int to int32, clamping to valid range
-func safeInt32(n int) int32 {
-	if n < 0 {
-		return 0
-	}
-	if n > 2147483647 {
-		return 2147483647
-	}
-	return int32(n)
-}
-
-// ScaleUpDeployments scales up multiple deployments from state resources and waits for each
-func ScaleUpDeployments(
-	ctx context.Context,
-	client *k8s.Client,
-	resources []state.Resource,
-	opts WaitOptions,
-	progressCallback func(deploymentName string),
-) error {
-	for _, resource := range resources {
-		if resource.Kind != "Deployment" {
-			continue
-		}
-
-		deploymentName := fmt.Sprintf("%s/%s", resource.Namespace, resource.Name)
-
-		if progressCallback != nil {
-			progressCallback(deploymentName)
-		}
-
-		if err := client.ScaleDeployment(ctx, resource.Namespace, resource.Name, safeInt32(resource.Replicas)); err != nil {
-			return fmt.Errorf("failed to scale deployment %s to %d: %w", deploymentName, resource.Replicas, err)
-		}
-
-		if err := WaitForDeploymentScaleUp(ctx, client, resource.Namespace, resource.Name, safeInt32(resource.Replicas), opts); err != nil {
-			return fmt.Errorf("failed waiting for deployment %s to scale up: %w", deploymentName, err)
-		}
-	}
-
-	return nil
-}
-
-// orderResourcesForUp orders state resources for safe up phase
-// Order: rook-ceph-mon (first), rook-ceph-osd, rook-ceph-exporter, rook-ceph-crashcollector (last)
-func orderResourcesForUp(resources []state.Resource) []state.Resource {
-	upOrder := []string{
-		"rook-ceph-mon",
-		"rook-ceph-osd",
-		"rook-ceph-exporter",
-		"rook-ceph-crashcollector",
-	}
-
-	ordered := make([]state.Resource, 0, len(resources))
-
-	// Add resources in prefix order
-	for _, prefix := range upOrder {
-		for _, resource := range resources {
-			if startsWithPrefix(resource.Name, prefix) {
-				ordered = append(ordered, resource)
-			}
-		}
-	}
-
-	// Add any remaining resources that didn't match prefixes
-	for _, resource := range resources {
-		found := false
-		for _, existing := range ordered {
-			if existing.Namespace == resource.Namespace && existing.Name == resource.Name {
-				found = true
-				break
-			}
-		}
-		if !found {
-			ordered = append(ordered, resource)
-		}
-	}
-
-	return ordered
-}
-
-// startsWithPrefix checks if a string starts with the given prefix
-func startsWithPrefix(s, prefix string) bool {
-	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
-}
-
 // sendUpProgress safely calls the progress callback if it's not nil
 func sendUpProgress(callback func(UpPhaseProgress), stage, description, deployment string) {
 	if callback != nil {
@@ -340,14 +185,4 @@ func sendUpProgress(callback func(UpPhaseProgress), stage, description, deployme
 			Deployment:  deployment,
 		})
 	}
-}
-
-// contains checks if a slice contains a string
-func contains(slice []string, item string) bool {
-	for _, s := range slice {
-		if s == item {
-			return true
-		}
-	}
-	return false
 }

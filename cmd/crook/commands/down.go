@@ -17,9 +17,6 @@ import (
 
 // DownOptions holds options specific to the down command
 type DownOptions struct {
-	// StateFile overrides the default state file path
-	StateFile string
-
 	// NoTUI disables the interactive TUI and runs in non-interactive mode
 	NoTUI bool
 
@@ -44,8 +41,7 @@ This command performs the following steps:
   2. Cordons the node (marks it unschedulable)
   3. Sets the Ceph 'noout' flag to prevent data rebalancing
   4. Scales down the rook-ceph-operator
-  5. Discovers and scales down Rook-Ceph deployments on the node
-  6. Saves state to a JSON file for later restoration
+  5. Discovers and scales down node-pinned Rook-Ceph deployments
 
 After running this command, the node is safe for maintenance operations
 like reboots, hardware changes, or OS upgrades.
@@ -53,9 +49,6 @@ like reboots, hardware changes, or OS upgrades.
 Use 'crook up <node>' to restore the node after maintenance is complete.`,
 		Example: `  # Prepare node 'worker-1' for maintenance
   crook down worker-1
-
-  # Use a custom state file location
-  crook down worker-1 --state-file /tmp/worker-1-state.json
 
   # Non-interactive mode with auto-confirm (for automation)
   crook down worker-1 --yes --no-tui
@@ -71,8 +64,6 @@ Use 'crook up <node>' to restore the node after maintenance is complete.`,
 
 	// Add down-specific flags
 	flags := cmd.Flags()
-	flags.StringVar(&opts.StateFile, "state-file", "",
-		"path to save state file (default: from config template)")
 	flags.BoolVar(&opts.NoTUI, "no-tui", false,
 		"disable interactive TUI, run in non-interactive mode")
 	flags.BoolVarP(&opts.Yes, "yes", "y", false,
@@ -117,17 +108,16 @@ func runDown(ctx context.Context, nodeName string, opts *DownOptions) error {
 }
 
 // runDownTUI runs the down phase with the interactive TUI
-func runDownTUI(ctx context.Context, client *k8s.Client, nodeName string, opts *DownOptions) error {
+func runDownTUI(ctx context.Context, client *k8s.Client, nodeName string, _ *DownOptions) error {
 	cfg := GlobalOptions.Config
 
 	// Create the TUI app model configured for down phase
 	appCfg := models.AppConfig{
-		Route:         models.RouteDown,
-		NodeName:      nodeName,
-		StateFilePath: opts.StateFile,
-		Config:        cfg,
-		Client:        client,
-		Context:       ctx,
+		Route:    models.RouteDown,
+		NodeName: nodeName,
+		Config:   cfg,
+		Client:   client,
+		Context:  ctx,
 	}
 
 	app := models.NewAppModel(appCfg)
@@ -164,8 +154,7 @@ func runDownNonInteractive(ctx context.Context, client *k8s.Client, nodeName str
 		printLine(out, "  1. Cordon the node (mark unschedulable)")
 		printLine(out, "  2. Set Ceph noout flag")
 		printLine(out, "  3. Scale down rook-ceph-operator")
-		printLine(out, "  4. Scale down Rook-Ceph deployments on the node")
-		printLine(out, "  5. Save state for later restoration\n")
+		printLine(out, "  4. Scale down Rook-Ceph deployments on the node\n")
 		printLine(out, "Continue? [y/N] ")
 
 		var response string
@@ -181,7 +170,6 @@ func runDownNonInteractive(ctx context.Context, client *k8s.Client, nodeName str
 
 	// Execute the down phase with progress callback
 	downOpts := maintenance.DownPhaseOptions{
-		StateFilePath: opts.StateFile,
 		ProgressCallback: func(progress maintenance.DownPhaseProgress) {
 			printLine(out, "[%s] %s", progress.Stage, progress.Description)
 			if progress.Deployment != "" {

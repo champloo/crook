@@ -60,7 +60,7 @@ func TestDownCmdHasRequiredFlags(t *testing.T) {
 		}
 	}
 
-	expectedFlags := []string{"state-file", "no-tui", "yes", "timeout"}
+	expectedFlags := []string{"no-tui", "yes", "timeout"}
 
 	for _, flagName := range expectedFlags {
 		found := false

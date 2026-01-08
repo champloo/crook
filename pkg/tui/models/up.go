@@ -10,7 +10,6 @@ import (
 	"github.com/andri/crook/pkg/config"
 	"github.com/andri/crook/pkg/k8s"
 	"github.com/andri/crook/pkg/maintenance"
-	"github.com/andri/crook/pkg/state"
 	"github.com/andri/crook/pkg/tui/components"
 	"github.com/andri/crook/pkg/tui/styles"
 	tea "github.com/charmbracelet/bubbletea"
@@ -22,13 +21,13 @@ type UpPhaseState int
 const (
 	// UpStateInit is the initial state before any action
 	UpStateInit UpPhaseState = iota
-	// UpStateLoadingState loads and validates the state file
-	UpStateLoadingState
+	// UpStateDiscovering discovers scaled-down deployments
+	UpStateDiscovering
 	// UpStateConfirm waits for user confirmation of restore plan
 	UpStateConfirm
 	// UpStateUncordoning uncordons the node
 	UpStateUncordoning
-	// UpStateRestoringDeployments scales up deployments to saved replicas
+	// UpStateRestoringDeployments scales up deployments to 1 replica
 	UpStateRestoringDeployments
 	// UpStateScalingOperator scales up the rook-ceph-operator
 	UpStateScalingOperator
@@ -45,8 +44,8 @@ func (s UpPhaseState) String() string {
 	switch s {
 	case UpStateInit:
 		return "Initializing"
-	case UpStateLoadingState:
-		return "Loading State"
+	case UpStateDiscovering:
+		return "Discovering Deployments"
 	case UpStateConfirm:
 		return "Awaiting Confirmation"
 	case UpStateUncordoning:
@@ -71,14 +70,14 @@ func (s UpPhaseState) Description() string {
 	switch s {
 	case UpStateInit:
 		return "Preparing up phase workflow..."
-	case UpStateLoadingState:
-		return "Loading and validating state file..."
+	case UpStateDiscovering:
+		return "Discovering scaled-down deployments..."
 	case UpStateConfirm:
 		return "Review the restore plan and confirm to proceed"
 	case UpStateUncordoning:
 		return "Uncordoning node to allow pod scheduling"
 	case UpStateRestoringDeployments:
-		return "Scaling deployments to original replica counts"
+		return "Scaling deployments to 1 replica"
 	case UpStateScalingOperator:
 		return "Scaling up rook-ceph-operator to resume management"
 	case UpStateUnsettingNoOut:
@@ -96,9 +95,6 @@ func (s UpPhaseState) Description() string {
 type UpModelConfig struct {
 	// NodeName is the target node for the up phase
 	NodeName string
-
-	// StateFilePath optionally overrides the default state file location
-	StateFilePath string
 
 	// ExitBehavior controls how the flow exits (quit vs message).
 	ExitBehavior FlowExitBehavior
@@ -121,9 +117,8 @@ type UpModelConfig struct {
 type RestorePlanItem struct {
 	Namespace       string
 	Name            string
-	TargetReplicas  int
 	CurrentReplicas int
-	Status          string // "pending", "restoring", "success", "error", "missing"
+	Status          string // "pending", "restoring", "success", "error"
 }
 
 // UpModel is the Bubble Tea model for the up phase workflow
@@ -143,14 +138,8 @@ type UpModel struct {
 	statusList    *components.StatusList
 	progress      *components.ProgressBar
 
-	// Loaded state file
-	loadedState   *state.State
-	stateFilePath string
-	stateLoadedAt time.Time
-
-	// Restore plan
-	restorePlan    []RestorePlanItem
-	missingDeploys []string
+	// Restore plan (discovered scaled-down deployments)
+	restorePlan []RestorePlanItem
 
 	// Operation state
 	startTime           time.Time
@@ -189,9 +178,7 @@ type UpPhaseProgressMsg struct {
 }
 
 // UpPhaseCompleteMsg signals successful completion
-type UpPhaseCompleteMsg struct {
-	StateFilePath string
-}
+type UpPhaseCompleteMsg struct{}
 
 // UpPhaseErrorMsg signals an error occurred
 type UpPhaseErrorMsg struct {
@@ -202,12 +189,9 @@ type UpPhaseErrorMsg struct {
 // UpPhaseTickMsg is sent periodically to update elapsed time
 type UpPhaseTickMsg struct{}
 
-// StateLoadedMsg reports successful state file loading
-type StateLoadedMsg struct {
-	State         *state.State
-	StatePath     string
-	RestorePlan   []RestorePlanItem
-	MissingDeploy []string
+// DeploymentsDiscoveredForUpMsg reports discovered scaled-down deployments
+type DeploymentsDiscoveredForUpMsg struct {
+	RestorePlan []RestorePlanItem
 }
 
 // UpProgressChannelClosedMsg signals that the progress channel was closed
@@ -217,67 +201,38 @@ type UpProgressChannelClosedMsg struct{}
 // Init implements tea.Model
 func (m *UpModel) Init() tea.Cmd {
 	return tea.Batch(
-		m.loadStateCmd(),
+		m.discoverDeploymentsCmd(),
 		m.tickCmd(),
 	)
 }
 
-// loadStateCmd loads and validates the state file
-func (m *UpModel) loadStateCmd() tea.Cmd {
+// discoverDeploymentsCmd discovers scaled-down deployments for the confirmation screen
+func (m *UpModel) discoverDeploymentsCmd() tea.Cmd {
 	return func() tea.Msg {
-		// Resolve state file path
-		statePath := resolveUpStatePath(m.config.Config, m.config.StateFilePath, m.config.NodeName)
-
-		// Load and parse state file
-		loadedState, err := state.ParseFile(statePath)
+		// Use nodeSelector-based discovery to find scaled-down deployments
+		deployments, err := m.config.Client.ListScaledDownDeploymentsForNode(
+			m.config.Context,
+			m.config.Config.Kubernetes.RookClusterNamespace,
+			m.config.NodeName,
+		)
 		if err != nil {
-			return UpPhaseErrorMsg{Err: fmt.Errorf("failed to load state file %s: %w", statePath, err), Stage: "load-state"}
+			return UpPhaseErrorMsg{Err: fmt.Errorf("failed to discover deployments: %w", err), Stage: "discover"}
 		}
 
-		// Validate node matches
-		if loadedState.Node != m.config.NodeName {
-			return UpPhaseErrorMsg{
-				Err:   fmt.Errorf("state file node mismatch: expected %s, got %s", m.config.NodeName, loadedState.Node),
-				Stage: "load-state",
-			}
-		}
-
-		// Build restore plan and check for missing deployments
-		restorePlan := make([]RestorePlanItem, 0, len(loadedState.Resources))
-		missingDeploys := make([]string, 0)
-
-		for _, resource := range loadedState.Resources {
-			if resource.Kind != "Deployment" {
-				continue
-			}
-
+		// Build restore plan
+		restorePlan := make([]RestorePlanItem, 0, len(deployments))
+		for _, dep := range deployments {
 			item := RestorePlanItem{
-				Namespace:      resource.Namespace,
-				Name:           resource.Name,
-				TargetReplicas: resource.Replicas,
-				Status:         "pending",
+				Namespace:       dep.Namespace,
+				Name:            dep.Name,
+				CurrentReplicas: 0, // All discovered deployments are at 0
+				Status:          "pending",
 			}
-
-			// Check current state in cluster
-			deployment, getErr := m.config.Client.GetDeployment(m.config.Context, resource.Namespace, resource.Name)
-			if getErr != nil {
-				item.Status = "missing"
-				item.CurrentReplicas = -1
-				missingDeploys = append(missingDeploys, fmt.Sprintf("%s/%s", resource.Namespace, resource.Name))
-			} else {
-				if deployment.Spec.Replicas != nil {
-					item.CurrentReplicas = int(*deployment.Spec.Replicas)
-				}
-			}
-
 			restorePlan = append(restorePlan, item)
 		}
 
-		return StateLoadedMsg{
-			State:         loadedState,
-			StatePath:     statePath,
-			RestorePlan:   restorePlan,
-			MissingDeploy: missingDeploys,
+		return DeploymentsDiscoveredForUpMsg{
+			RestorePlan: restorePlan,
 		}
 	}
 }
@@ -311,12 +266,9 @@ func (m *UpModel) executeUpPhaseCmd() tea.Cmd {
 // runUpPhase executes the maintenance operation in a goroutine
 func (m *UpModel) runUpPhase(ctx context.Context) tea.Cmd {
 	progressChan := m.progressChan
-	stateFilePath := m.config.StateFilePath
 	client := m.config.Client
 	cfg := m.config.Config
 	nodeName := m.config.NodeName
-	missingDeploys := m.missingDeploys
-	modelStatePath := m.stateFilePath
 
 	return func() tea.Msg {
 		opts := maintenance.UpPhaseOptions{
@@ -328,8 +280,6 @@ func (m *UpModel) runUpPhase(ctx context.Context) tea.Cmd {
 					// Channel full, skip this update
 				}
 			},
-			StateFilePath:          stateFilePath,
-			SkipMissingDeployments: len(missingDeploys) > 0, // Skip if user confirmed with missing
 		}
 
 		err := maintenance.ExecuteUpPhase(
@@ -347,7 +297,7 @@ func (m *UpModel) runUpPhase(ctx context.Context) tea.Cmd {
 			return UpPhaseErrorMsg{Err: err, Stage: "execute"}
 		}
 
-		return UpPhaseCompleteMsg{StateFilePath: modelStatePath}
+		return UpPhaseCompleteMsg{}
 	}
 }
 
@@ -399,20 +349,10 @@ func (m *UpModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		cmds = append(cmds, m.tickCmd())
 
-	case StateLoadedMsg:
-		m.loadedState = msg.State
-		m.stateFilePath = msg.StatePath
-		m.stateLoadedAt = time.Now()
+	case DeploymentsDiscoveredForUpMsg:
 		m.restorePlan = msg.RestorePlan
-		m.missingDeploys = msg.MissingDeploy
 		m.state = UpStateConfirm
-
-		// Update confirm prompt based on missing deployments
-		if len(m.missingDeploys) > 0 {
-			m.confirmPrompt.Details = fmt.Sprintf("%d deployment(s) missing from cluster - they will be skipped", len(m.missingDeploys))
-		} else {
-			m.confirmPrompt.Details = fmt.Sprintf("%d deployment(s) will be restored", len(m.restorePlan))
-		}
+		m.confirmPrompt.Details = fmt.Sprintf("%d deployment(s) will be restored to 1 replica", len(m.restorePlan))
 
 	case UpPhaseProgressMsg:
 		m.updateStateFromProgress(msg)
@@ -520,6 +460,7 @@ func (m *UpModel) startExecution() {
 func (m *UpModel) initStatusList() {
 	m.statusList = components.NewStatusList()
 	m.statusList.AddStatus("Pre-flight checks", components.StatusTypePending)
+	m.statusList.AddStatus("Discover deployments", components.StatusTypePending)
 	m.statusList.AddStatus("Uncordon node", components.StatusTypePending)
 	m.statusList.AddStatus("Restore deployments", components.StatusTypePending)
 	m.statusList.AddStatus("Scale operator", components.StatusTypePending)
@@ -531,27 +472,27 @@ func (m *UpModel) updateStateFromProgress(msg UpPhaseProgressMsg) {
 	switch msg.Stage {
 	case "pre-flight":
 		m.updateStatusItem(0, components.StatusTypeRunning)
-	case "load-state", "validate-deployments":
-		// These happen before uncordon but after pre-flight
-		m.updateStatusItem(0, components.StatusTypeSuccess)
-	case "uncordon":
-		m.state = UpStateUncordoning
+	case "discover":
 		m.updateStatusItem(0, components.StatusTypeSuccess)
 		m.updateStatusItem(1, components.StatusTypeRunning)
-	case "scale-up":
-		m.state = UpStateRestoringDeployments
+	case "uncordon":
+		m.state = UpStateUncordoning
 		m.updateStatusItem(1, components.StatusTypeSuccess)
 		m.updateStatusItem(2, components.StatusTypeRunning)
-	case "operator":
-		m.state = UpStateScalingOperator
+	case "scale-up", "quorum":
+		m.state = UpStateRestoringDeployments
 		m.updateStatusItem(2, components.StatusTypeSuccess)
 		m.updateStatusItem(3, components.StatusTypeRunning)
-	case "unset-noout":
-		m.state = UpStateUnsettingNoOut
+	case "operator":
+		m.state = UpStateScalingOperator
 		m.updateStatusItem(3, components.StatusTypeSuccess)
 		m.updateStatusItem(4, components.StatusTypeRunning)
-	case "complete":
+	case "unset-noout":
+		m.state = UpStateUnsettingNoOut
 		m.updateStatusItem(4, components.StatusTypeSuccess)
+		m.updateStatusItem(5, components.StatusTypeRunning)
+	case "complete":
+		m.updateStatusItem(5, components.StatusTypeSuccess)
 	}
 }
 
@@ -572,7 +513,7 @@ func (m *UpModel) View() string {
 
 	// Main content based on state
 	switch m.state { //nolint:exhaustive // default handles all operation states uniformly
-	case UpStateInit, UpStateLoadingState:
+	case UpStateInit, UpStateDiscovering:
 		b.WriteString(m.renderLoading())
 	case UpStateConfirm:
 		b.WriteString(m.renderConfirmation())
@@ -607,7 +548,7 @@ func (m *UpModel) renderHeader() string {
 
 // renderLoading renders the loading state
 func (m *UpModel) renderLoading() string {
-	return fmt.Sprintf("%s Loading state file for node %s...",
+	return fmt.Sprintf("%s Discovering scaled-down deployments on node %s...",
 		styles.IconSpinner,
 		m.config.NodeName)
 }
@@ -616,72 +557,41 @@ func (m *UpModel) renderLoading() string {
 func (m *UpModel) renderConfirmation() string {
 	var b strings.Builder
 
-	// State file info
-	b.WriteString(styles.StyleStatus.Render("State File: "))
-	b.WriteString(m.stateFilePath)
-	b.WriteString("\n")
-
-	if m.loadedState != nil {
-		b.WriteString(styles.StyleSubtle.Render(fmt.Sprintf("Created: %s", m.loadedState.Timestamp.Format(time.RFC3339))))
-		b.WriteString("\n")
-	}
-	b.WriteString("\n")
+	// Target node info
+	b.WriteString(styles.StyleStatus.Render("Target Node: "))
+	b.WriteString(m.config.NodeName)
+	b.WriteString("\n\n")
 
 	// Restore plan table
-	b.WriteString(styles.StyleStatus.Render("Restore Plan:"))
-	b.WriteString("\n")
-
-	// Create table
-	table := components.NewSimpleTable("Deployment", "Current", "Target", "Status")
-	for _, item := range m.restorePlan {
-		deployName := fmt.Sprintf("%s/%s", item.Namespace, item.Name)
-
-		currentStr := fmt.Sprintf("%d", item.CurrentReplicas)
-		if item.CurrentReplicas < 0 {
-			currentStr = "-"
-		}
-
-		targetStr := fmt.Sprintf("%d", item.TargetReplicas)
-
-		statusStyle := styles.StyleNormal
-		switch item.Status {
-		case "missing":
-			statusStyle = styles.StyleWarning
-		case "pending":
-			statusStyle = styles.StyleSubtle
-		}
-
-		table.AddStyledRow(statusStyle, deployName, currentStr, targetStr, item.Status)
-	}
-	table.SetMaxRows(10)
-	b.WriteString(table.View())
-	b.WriteString("\n")
-
-	// Missing deployments warning
-	if len(m.missingDeploys) > 0 {
+	if len(m.restorePlan) > 0 {
+		b.WriteString(styles.StyleStatus.Render("Deployments to restore:"))
 		b.WriteString("\n")
-		b.WriteString(styles.StyleWarning.Render(fmt.Sprintf("%s Warning: %d deployment(s) missing from cluster:",
-			styles.IconWarning, len(m.missingDeploys))))
-		b.WriteString("\n")
-		for _, d := range m.missingDeploys {
-			b.WriteString(styles.StyleWarning.Render(fmt.Sprintf("  - %s", d)))
-			b.WriteString("\n")
+
+		// Create table
+		table := components.NewSimpleTable("Deployment", "Current", "Target", "Status")
+		for _, item := range m.restorePlan {
+			deployName := fmt.Sprintf("%s/%s", item.Namespace, item.Name)
+			currentStr := fmt.Sprintf("%d", item.CurrentReplicas)
+			targetStr := "1" // All deployments will be scaled to 1
+
+			statusStyle := styles.StyleSubtle
+			table.AddStyledRow(statusStyle, deployName, currentStr, targetStr, item.Status)
 		}
-		b.WriteString(styles.StyleSubtle.Render("These will be skipped during restoration."))
+		table.SetMaxRows(10)
+		b.WriteString(table.View())
+	} else {
+		b.WriteString(styles.StyleWarning.Render("No scaled-down deployments found on this node."))
 		b.WriteString("\n")
 	}
+	b.WriteString("\n")
 
 	// What will happen
 	b.WriteString("\n")
 	b.WriteString(styles.StyleStatus.Render("This will:"))
 	b.WriteString("\n")
 	b.WriteString("  1. Uncordon the node to allow pod scheduling\n")
-	b.WriteString(fmt.Sprintf("  2. Scale up %d deployment(s) to original replicas\n", len(m.restorePlan)-len(m.missingDeploys)))
-	if m.loadedState != nil {
-		b.WriteString(fmt.Sprintf("  3. Scale up rook-ceph-operator to %d\n", m.loadedState.OperatorReplicas))
-	} else {
-		b.WriteString("  3. Scale up rook-ceph-operator\n")
-	}
+	b.WriteString(fmt.Sprintf("  2. Scale up %d deployment(s) to 1 replica\n", len(m.restorePlan)))
+	b.WriteString("  3. Scale up rook-ceph-operator to 1\n")
 	b.WriteString("  4. Unset Ceph noout flag to allow rebalancing\n")
 
 	b.WriteString("\n")
@@ -737,12 +647,8 @@ func (m *UpModel) renderComplete() string {
 	// Summary table
 	kv := components.NewKeyValueTable()
 	kv.Add("Node", m.config.NodeName)
-	kv.Add("Deployments Restored", fmt.Sprintf("%d", len(m.restorePlan)-len(m.missingDeploys)))
-	if len(m.missingDeploys) > 0 {
-		kv.AddWithType("Deployments Skipped", fmt.Sprintf("%d", len(m.missingDeploys)), components.StatusTypeWarning)
-	}
+	kv.Add("Deployments Restored", fmt.Sprintf("%d", len(m.restorePlan)))
 	kv.Add("Duration", m.elapsedTime.Round(time.Second).String())
-	kv.Add("State File", m.stateFilePath)
 	b.WriteString(kv.View())
 
 	b.WriteString("\n\n")
@@ -775,17 +681,4 @@ func (m *UpModel) renderFooter() string {
 func (m *UpModel) SetSize(width, height int) {
 	m.width = width
 	m.height = height
-}
-
-// resolveUpStatePath resolves the state file path (helper)
-func resolveUpStatePath(cfg config.Config, overridePath, nodeName string) string {
-	if overridePath != "" {
-		return overridePath
-	}
-	// Use template from config
-	tmpl := cfg.State.FilePathTemplate
-	if tmpl == "" {
-		tmpl = "./crook-state-{{.Node}}.json"
-	}
-	return strings.ReplaceAll(tmpl, "{{.Node}}", nodeName)
 }

@@ -7,7 +7,6 @@ import (
 	"github.com/andri/crook/internal/logger"
 	"github.com/andri/crook/pkg/config"
 	"github.com/andri/crook/pkg/k8s"
-	"github.com/andri/crook/pkg/state"
 	appsv1 "k8s.io/api/apps/v1"
 )
 
@@ -26,13 +25,10 @@ type DownPhaseOptions struct {
 
 	// WaitOptions for deployment scaling operations
 	WaitOptions WaitOptions
-
-	// StateFilePath optionally overrides the config template path
-	StateFilePath string
 }
 
 // ExecuteDownPhase orchestrates the complete node down phase workflow
-// Steps: pre-flight → cordon → set noout → scale operator → discover → scale deployments → save state
+// Steps: pre-flight → cordon → set noout → scale operator → discover → scale deployments
 func ExecuteDownPhase(
 	ctx context.Context,
 	client *k8s.Client,
@@ -71,12 +67,6 @@ func ExecuteDownPhase(
 	operatorName := "rook-ceph-operator"
 	operatorNamespace := cfg.Kubernetes.RookOperatorNamespace
 
-	// Get current operator replicas before scaling down
-	operatorStatus, err := client.GetDeploymentStatus(ctx, operatorNamespace, operatorName)
-	if err != nil {
-		return fmt.Errorf("failed to get operator status: %w", err)
-	}
-
 	if scaleErr := client.ScaleDeployment(ctx, operatorNamespace, operatorName, 0); scaleErr != nil {
 		return fmt.Errorf("failed to scale operator to 0: %w", scaleErr)
 	}
@@ -85,36 +75,21 @@ func ExecuteDownPhase(
 		return fmt.Errorf("failed waiting for operator to scale down: %w", waitErr)
 	}
 
-	// Step 5: Discover deployments on node
-	updateProgress(opts.ProgressCallback, "discover", fmt.Sprintf("Discovering deployments on node %s", nodeName), "")
+	// Step 5: Discover node-pinned deployments via nodeSelector
+	updateProgress(opts.ProgressCallback, "discover", fmt.Sprintf("Discovering node-pinned deployments on %s", nodeName), "")
 
-	deployments, err := DiscoverDeployments(
-		ctx,
-		client,
-		nodeName,
-		cfg.Kubernetes.RookClusterNamespace,
-		cfg.DeploymentFilters.Prefixes,
-	)
+	deployments, err := client.ListNodePinnedDeployments(ctx, cfg.Kubernetes.RookClusterNamespace, nodeName)
 	if err != nil {
-		return fmt.Errorf("failed to discover deployments: %w", err)
+		return fmt.Errorf("failed to discover node-pinned deployments: %w", err)
 	}
 
 	if len(deployments) == 0 {
-		// No deployments found - create empty state file for consistency
-		updateProgress(opts.ProgressCallback, "complete", "No deployments found - creating empty state file", "")
-
-		emptyState := state.NewState(nodeName, int(operatorStatus.Replicas), []state.Resource{})
-		statePath, resolveErr := resolveStatePath(cfg, opts.StateFilePath, nodeName)
-		if resolveErr != nil {
-			return fmt.Errorf("failed to resolve state file path: %w", resolveErr)
-		}
-
-		if writeErr := state.WriteFile(statePath, emptyState); writeErr != nil {
-			return fmt.Errorf("failed to save empty state file: %w", writeErr)
-		}
-
+		updateProgress(opts.ProgressCallback, "complete", "No node-pinned deployments found - down phase complete", "")
 		return nil
 	}
+
+	// Warn on unexpected replica counts (>1)
+	ValidateDeploymentReplicas(deployments)
 
 	// Step 6: Order deployments for safe down phase
 	orderedDeployments := OrderDeploymentsForDown(deployments)
@@ -122,6 +97,12 @@ func ExecuteDownPhase(
 	// Step 7: Scale down each deployment and wait
 	for _, deployment := range orderedDeployments {
 		deploymentName := fmt.Sprintf("%s/%s", deployment.Namespace, deployment.Name)
+
+		// Skip deployments already at 0 replicas
+		if deployment.Spec.Replicas != nil && *deployment.Spec.Replicas == 0 {
+			logger.Debug("skipping deployment already at 0 replicas", "deployment", deploymentName)
+			continue
+		}
 
 		updateProgress(opts.ProgressCallback, "scale-down", fmt.Sprintf("Scaling down %s to 0", deploymentName), deploymentName)
 
@@ -134,37 +115,8 @@ func ExecuteDownPhase(
 		}
 	}
 
-	// Step 8: Save state file (only after all operations succeed)
-	updateProgress(opts.ProgressCallback, "save-state", "Saving maintenance state file", "")
-
-	resources := make([]state.Resource, 0, len(deployments))
-	for _, deployment := range deployments {
-		replicas := int32(1)
-		if deployment.Spec.Replicas != nil {
-			replicas = *deployment.Spec.Replicas
-		}
-
-		resources = append(resources, state.Resource{
-			Kind:      "Deployment",
-			Namespace: deployment.Namespace,
-			Name:      deployment.Name,
-			Replicas:  int(replicas),
-		})
-	}
-
-	maintenanceState := state.NewState(nodeName, int(operatorStatus.Replicas), resources)
-
-	statePath, err := resolveStatePath(cfg, opts.StateFilePath, nodeName)
-	if err != nil {
-		return fmt.Errorf("failed to resolve state file path: %w", err)
-	}
-
-	if writeErr := state.WriteFile(statePath, maintenanceState); writeErr != nil {
-		return fmt.Errorf("failed to save state file: %w", writeErr)
-	}
-
-	// Step 9: Complete
-	updateProgress(opts.ProgressCallback, "complete", fmt.Sprintf("Down phase completed successfully - state saved to %s", statePath), "")
+	// Step 8: Complete
+	updateProgress(opts.ProgressCallback, "complete", "Down phase completed successfully", "")
 
 	return nil
 }
@@ -192,11 +144,6 @@ func ScaleDownDeployments(
 	}
 
 	return nil
-}
-
-// resolveStatePath resolves the state file path from config or override
-func resolveStatePath(cfg config.Config, overridePath, nodeName string) (string, error) {
-	return state.ResolvePathWithOverride(overridePath, cfg.State.FilePathTemplate, nodeName)
 }
 
 // updateProgress safely calls the progress callback if it's not nil

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/andri/crook/pkg/config"
-	"github.com/andri/crook/pkg/state"
 	"github.com/andri/crook/pkg/tui/components"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -18,7 +17,7 @@ func TestUpPhaseState_String(t *testing.T) {
 		expected string
 	}{
 		{UpStateInit, "Initializing"},
-		{UpStateLoadingState, "Loading State"},
+		{UpStateDiscovering, "Discovering Deployments"},
 		{UpStateConfirm, "Awaiting Confirmation"},
 		{UpStateUncordoning, "Uncordoning Node"},
 		{UpStateRestoringDeployments, "Restoring Deployments"},
@@ -44,7 +43,7 @@ func TestUpPhaseState_Description(t *testing.T) {
 		shouldExist bool
 	}{
 		{UpStateInit, true},
-		{UpStateLoadingState, true},
+		{UpStateDiscovering, true},
 		{UpStateConfirm, true},
 		{UpStateRestoringDeployments, true},
 		{UpStateUncordoning, true},
@@ -70,10 +69,9 @@ func TestUpPhaseState_Description(t *testing.T) {
 
 func TestNewUpModel(t *testing.T) {
 	cfg := UpModelConfig{
-		NodeName:      "test-node",
-		StateFilePath: "/tmp/test-state.json",
-		Config:        config.Config{},
-		Context:       context.Background(),
+		NodeName: "test-node",
+		Config:   config.Config{},
+		Context:  context.Background(),
 	}
 
 	model := NewUpModel(cfg)
@@ -142,31 +140,18 @@ func TestUpModel_Update_WindowSize(t *testing.T) {
 	}
 }
 
-func TestUpModel_Update_StateLoaded(t *testing.T) {
+func TestUpModel_Update_DeploymentsDiscovered(t *testing.T) {
 	model := NewUpModel(UpModelConfig{
 		NodeName: "test-node",
 		Context:  context.Background(),
 	})
 
-	testState := &state.State{
-		Version:          "v1",
-		Node:             "test-node",
-		Timestamp:        time.Now(),
-		OperatorReplicas: 1,
-		Resources: []state.Resource{
-			{Kind: "Deployment", Namespace: "ns1", Name: "deploy1", Replicas: 2},
-		},
-	}
-
 	restorePlan := []RestorePlanItem{
-		{Namespace: "ns1", Name: "deploy1", TargetReplicas: 2, CurrentReplicas: 0, Status: "pending"},
+		{Namespace: "ns1", Name: "deploy1", CurrentReplicas: 0, Status: "pending"},
 	}
 
-	msg := StateLoadedMsg{
-		State:         testState,
-		StatePath:     "/tmp/state.json",
-		RestorePlan:   restorePlan,
-		MissingDeploy: nil,
+	msg := DeploymentsDiscoveredForUpMsg{
+		RestorePlan: restorePlan,
 	}
 
 	updatedModel, _ := model.Update(msg)
@@ -179,55 +164,8 @@ func TestUpModel_Update_StateLoaded(t *testing.T) {
 		t.Errorf("state = %v, want %v", m.state, UpStateConfirm)
 	}
 
-	if m.loadedState != testState {
-		t.Error("loadedState should be set")
-	}
-
-	if m.stateFilePath != "/tmp/state.json" {
-		t.Errorf("stateFilePath = %q, want %q", m.stateFilePath, "/tmp/state.json")
-	}
-
 	if len(m.restorePlan) != 1 {
 		t.Errorf("restorePlan length = %d, want 1", len(m.restorePlan))
-	}
-}
-
-func TestUpModel_Update_StateLoaded_WithMissing(t *testing.T) {
-	model := NewUpModel(UpModelConfig{
-		NodeName: "test-node",
-		Context:  context.Background(),
-	})
-
-	testState := &state.State{
-		Version:          "v1",
-		Node:             "test-node",
-		Timestamp:        time.Now(),
-		OperatorReplicas: 1,
-	}
-
-	restorePlan := []RestorePlanItem{
-		{Namespace: "ns1", Name: "deploy1", TargetReplicas: 2, CurrentReplicas: -1, Status: "missing"},
-	}
-
-	msg := StateLoadedMsg{
-		State:         testState,
-		StatePath:     "/tmp/state.json",
-		RestorePlan:   restorePlan,
-		MissingDeploy: []string{"ns1/deploy1"},
-	}
-
-	updatedModel, _ := model.Update(msg)
-	m, ok := updatedModel.(*UpModel)
-	if !ok {
-		t.Fatal("expected *UpModel type")
-	}
-
-	if len(m.missingDeploys) != 1 {
-		t.Errorf("missingDeploys length = %d, want 1", len(m.missingDeploys))
-	}
-
-	if !contains(m.confirmPrompt.Details, "missing") {
-		t.Errorf("confirmPrompt.Details should mention missing, got %q", m.confirmPrompt.Details)
 	}
 }
 
@@ -238,9 +176,8 @@ func TestUpModel_Update_UpPhaseComplete(t *testing.T) {
 	})
 	model.operationInProgress = true
 	model.state = UpStateUncordoning
-	model.stateFilePath = "/tmp/state.json"
 
-	msg := UpPhaseCompleteMsg{StateFilePath: "/tmp/state.json"}
+	msg := UpPhaseCompleteMsg{}
 	updatedModel, _ := model.Update(msg)
 	m, ok := updatedModel.(*UpModel)
 	if !ok {
@@ -513,8 +450,8 @@ func TestUpModel_startExecution(t *testing.T) {
 		t.Errorf("state = %v, want %v", model.state, UpStateUncordoning)
 	}
 
-	if model.statusList.Count() != 5 {
-		t.Errorf("statusList should have 5 items, got %d", model.statusList.Count())
+	if model.statusList.Count() != 6 {
+		t.Errorf("statusList should have 6 items, got %d", model.statusList.Count())
 	}
 }
 
@@ -577,25 +514,18 @@ func TestUpModel_View_Confirm(t *testing.T) {
 	model.width = 80
 	model.height = 40
 	model.state = UpStateConfirm
-	model.stateFilePath = "/tmp/state.json"
-	model.loadedState = &state.State{
-		Version:          "v1",
-		Node:             "test-node",
-		Timestamp:        time.Now(),
-		OperatorReplicas: 1,
-	}
 	model.restorePlan = []RestorePlanItem{
-		{Namespace: "ns1", Name: "deploy1", TargetReplicas: 2, CurrentReplicas: 0, Status: "pending"},
+		{Namespace: "ns1", Name: "deploy1", CurrentReplicas: 0, Status: "pending"},
 	}
 
 	view := model.View()
 
-	if !contains(view, "State File") {
-		t.Errorf("View should contain 'State File', got %q", view)
+	if !contains(view, "Target Node") {
+		t.Errorf("View should contain 'Target Node', got %q", view)
 	}
 
-	if !contains(view, "Restore Plan") {
-		t.Errorf("View should contain 'Restore Plan', got %q", view)
+	if !contains(view, "Deployments to restore") {
+		t.Errorf("View should contain 'Deployments to restore', got %q", view)
 	}
 }
 
@@ -628,9 +558,8 @@ func TestUpModel_View_Complete(t *testing.T) {
 	model.width = 80
 	model.height = 24
 	model.state = UpStateComplete
-	model.stateFilePath = "/tmp/state.json"
 	model.restorePlan = []RestorePlanItem{
-		{Namespace: "ns1", Name: "deploy1", TargetReplicas: 2},
+		{Namespace: "ns1", Name: "deploy1", CurrentReplicas: 0},
 	}
 	model.elapsedTime = 30 * time.Second
 
@@ -638,10 +567,6 @@ func TestUpModel_View_Complete(t *testing.T) {
 
 	if !contains(view, "Complete") {
 		t.Errorf("View should contain 'Complete', got %q", view)
-	}
-
-	if !contains(view, "/tmp/state.json") {
-		t.Errorf("View should contain state file path, got %q", view)
 	}
 
 	if !contains(view, "operational") {
@@ -666,56 +591,10 @@ func TestUpModel_SetSize(t *testing.T) {
 	}
 }
 
-func TestResolveUpStatePath(t *testing.T) {
-	tests := []struct {
-		name         string
-		cfg          config.Config
-		overridePath string
-		nodeName     string
-		expected     string
-	}{
-		{
-			name:         "with override",
-			cfg:          config.Config{},
-			overridePath: "/custom/path.json",
-			nodeName:     "node1",
-			expected:     "/custom/path.json",
-		},
-		{
-			name: "with template",
-			cfg: config.Config{
-				State: config.StateConfig{
-					FilePathTemplate: "./state-{{.Node}}.json",
-				},
-			},
-			overridePath: "",
-			nodeName:     "node1",
-			expected:     "./state-node1.json",
-		},
-		{
-			name:         "default template",
-			cfg:          config.Config{},
-			overridePath: "",
-			nodeName:     "mynode",
-			expected:     "./crook-state-mynode.json",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := resolveUpStatePath(tt.cfg, tt.overridePath, tt.nodeName)
-			if got != tt.expected {
-				t.Errorf("resolveUpStatePath() = %q, want %q", got, tt.expected)
-			}
-		})
-	}
-}
-
 func TestRestorePlanItem(t *testing.T) {
 	item := RestorePlanItem{
 		Namespace:       "rook-ceph",
 		Name:            "osd-1",
-		TargetReplicas:  2,
 		CurrentReplicas: 0,
 		Status:          "pending",
 	}
@@ -726,10 +605,6 @@ func TestRestorePlanItem(t *testing.T) {
 
 	if item.Name != "osd-1" {
 		t.Errorf("Name = %q, want 'osd-1'", item.Name)
-	}
-
-	if item.TargetReplicas != 2 {
-		t.Errorf("TargetReplicas = %d, want 2", item.TargetReplicas)
 	}
 
 	if item.CurrentReplicas != 0 {

@@ -44,10 +44,6 @@ func TestNewUpCmd(t *testing.T) {
 	if !strings.Contains(upCmd.Long, "maintenance") {
 		t.Error("expected Long description to mention maintenance")
 	}
-
-	if !strings.Contains(upCmd.Long, "state file") {
-		t.Error("expected Long description to mention state file")
-	}
 }
 
 func TestUpCmdHasRequiredFlags(t *testing.T) {
@@ -64,7 +60,7 @@ func TestUpCmdHasRequiredFlags(t *testing.T) {
 		}
 	}
 
-	expectedFlags := []string{"state-file", "no-tui", "yes", "timeout", "skip-missing"}
+	expectedFlags := []string{"no-tui", "yes", "timeout"}
 
 	for _, flagName := range expectedFlags {
 		found := false
@@ -133,28 +129,6 @@ func TestUpCmdYesShortFlag(t *testing.T) {
 
 			if yesFlag.Name != "yes" {
 				t.Errorf("expected -y to be shorthand for 'yes', got %s", yesFlag.Name)
-			}
-			return
-		}
-	}
-
-	t.Fatal("up subcommand not found")
-}
-
-func TestUpCmdHasSkipMissingFlag(t *testing.T) {
-	cmd := commands.NewRootCmd()
-
-	// Find the up subcommand
-	for _, subCmd := range cmd.Commands() {
-		if strings.HasPrefix(subCmd.Use, "up") {
-			skipMissingFlag := subCmd.Flags().Lookup("skip-missing")
-			if skipMissingFlag == nil {
-				t.Fatal("expected skip-missing flag to exist")
-			}
-
-			// Default should be false
-			if skipMissingFlag.DefValue != "false" {
-				t.Errorf("expected default skip-missing to be false, got %s", skipMissingFlag.DefValue)
 			}
 			return
 		}

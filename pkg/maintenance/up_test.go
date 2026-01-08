@@ -3,113 +3,115 @@ package maintenance
 import (
 	"testing"
 
-	"github.com/andri/crook/pkg/state"
+	appsv1 "k8s.io/api/apps/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestSeparateMonDeployments(t *testing.T) {
+func TestSeparateMonDeploymentsFromList(t *testing.T) {
 	t.Parallel()
 
-	resources := []state.Resource{
-		{Kind: "Deployment", Namespace: "rook-ceph", Name: "rook-ceph-mon-a", Replicas: 1},
-		{Kind: "Deployment", Namespace: "rook-ceph", Name: "rook-ceph-mon-b", Replicas: 1},
-		{Kind: "Deployment", Namespace: "rook-ceph", Name: "rook-ceph-osd-0", Replicas: 1},
-		{Kind: "Deployment", Namespace: "rook-ceph", Name: "rook-ceph-osd-1", Replicas: 1},
-		{Kind: "Deployment", Namespace: "rook-ceph", Name: "rook-ceph-exporter-worker-01", Replicas: 1},
+	deployments := []appsv1.Deployment{
+		makeTestDeployment("rook-ceph-mon-a", "rook-ceph"),
+		makeTestDeployment("rook-ceph-mon-b", "rook-ceph"),
+		makeTestDeployment("rook-ceph-osd-0", "rook-ceph"),
+		makeTestDeployment("rook-ceph-osd-1", "rook-ceph"),
+		makeTestDeployment("rook-ceph-exporter-worker-01", "rook-ceph"),
 	}
 
-	monResources, otherResources := separateMonDeployments(resources)
+	monDeployments, otherDeployments := separateMonDeploymentsFromList(deployments)
 
-	if len(monResources) != 2 {
-		t.Errorf("expected 2 MON resources, got %d", len(monResources))
+	if len(monDeployments) != 2 {
+		t.Errorf("expected 2 MON deployments, got %d", len(monDeployments))
 	}
 
-	if len(otherResources) != 3 {
-		t.Errorf("expected 3 other resources, got %d", len(otherResources))
+	if len(otherDeployments) != 3 {
+		t.Errorf("expected 3 other deployments, got %d", len(otherDeployments))
 	}
 
-	// Verify MON resources
-	for _, r := range monResources {
-		if !startsWithPrefix(r.Name, "rook-ceph-mon") {
-			t.Errorf("expected MON resource, got %s", r.Name)
+	// Verify MON deployments
+	for _, d := range monDeployments {
+		if !startsWithPrefixString(d.Name, "rook-ceph-mon") {
+			t.Errorf("expected MON deployment, got %s", d.Name)
 		}
 	}
 
-	// Verify other resources don't include MONs
-	for _, r := range otherResources {
-		if startsWithPrefix(r.Name, "rook-ceph-mon") {
-			t.Errorf("unexpected MON resource in others: %s", r.Name)
+	// Verify other deployments don't include MONs
+	for _, d := range otherDeployments {
+		if startsWithPrefixString(d.Name, "rook-ceph-mon") {
+			t.Errorf("unexpected MON deployment in others: %s", d.Name)
 		}
 	}
 }
 
-func TestSeparateMonDeployments_EmptyInput(t *testing.T) {
+func TestSeparateMonDeploymentsFromList_EmptyInput(t *testing.T) {
 	t.Parallel()
 
-	resources := []state.Resource{}
-	monResources, otherResources := separateMonDeployments(resources)
+	deployments := []appsv1.Deployment{}
+	monDeployments, otherDeployments := separateMonDeploymentsFromList(deployments)
 
-	if len(monResources) != 0 {
-		t.Errorf("expected 0 MON resources, got %d", len(monResources))
+	if len(monDeployments) != 0 {
+		t.Errorf("expected 0 MON deployments, got %d", len(monDeployments))
 	}
-	if len(otherResources) != 0 {
-		t.Errorf("expected 0 other resources, got %d", len(otherResources))
+	if len(otherDeployments) != 0 {
+		t.Errorf("expected 0 other deployments, got %d", len(otherDeployments))
 	}
 }
 
-func TestSeparateMonDeployments_NoMons(t *testing.T) {
+func TestSeparateMonDeploymentsFromList_NoMons(t *testing.T) {
 	t.Parallel()
 
-	resources := []state.Resource{
-		{Kind: "Deployment", Namespace: "rook-ceph", Name: "rook-ceph-osd-0", Replicas: 1},
-		{Kind: "Deployment", Namespace: "rook-ceph", Name: "rook-ceph-exporter-worker-01", Replicas: 1},
+	deployments := []appsv1.Deployment{
+		makeTestDeployment("rook-ceph-osd-0", "rook-ceph"),
+		makeTestDeployment("rook-ceph-exporter-worker-01", "rook-ceph"),
 	}
 
-	monResources, otherResources := separateMonDeployments(resources)
+	monDeployments, otherDeployments := separateMonDeploymentsFromList(deployments)
 
-	if len(monResources) != 0 {
-		t.Errorf("expected 0 MON resources, got %d", len(monResources))
+	if len(monDeployments) != 0 {
+		t.Errorf("expected 0 MON deployments, got %d", len(monDeployments))
 	}
-	if len(otherResources) != 2 {
-		t.Errorf("expected 2 other resources, got %d", len(otherResources))
+	if len(otherDeployments) != 2 {
+		t.Errorf("expected 2 other deployments, got %d", len(otherDeployments))
 	}
 }
 
-func TestSeparateMonDeployments_OnlyMons(t *testing.T) {
+func TestSeparateMonDeploymentsFromList_OnlyMons(t *testing.T) {
 	t.Parallel()
 
-	resources := []state.Resource{
-		{Kind: "Deployment", Namespace: "rook-ceph", Name: "rook-ceph-mon-a", Replicas: 1},
-		{Kind: "Deployment", Namespace: "rook-ceph", Name: "rook-ceph-mon-b", Replicas: 1},
+	deployments := []appsv1.Deployment{
+		makeTestDeployment("rook-ceph-mon-a", "rook-ceph"),
+		makeTestDeployment("rook-ceph-mon-b", "rook-ceph"),
 	}
 
-	monResources, otherResources := separateMonDeployments(resources)
+	monDeployments, otherDeployments := separateMonDeploymentsFromList(deployments)
 
-	if len(monResources) != 2 {
-		t.Errorf("expected 2 MON resources, got %d", len(monResources))
+	if len(monDeployments) != 2 {
+		t.Errorf("expected 2 MON deployments, got %d", len(monDeployments))
 	}
-	if len(otherResources) != 0 {
-		t.Errorf("expected 0 other resources, got %d", len(otherResources))
+	if len(otherDeployments) != 0 {
+		t.Errorf("expected 0 other deployments, got %d", len(otherDeployments))
 	}
 }
 
-func TestOrderResourcesForUp_ExcludesMonitors(t *testing.T) {
+func TestOrderDeploymentsForUp_ExcludesMonitors(t *testing.T) {
 	t.Parallel()
 
-	// orderResourcesForUp should properly order non-MON resources
+	// OrderDeploymentsForUp should properly order non-MON deployments
 	// (MONs are handled separately now)
-	resources := []state.Resource{
-		{Kind: "Deployment", Namespace: "rook-ceph", Name: "rook-ceph-crashcollector-worker-01", Replicas: 1},
-		{Kind: "Deployment", Namespace: "rook-ceph", Name: "rook-ceph-osd-0", Replicas: 1},
-		{Kind: "Deployment", Namespace: "rook-ceph", Name: "rook-ceph-exporter-worker-01", Replicas: 1},
+	deployments := []appsv1.Deployment{
+		makeTestDeployment("rook-ceph-crashcollector-worker-01", "rook-ceph"),
+		makeTestDeployment("rook-ceph-osd-0", "rook-ceph"),
+		makeTestDeployment("rook-ceph-exporter-worker-01", "rook-ceph"),
 	}
 
-	ordered := orderResourcesForUp(resources)
+	ordered := OrderDeploymentsForUp(deployments)
 
 	if len(ordered) != 3 {
-		t.Fatalf("expected 3 resources, got %d", len(ordered))
+		t.Fatalf("expected 3 deployments, got %d", len(ordered))
 	}
 
-	// Expected order: osd, exporter, crashcollector (mon is first but not in this list)
+	// Expected order: mon, osd, exporter, crashcollector
+	// Since there are no mons, order is: osd, exporter, crashcollector
 	expectedOrder := []string{
 		"rook-ceph-osd-0",
 		"rook-ceph-exporter-worker-01",
@@ -121,4 +123,19 @@ func TestOrderResourcesForUp_ExcludesMonitors(t *testing.T) {
 			t.Errorf("position %d: expected %s, got %s", i, expected, ordered[i].Name)
 		}
 	}
+}
+
+// makeTestDeployment creates a test deployment for testing
+func makeTestDeployment(name, _ string) appsv1.Deployment {
+	return appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: "rook-ceph",
+		},
+	}
+}
+
+// startsWithPrefixString checks if a string starts with a prefix (test helper)
+func startsWithPrefixString(s, prefix string) bool {
+	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
 }

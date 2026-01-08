@@ -49,9 +49,6 @@ type AppConfig struct {
 	// NodeName is the target node for operations
 	NodeName string
 
-	// StateFilePath is the optional override for state file location
-	StateFilePath string
-
 	// Config is the application configuration
 	Config config.Config
 
@@ -144,19 +141,17 @@ func (m *AppModel) initializeSubModels() tea.Msg {
 	switch m.route {
 	case RouteDown:
 		msg.DownModel = NewDownModel(DownModelConfig{
-			NodeName:      m.config.NodeName,
-			StateFilePath: m.config.StateFilePath,
-			Config:        m.config.Config,
-			Client:        m.config.Client,
-			Context:       m.config.Context,
+			NodeName: m.config.NodeName,
+			Config:   m.config.Config,
+			Client:   m.config.Client,
+			Context:  m.config.Context,
 		})
 	case RouteUp:
 		msg.UpModel = NewUpModel(UpModelConfig{
-			NodeName:      m.config.NodeName,
-			StateFilePath: m.config.StateFilePath,
-			Config:        m.config.Config,
-			Client:        m.config.Client,
-			Context:       m.config.Context,
+			NodeName: m.config.NodeName,
+			Config:   m.config.Config,
+			Client:   m.config.Client,
+			Context:  m.config.Context,
 		})
 	}
 

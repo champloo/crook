@@ -69,10 +69,9 @@ func TestDownPhaseState_Description(t *testing.T) {
 
 func TestNewDownModel(t *testing.T) {
 	cfg := DownModelConfig{
-		NodeName:      "test-node",
-		StateFilePath: "/tmp/test-state.json",
-		Config:        config.Config{},
-		Context:       context.Background(),
+		NodeName: "test-node",
+		Config:   config.Config{},
+		Context:  context.Background(),
 	}
 
 	model := NewDownModel(cfg)
@@ -173,7 +172,7 @@ func TestDownModel_Update_DownPhaseComplete(t *testing.T) {
 	model.operationInProgress = true
 	model.state = DownStateScalingDeployments
 
-	msg := DownPhaseCompleteMsg{StateFilePath: "/tmp/state.json"}
+	msg := DownPhaseCompleteMsg{}
 	updatedModel, _ := model.Update(msg)
 	m, ok := updatedModel.(*DownModel)
 	if !ok {
@@ -182,10 +181,6 @@ func TestDownModel_Update_DownPhaseComplete(t *testing.T) {
 
 	if m.state != DownStateComplete {
 		t.Errorf("state = %v, want %v", m.state, DownStateComplete)
-	}
-
-	if m.stateFilePath != "/tmp/state.json" {
-		t.Errorf("stateFilePath = %q, want %q", m.stateFilePath, "/tmp/state.json")
 	}
 
 	if m.operationInProgress {
@@ -450,8 +445,8 @@ func TestDownModel_startExecution(t *testing.T) {
 		t.Errorf("state = %v, want %v", model.state, DownStateCordoning)
 	}
 
-	if model.statusList.Count() != 7 {
-		t.Errorf("statusList should have 7 items, got %d", model.statusList.Count())
+	if model.statusList.Count() != 6 {
+		t.Errorf("statusList should have 6 items, got %d", model.statusList.Count())
 	}
 }
 
@@ -558,7 +553,6 @@ func TestDownModel_View_Complete(t *testing.T) {
 	model.width = 80
 	model.height = 24
 	model.state = DownStateComplete
-	model.stateFilePath = "/tmp/state.json"
 	model.deploymentCount = 3
 	model.elapsedTime = 30 * time.Second
 
@@ -568,8 +562,8 @@ func TestDownModel_View_Complete(t *testing.T) {
 		t.Errorf("View should contain 'Complete', got %q", view)
 	}
 
-	if !contains(view, "/tmp/state.json") {
-		t.Errorf("View should contain state file path, got %q", view)
+	if !contains(view, "test-node") {
+		t.Errorf("View should contain node name, got %q", view)
 	}
 }
 
@@ -587,50 +581,5 @@ func TestDownModel_SetSize(t *testing.T) {
 
 	if model.height != 50 {
 		t.Errorf("height = %d, want 50", model.height)
-	}
-}
-
-func TestResolveDownStatePath(t *testing.T) {
-	tests := []struct {
-		name         string
-		cfg          config.Config
-		overridePath string
-		nodeName     string
-		expected     string
-	}{
-		{
-			name:         "with override",
-			cfg:          config.Config{},
-			overridePath: "/custom/path.json",
-			nodeName:     "node1",
-			expected:     "/custom/path.json",
-		},
-		{
-			name: "with template",
-			cfg: config.Config{
-				State: config.StateConfig{
-					FilePathTemplate: "./state-{{.Node}}.json",
-				},
-			},
-			overridePath: "",
-			nodeName:     "node1",
-			expected:     "./state-node1.json",
-		},
-		{
-			name:         "default template",
-			cfg:          config.Config{},
-			overridePath: "",
-			nodeName:     "mynode",
-			expected:     "./crook-state-mynode.json",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := resolveDownStatePath(tt.cfg, tt.overridePath, tt.nodeName)
-			if got != tt.expected {
-				t.Errorf("resolveDownStatePath() = %q, want %q", got, tt.expected)
-			}
-		})
 	}
 }
