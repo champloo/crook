@@ -5,8 +5,16 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/andri/crook/pkg/config"
 	"github.com/andri/crook/pkg/k8s"
 	appsv1 "k8s.io/api/apps/v1"
+)
+
+// Default durations for wait operations, derived from config constants.
+const (
+	DefaultPollInterval = 5 * time.Second
+	DefaultWaitTimeout  = time.Duration(config.DefaultWaitDeploymentTimeoutSeconds) * time.Second
+	DefaultAPITimeout   = time.Duration(config.DefaultAPICallTimeoutSeconds) * time.Second
 )
 
 // WaitOptions holds configuration for wait operations
@@ -28,9 +36,9 @@ type WaitOptions struct {
 // DefaultWaitOptions returns wait options with spec-compliant defaults
 func DefaultWaitOptions() WaitOptions {
 	return WaitOptions{
-		PollInterval:     5 * time.Second,
-		Timeout:          300 * time.Second,
-		APITimeout:       30 * time.Second,
+		PollInterval:     DefaultPollInterval,
+		Timeout:          DefaultWaitTimeout,
+		APITimeout:       DefaultAPITimeout,
 		ProgressCallback: nil,
 	}
 }
@@ -79,13 +87,13 @@ func waitForCondition(
 ) error {
 	// Apply defaults if not set
 	if opts.PollInterval == 0 {
-		opts.PollInterval = 5 * time.Second
+		opts.PollInterval = DefaultPollInterval
 	}
 	if opts.Timeout == 0 {
-		opts.Timeout = 300 * time.Second
+		opts.Timeout = DefaultWaitTimeout
 	}
 	if opts.APITimeout == 0 {
-		opts.APITimeout = 30 * time.Second
+		opts.APITimeout = DefaultAPITimeout
 	}
 
 	// Create timeout context
@@ -202,13 +210,13 @@ func WaitForMultipleDeploymentsScaleUp(
 func WaitForMonitorQuorum(ctx context.Context, client *k8s.Client, namespace string, opts WaitOptions) error {
 	// Apply defaults if not set
 	if opts.PollInterval == 0 {
-		opts.PollInterval = 5 * time.Second
+		opts.PollInterval = DefaultPollInterval
 	}
 	if opts.Timeout == 0 {
-		opts.Timeout = 300 * time.Second
+		opts.Timeout = DefaultWaitTimeout
 	}
 	if opts.APITimeout == 0 {
-		opts.APITimeout = 30 * time.Second
+		opts.APITimeout = DefaultAPITimeout
 	}
 
 	// Create timeout context

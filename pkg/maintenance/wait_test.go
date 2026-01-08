@@ -293,12 +293,16 @@ func TestWaitForMultipleDeploymentsScaleDown_OneFailsTimeout(t *testing.T) {
 func TestDefaultWaitOptions(t *testing.T) {
 	opts := DefaultWaitOptions()
 
-	if opts.PollInterval != 5*time.Second {
-		t.Errorf("Expected default poll interval of 5s, got %v", opts.PollInterval)
+	if opts.PollInterval != DefaultPollInterval {
+		t.Errorf("Expected default poll interval of %v, got %v", DefaultPollInterval, opts.PollInterval)
 	}
 
-	if opts.Timeout != 300*time.Second {
-		t.Errorf("Expected default timeout of 300s, got %v", opts.Timeout)
+	if opts.Timeout != DefaultWaitTimeout {
+		t.Errorf("Expected default timeout of %v, got %v", DefaultWaitTimeout, opts.Timeout)
+	}
+
+	if opts.APITimeout != DefaultAPITimeout {
+		t.Errorf("Expected default API timeout of %v, got %v", DefaultAPITimeout, opts.APITimeout)
 	}
 
 	if opts.ProgressCallback != nil {
