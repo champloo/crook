@@ -53,26 +53,23 @@ func OrderDeploymentsForUp(deployments []appsv1.Deployment) []appsv1.Deployment 
 // Deployments not matching any prefix are appended at the end
 func orderByPrefixes(deployments []appsv1.Deployment, prefixOrder []string) []appsv1.Deployment {
 	ordered := make([]appsv1.Deployment, 0, len(deployments))
+	added := make(map[string]bool, len(deployments))
 
-	// Add deployments in prefix order
+	// Add deployments in prefix order (first matching prefix wins)
 	for _, prefix := range prefixOrder {
 		for _, deployment := range deployments {
-			if strings.HasPrefix(deployment.Name, prefix) {
+			key := deployment.Namespace + "/" + deployment.Name
+			if !added[key] && strings.HasPrefix(deployment.Name, prefix) {
 				ordered = append(ordered, deployment)
+				added[key] = true
 			}
 		}
 	}
 
 	// Add any remaining deployments that didn't match prefixes
 	for _, deployment := range deployments {
-		found := false
-		for _, existing := range ordered {
-			if existing.Namespace == deployment.Namespace && existing.Name == deployment.Name {
-				found = true
-				break
-			}
-		}
-		if !found {
+		key := deployment.Namespace + "/" + deployment.Name
+		if !added[key] {
 			ordered = append(ordered, deployment)
 		}
 	}
