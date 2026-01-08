@@ -210,10 +210,12 @@ func (m *UpModel) Init() tea.Cmd {
 func (m *UpModel) discoverDeploymentsCmd() tea.Cmd {
 	return func() tea.Msg {
 		// Use nodeSelector-based discovery to find scaled-down deployments
+		// Filter by configured prefixes to only restore Ceph deployments
 		deployments, err := m.config.Client.ListScaledDownDeploymentsForNode(
 			m.config.Context,
 			m.config.Config.Kubernetes.RookClusterNamespace,
 			m.config.NodeName,
+			m.config.Config.DeploymentFilters.Prefixes,
 		)
 		if err != nil {
 			return UpPhaseErrorMsg{Err: fmt.Errorf("failed to discover deployments: %w", err), Stage: "discover"}

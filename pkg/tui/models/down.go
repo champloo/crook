@@ -204,10 +204,12 @@ func (m *DownModel) Init() tea.Cmd {
 func (m *DownModel) discoverDeploymentsCmd() tea.Cmd {
 	return func() tea.Msg {
 		// Use nodeSelector-based discovery instead of pod-based
+		// Filter by configured prefixes to avoid scaling down non-Ceph deployments
 		deployments, err := m.config.Client.ListNodePinnedDeployments(
 			m.config.Context,
 			m.config.Config.Kubernetes.RookClusterNamespace,
 			m.config.NodeName,
+			m.config.Config.DeploymentFilters.Prefixes,
 		)
 		if err != nil {
 			return DownPhaseErrorMsg{Err: err, Stage: "discover"}

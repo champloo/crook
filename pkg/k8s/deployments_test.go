@@ -546,27 +546,39 @@ func TestListNodePinnedDeployments(t *testing.T) {
 	clientset := fake.NewClientset(dep1, dep2, dep3, dep4)
 	client := newClientFromClientset(clientset)
 
+	// Test with nil prefixes (returns all node-pinned deployments)
 	tests := []struct {
 		name          string
 		nodeName      string
+		prefixes      []string
 		expectedCount int
 		expectedNames []string
 	}{
 		{
-			name:          "finds deployments pinned to worker-01",
+			name:          "finds deployments pinned to worker-01 with nil prefixes",
 			nodeName:      "worker-01",
+			prefixes:      nil,
+			expectedCount: 2,
+			expectedNames: []string{"rook-ceph-osd-0", "rook-ceph-crashcollector-worker-01"},
+		},
+		{
+			name:          "finds deployments pinned to worker-01 with empty prefixes",
+			nodeName:      "worker-01",
+			prefixes:      []string{},
 			expectedCount: 2,
 			expectedNames: []string{"rook-ceph-osd-0", "rook-ceph-crashcollector-worker-01"},
 		},
 		{
 			name:          "finds deployments pinned to worker-02",
 			nodeName:      "worker-02",
+			prefixes:      nil,
 			expectedCount: 1,
 			expectedNames: []string{"rook-ceph-osd-1"},
 		},
 		{
 			name:          "returns empty for non-existent node",
 			nodeName:      "worker-99",
+			prefixes:      nil,
 			expectedCount: 0,
 			expectedNames: []string{},
 		},
@@ -574,7 +586,7 @@ func TestListNodePinnedDeployments(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := client.ListNodePinnedDeployments(ctx, "rook-ceph", tt.nodeName)
+			result, err := client.ListNodePinnedDeployments(ctx, "rook-ceph", tt.nodeName, tt.prefixes)
 			if err != nil {
 				t.Fatalf("ListNodePinnedDeployments() error = %v", err)
 			}
@@ -602,13 +614,179 @@ func TestListNodePinnedDeployments_EmptyNamespace(t *testing.T) {
 	clientset := fake.NewClientset()
 	client := newClientFromClientset(clientset)
 
-	result, err := client.ListNodePinnedDeployments(ctx, "empty-namespace", "worker-01")
+	result, err := client.ListNodePinnedDeployments(ctx, "empty-namespace", "worker-01", nil)
 	if err != nil {
 		t.Fatalf("ListNodePinnedDeployments() error = %v", err)
 	}
 
 	if len(result) != 0 {
 		t.Errorf("ListNodePinnedDeployments() expected empty slice, got %d deployments", len(result))
+	}
+}
+
+func TestListNodePinnedDeployments_PrefixFiltering(t *testing.T) {
+	ctx := context.Background()
+
+	replicas := int32(1)
+
+	// OSD deployment pinned to worker-01
+	depOsd := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rook-ceph-osd-0",
+			Namespace: "rook-ceph",
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: &replicas,
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					NodeSelector: map[string]string{
+						"kubernetes.io/hostname": "worker-01",
+					},
+				},
+			},
+		},
+	}
+
+	// MON deployment pinned to worker-01
+	depMon := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rook-ceph-mon-a",
+			Namespace: "rook-ceph",
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: &replicas,
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					NodeSelector: map[string]string{
+						"kubernetes.io/hostname": "worker-01",
+					},
+				},
+			},
+		},
+	}
+
+	// rook-ceph-tools deployment pinned to worker-01 (should be excluded with proper prefixes)
+	depTools := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rook-ceph-tools",
+			Namespace: "rook-ceph",
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: &replicas,
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					NodeSelector: map[string]string{
+						"kubernetes.io/hostname": "worker-01",
+					},
+				},
+			},
+		},
+	}
+
+	// Non-Ceph deployment pinned to worker-01 (should be excluded)
+	depCustom := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "custom-app",
+			Namespace: "rook-ceph",
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: &replicas,
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					NodeSelector: map[string]string{
+						"kubernetes.io/hostname": "worker-01",
+					},
+				},
+			},
+		},
+	}
+
+	clientset := fake.NewClientset(depOsd, depMon, depTools, depCustom)
+	client := newClientFromClientset(clientset)
+
+	tests := []struct {
+		name          string
+		prefixes      []string
+		expectedCount int
+		expectedNames []string
+		excludedNames []string
+	}{
+		{
+			name:          "filters to only OSD deployments",
+			prefixes:      []string{"rook-ceph-osd"},
+			expectedCount: 1,
+			expectedNames: []string{"rook-ceph-osd-0"},
+			excludedNames: []string{"rook-ceph-mon-a", "rook-ceph-tools", "custom-app"},
+		},
+		{
+			name:          "filters to OSD and MON deployments",
+			prefixes:      []string{"rook-ceph-osd", "rook-ceph-mon"},
+			expectedCount: 2,
+			expectedNames: []string{"rook-ceph-osd-0", "rook-ceph-mon-a"},
+			excludedNames: []string{"rook-ceph-tools", "custom-app"},
+		},
+		{
+			name: "default Ceph prefixes exclude tools and custom apps",
+			prefixes: []string{
+				"rook-ceph-osd",
+				"rook-ceph-mon",
+				"rook-ceph-exporter",
+				"rook-ceph-crashcollector",
+			},
+			expectedCount: 2,
+			expectedNames: []string{"rook-ceph-osd-0", "rook-ceph-mon-a"},
+			excludedNames: []string{"rook-ceph-tools", "custom-app"},
+		},
+		{
+			name:          "empty prefixes returns all node-pinned deployments",
+			prefixes:      []string{},
+			expectedCount: 4,
+			expectedNames: []string{"rook-ceph-osd-0", "rook-ceph-mon-a", "rook-ceph-tools", "custom-app"},
+			excludedNames: []string{},
+		},
+		{
+			name:          "nil prefixes returns all node-pinned deployments",
+			prefixes:      nil,
+			expectedCount: 4,
+			expectedNames: []string{"rook-ceph-osd-0", "rook-ceph-mon-a", "rook-ceph-tools", "custom-app"},
+			excludedNames: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := client.ListNodePinnedDeployments(ctx, "rook-ceph", "worker-01", tt.prefixes)
+			if err != nil {
+				t.Fatalf("ListNodePinnedDeployments() error = %v", err)
+			}
+
+			if len(result) != tt.expectedCount {
+				names := make([]string, len(result))
+				for i, dep := range result {
+					names[i] = dep.Name
+				}
+				t.Errorf("ListNodePinnedDeployments() count = %d, expected %d, got names: %v", len(result), tt.expectedCount, names)
+			}
+
+			resultNames := make(map[string]bool)
+			for _, dep := range result {
+				resultNames[dep.Name] = true
+			}
+
+			// Check expected names are present
+			for _, expectedName := range tt.expectedNames {
+				if !resultNames[expectedName] {
+					t.Errorf("ListNodePinnedDeployments() missing expected deployment %q", expectedName)
+				}
+			}
+
+			// Check excluded names are absent
+			for _, excludedName := range tt.excludedNames {
+				if resultNames[excludedName] {
+					t.Errorf("ListNodePinnedDeployments() should have excluded deployment %q but it was included", excludedName)
+				}
+			}
+		})
 	}
 }
 
@@ -696,32 +874,43 @@ func TestListScaledDownDeploymentsForNode(t *testing.T) {
 	tests := []struct {
 		name          string
 		nodeName      string
+		prefixes      []string
 		expectedCount int
 		expectedNames []string
 	}{
 		{
-			name:          "finds scaled-down deployments on worker-01",
+			name:          "finds scaled-down deployments on worker-01 with nil prefixes",
 			nodeName:      "worker-01",
+			prefixes:      nil,
 			expectedCount: 2,
 			expectedNames: []string{"rook-ceph-osd-0", "rook-ceph-crashcollector-worker-01"},
 		},
 		{
 			name:          "finds scaled-down deployments on worker-02",
 			nodeName:      "worker-02",
+			prefixes:      nil,
 			expectedCount: 1,
 			expectedNames: []string{"rook-ceph-osd-1"},
 		},
 		{
 			name:          "returns empty for node with no scaled-down deployments",
 			nodeName:      "worker-99",
+			prefixes:      nil,
 			expectedCount: 0,
 			expectedNames: []string{},
+		},
+		{
+			name:          "filters by prefix - only OSD",
+			nodeName:      "worker-01",
+			prefixes:      []string{"rook-ceph-osd"},
+			expectedCount: 1,
+			expectedNames: []string{"rook-ceph-osd-0"},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := client.ListScaledDownDeploymentsForNode(ctx, "rook-ceph", tt.nodeName)
+			result, err := client.ListScaledDownDeploymentsForNode(ctx, "rook-ceph", tt.nodeName, tt.prefixes)
 			if err != nil {
 				t.Fatalf("ListScaledDownDeploymentsForNode() error = %v", err)
 			}
@@ -768,7 +957,7 @@ func TestListScaledDownDeploymentsForNode_NilReplicas(t *testing.T) {
 	clientset := fake.NewClientset(depNilReplicas)
 	client := newClientFromClientset(clientset)
 
-	result, err := client.ListScaledDownDeploymentsForNode(ctx, "rook-ceph", "worker-01")
+	result, err := client.ListScaledDownDeploymentsForNode(ctx, "rook-ceph", "worker-01", nil)
 	if err != nil {
 		t.Fatalf("ListScaledDownDeploymentsForNode() error = %v", err)
 	}

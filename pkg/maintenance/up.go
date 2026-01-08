@@ -50,7 +50,7 @@ func ExecuteUpPhase(
 	// Step 2: Discover scaled-down deployments via nodeSelector
 	sendUpProgress(opts.ProgressCallback, "discover", fmt.Sprintf("Discovering scaled-down deployments on %s", nodeName), "")
 
-	deployments, err := client.ListScaledDownDeploymentsForNode(ctx, cfg.Kubernetes.RookClusterNamespace, nodeName)
+	deployments, err := client.ListScaledDownDeploymentsForNode(ctx, cfg.Kubernetes.RookClusterNamespace, nodeName, cfg.DeploymentFilters.Prefixes)
 	if err != nil {
 		return fmt.Errorf("failed to discover scaled-down deployments: %w", err)
 	}

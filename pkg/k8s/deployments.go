@@ -389,18 +389,25 @@ func GetDeploymentTargetNode(dep *appsv1.Deployment) string {
 
 // ListNodePinnedDeployments returns deployments pinned to a specific node.
 // Works regardless of replica count - examines deployment spec, not running pods.
+// If prefixes is non-empty, only deployments matching at least one prefix are returned.
+// This is critical for maintenance operations to avoid scaling down non-Ceph deployments
+// (e.g., rook-ceph-tools) that may be node-pinned in the same namespace.
 func (c *Client) ListNodePinnedDeployments(
 	ctx context.Context,
 	namespace string,
 	nodeName string,
+	prefixes []string,
 ) ([]appsv1.Deployment, error) {
 	deployments, err := c.ListDeploymentsInNamespace(ctx, namespace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list deployments: %w", err)
 	}
 
+	// Filter by prefix first (if prefixes provided)
+	filtered := FilterDeploymentsByPrefix(deployments, prefixes)
+
 	var pinned []appsv1.Deployment
-	for _, dep := range deployments {
+	for _, dep := range filtered {
 		if GetDeploymentTargetNode(&dep) == nodeName {
 			pinned = append(pinned, dep)
 		}
@@ -410,12 +417,14 @@ func (c *Client) ListNodePinnedDeployments(
 
 // ListScaledDownDeploymentsForNode returns node-pinned deployments with 0 replicas.
 // Used during UP phase to discover deployments that need restoration.
+// If prefixes is non-empty, only deployments matching at least one prefix are returned.
 func (c *Client) ListScaledDownDeploymentsForNode(
 	ctx context.Context,
 	namespace string,
 	nodeName string,
+	prefixes []string,
 ) ([]appsv1.Deployment, error) {
-	pinned, err := c.ListNodePinnedDeployments(ctx, namespace, nodeName)
+	pinned, err := c.ListNodePinnedDeployments(ctx, namespace, nodeName, prefixes)
 	if err != nil {
 		return nil, err
 	}
