@@ -178,6 +178,7 @@ func runDownNonInteractive(ctx context.Context, client *k8s.Client, nodeName str
 		},
 		WaitOptions: maintenance.WaitOptions{
 			Timeout:      time.Duration(cfg.Timeouts.WaitDeploymentTimeoutSeconds) * time.Second,
+			APITimeout:   time.Duration(cfg.Timeouts.APICallTimeoutSeconds) * time.Second,
 			PollInterval: 2 * time.Second,
 		},
 	}

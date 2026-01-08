@@ -17,6 +17,9 @@ type WaitOptions struct {
 	// Timeout is the maximum time to wait (default: 300 seconds)
 	Timeout time.Duration
 
+	// APITimeout is the timeout for individual API calls (default: 30 seconds)
+	APITimeout time.Duration
+
 	// ProgressCallback is called on each poll with current status
 	// Optional - if nil, no progress updates are sent
 	ProgressCallback func(status *k8s.DeploymentStatus)
@@ -27,6 +30,7 @@ func DefaultWaitOptions() WaitOptions {
 	return WaitOptions{
 		PollInterval:     5 * time.Second,
 		Timeout:          300 * time.Second,
+		APITimeout:       30 * time.Second,
 		ProgressCallback: nil,
 	}
 }
@@ -80,6 +84,9 @@ func waitForCondition(
 	if opts.Timeout == 0 {
 		opts.Timeout = 300 * time.Second
 	}
+	if opts.APITimeout == 0 {
+		opts.APITimeout = 30 * time.Second
+	}
 
 	// Create timeout context
 	timeoutCtx, cancel := context.WithTimeout(ctx, opts.Timeout)
@@ -114,7 +121,7 @@ func waitForCondition(
 
 			// Attempt a final status fetch with a bounded timeout
 			// This is best-effort and won't block the timeout/cancellation return
-			finalFetchCtx, finalFetchCancel := context.WithTimeout(context.Background(), opts.Timeout)
+			finalFetchCtx, finalFetchCancel := context.WithTimeout(context.Background(), opts.APITimeout)
 			if fetchedStatus, fetchErr := client.GetDeploymentStatus(finalFetchCtx, namespace, name); fetchErr == nil {
 				finalStatus = fetchedStatus
 			}
