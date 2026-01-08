@@ -1,7 +1,6 @@
 package maintenance
 
 import (
-	"fmt"
 	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -82,13 +81,4 @@ func orderByPrefixes(deployments []appsv1.Deployment, prefixOrder []string) []ap
 	}
 
 	return ordered
-}
-
-// GetDeploymentNames extracts deployment names from a list of deployments
-func GetDeploymentNames(deployments []appsv1.Deployment) []string {
-	names := make([]string, len(deployments))
-	for i, deployment := range deployments {
-		names[i] = fmt.Sprintf("%s/%s", deployment.Namespace, deployment.Name)
-	}
-	return names
 }

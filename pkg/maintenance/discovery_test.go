@@ -10,10 +10,10 @@ import (
 
 func TestOrderDeploymentsForDown(t *testing.T) {
 	deployments := []appsv1.Deployment{
-		*createDeployment("rook-ceph", "rook-ceph-crashcollector"),
-		*createDeployment("rook-ceph", "rook-ceph-mon-a"),
-		*createDeployment("rook-ceph", "rook-ceph-exporter"),
-		*createDeployment("rook-ceph", "rook-ceph-osd-0"),
+		*createDeployment("rook-ceph-crashcollector"),
+		*createDeployment("rook-ceph-mon-a"),
+		*createDeployment("rook-ceph-exporter"),
+		*createDeployment("rook-ceph-osd-0"),
 	}
 
 	ordered := OrderDeploymentsForDown(deployments)
@@ -39,10 +39,10 @@ func TestOrderDeploymentsForDown(t *testing.T) {
 
 func TestOrderDeploymentsForUp(t *testing.T) {
 	deployments := []appsv1.Deployment{
-		*createDeployment("rook-ceph", "rook-ceph-osd-0"),
-		*createDeployment("rook-ceph", "rook-ceph-crashcollector"),
-		*createDeployment("rook-ceph", "rook-ceph-exporter"),
-		*createDeployment("rook-ceph", "rook-ceph-mon-a"),
+		*createDeployment("rook-ceph-osd-0"),
+		*createDeployment("rook-ceph-crashcollector"),
+		*createDeployment("rook-ceph-exporter"),
+		*createDeployment("rook-ceph-mon-a"),
 	}
 
 	ordered := OrderDeploymentsForUp(deployments)
@@ -66,32 +66,11 @@ func TestOrderDeploymentsForUp(t *testing.T) {
 	}
 }
 
-func TestGetDeploymentNames(t *testing.T) {
-	deployments := []appsv1.Deployment{
-		*createDeployment("ns1", "deploy1"),
-		*createDeployment("ns2", "deploy2"),
-	}
-
-	names := GetDeploymentNames(deployments)
-
-	if len(names) != 2 {
-		t.Fatalf("Expected 2 names, got %d", len(names))
-	}
-
-	if names[0] != "ns1/deploy1" {
-		t.Errorf("Expected ns1/deploy1, got %s", names[0])
-	}
-
-	if names[1] != "ns2/deploy2" {
-		t.Errorf("Expected ns2/deploy2, got %s", names[1])
-	}
-}
-
 func TestOrderDeploymentsForDown_UnrecognizedPrefix(t *testing.T) {
 	// Test that deployments without recognized prefix are appended at the end
 	deployments := []appsv1.Deployment{
-		*createDeployment("rook-ceph", "unknown-deployment"),
-		*createDeployment("rook-ceph", "rook-ceph-osd-0"),
+		*createDeployment("unknown-deployment"),
+		*createDeployment("rook-ceph-osd-0"),
 	}
 
 	ordered := OrderDeploymentsForDown(deployments)
@@ -112,8 +91,8 @@ func TestOrderDeploymentsForDown_UnrecognizedPrefix(t *testing.T) {
 func TestOrderDeploymentsForUp_UnrecognizedPrefix(t *testing.T) {
 	// Test that deployments without recognized prefix are appended at the end
 	deployments := []appsv1.Deployment{
-		*createDeployment("rook-ceph", "unknown-deployment"),
-		*createDeployment("rook-ceph", "rook-ceph-mon-a"),
+		*createDeployment("unknown-deployment"),
+		*createDeployment("rook-ceph-mon-a"),
 	}
 
 	ordered := OrderDeploymentsForUp(deployments)
@@ -149,23 +128,14 @@ func TestOrderDeploymentsForUp_EmptyInput(t *testing.T) {
 	}
 }
 
-func TestGetDeploymentNames_EmptyInput(t *testing.T) {
-	var deployments []appsv1.Deployment
-	names := GetDeploymentNames(deployments)
-
-	if len(names) != 0 {
-		t.Errorf("Expected empty result for empty input, got %d names", len(names))
-	}
-}
-
 // Helper functions
 
-func createDeployment(namespace, name string) *appsv1.Deployment {
+func createDeployment(name string) *appsv1.Deployment {
 	replicas := int32(1)
 	return &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
-			Namespace: namespace,
+			Namespace: "rook-ceph",
 			UID:       types.UID("deployment-" + name),
 		},
 		Spec: appsv1.DeploymentSpec{
