@@ -555,10 +555,12 @@ func (m *DownModel) updateStateFromProgress(msg DownPhaseProgressMsg) {
 		m.updateStatusItem(5, components.StatusTypeRunning)
 		m.currentDeployment = msg.Deployment
 		m.deploymentsScaled++
-		// Update status item to show progress counter and current deployment
+		// Mark the deployment as scaled in the plan
+		m.updateDeploymentStatus(msg.Deployment, "success")
+		// Update status item to show progress counter and deployment list
 		if item := m.statusList.Get(5); item != nil {
 			item.SetLabel(fmt.Sprintf("Scale deployments (%d/%d)", m.deploymentsScaled, m.deploymentCount))
-			item.SetDetails(msg.Deployment)
+			item.SetDetails(m.buildDeploymentListDetails())
 			item.DetailsOnNewLine = true
 		}
 	case "complete":
@@ -576,6 +578,34 @@ func (m *DownModel) updateStatusItem(index int, status components.StatusType) {
 	if item := m.statusList.Get(index); item != nil {
 		item.SetType(status)
 	}
+}
+
+// updateDeploymentStatus updates the status of a deployment in the down plan
+func (m *DownModel) updateDeploymentStatus(deploymentName, status string) {
+	for i := range m.downPlan {
+		if m.downPlan[i].Name == deploymentName {
+			m.downPlan[i].Status = status
+			return
+		}
+	}
+}
+
+// buildDeploymentListDetails builds a multi-line string showing all deployments with status icons
+func (m *DownModel) buildDeploymentListDetails() string {
+	var lines []string
+	for _, item := range m.downPlan {
+		var icon string
+		switch item.Status {
+		case "success":
+			icon = styles.IconCheckmark
+		case "scaling":
+			icon = styles.IconSpinner
+		default: // pending
+			icon = "○"
+		}
+		lines = append(lines, fmt.Sprintf("%s %s", icon, item.Name))
+	}
+	return strings.Join(lines, "\n    ")
 }
 
 // View implements tea.Model

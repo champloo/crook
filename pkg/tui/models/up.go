@@ -532,10 +532,12 @@ func (m *UpModel) updateStateFromProgress(msg UpPhaseProgressMsg) {
 		if msg.Deployment != "" {
 			m.currentDeployment = msg.Deployment
 			m.deploymentsRestored++
-			// Update status item to show progress counter and current deployment
+			// Mark the deployment as restored in the plan
+			m.updateDeploymentStatus(msg.Deployment, "success")
+			// Update status item to show progress counter and deployment list
 			if item := m.statusList.Get(3); item != nil {
 				item.SetLabel(fmt.Sprintf("Restore deployments (%d/%d)", m.deploymentsRestored, len(m.restorePlan)))
-				item.SetDetails(msg.Deployment)
+				item.SetDetails(m.buildDeploymentListDetails())
 				item.DetailsOnNewLine = true
 			}
 		}
@@ -562,6 +564,34 @@ func (m *UpModel) updateStatusItem(index int, status components.StatusType) {
 	if item := m.statusList.Get(index); item != nil {
 		item.SetType(status)
 	}
+}
+
+// updateDeploymentStatus updates the status of a deployment in the restore plan
+func (m *UpModel) updateDeploymentStatus(deploymentName, status string) {
+	for i := range m.restorePlan {
+		if m.restorePlan[i].Name == deploymentName {
+			m.restorePlan[i].Status = status
+			return
+		}
+	}
+}
+
+// buildDeploymentListDetails builds a multi-line string showing all deployments with status icons
+func (m *UpModel) buildDeploymentListDetails() string {
+	var lines []string
+	for _, item := range m.restorePlan {
+		var icon string
+		switch item.Status {
+		case "success":
+			icon = styles.IconCheckmark
+		case "restoring":
+			icon = styles.IconSpinner
+		default: // pending
+			icon = "○"
+		}
+		lines = append(lines, fmt.Sprintf("%s %s", icon, item.Name))
+	}
+	return strings.Join(lines, "\n    ")
 }
 
 // allDeploymentsAlreadyScaledUp returns true if there are no deployments to restore
