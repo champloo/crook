@@ -35,35 +35,6 @@ kubernetes:
   # Default: (empty, use current context)
   # context: my-cluster-context
 
-# State file configuration
-state:
-  # Template for state file path
-  # Available template variables:
-  #   {{.Node}} - Node name being maintained
-  # Default: ./crook-state-{{.Node}}.json
-  file-path-template: "./crook-state-{{.Node}}.json"
-
-  # Enable automatic backup of state file before operations
-  # Backup is created as <original>.backup.<RFC3339>.json
-  # Default: true
-  backup-enabled: true
-
-  # Directory to store state file backups
-  # Default: ~/.local/state/crook/backups
-  backup-directory: ~/.local/state/crook/backups
-
-# Deployment discovery and filtering
-deployment-filters:
-  # List of deployment name prefixes to target during node maintenance
-  # Only deployments matching these prefixes will be scaled down during
-  # the 'down' phase and restored during the 'up' phase
-  # Default: (shown below)
-  prefixes:
-    - rook-ceph-osd
-    - rook-ceph-mon
-    - rook-ceph-exporter
-    - rook-ceph-crashcollector
-
 # Terminal UI configuration
 ui:
   # Color theme for TUI
