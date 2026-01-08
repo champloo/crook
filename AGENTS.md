@@ -43,6 +43,6 @@ Make sure to review @openspec/project.md for project conventions.
 * When I ask you to work on multiple beads tasks then do tasks one by one and for each task
   * Mark the task as In Progress whens starting the task
   * Print out a work summary for each task as soon as you finish it and then commit the changes to git.
-  * Mark task as complete in beads once you have completed it
+  * Mark task as complete in beads once you have completed it and  add a resolution comment with summary of what was done (more the why certain decision were made, dont list out file changes)
   * Don't stop until you have completed all tasks
   * Finally provide overall summary for all completedtasks

@@ -23,11 +23,19 @@ The system SHALL provide an interactive TUI for the down phase with state transi
 - **THEN** system displays summary table showing:
   - Target node name
   - Number of deployments to be scaled down
-  - List of deployment names
+  - Deployment table with columns: Deployment, Current, Target, Status (matching up phase table format)
   - Estimated impact duration
 - **THEN** system shows prompt "Proceed with down phase? (y/N)"
 - **THEN** system proceeds only if user types 'y' or 'Y'
 - **THEN** system aborts and exits if user types 'n', 'N', or Ctrl+C
+
+#### Scenario: Down phase no-op detection
+
+- **WHEN** user launches `crook down <node>` command
+- **AND** all relevant deployments are already scaled to 0 replicas
+- **THEN** system displays message "All deployments are already scaled down - no action needed"
+- **THEN** system skips the confirmation screen
+- **THEN** system exits gracefully without making any changes
 
 #### Scenario: Down phase error state
 
@@ -59,6 +67,14 @@ The system SHALL provide an interactive TUI for the up phase with state transiti
 - **THEN** system shows state file timestamp and node name
 - **THEN** system highlights any anomalies (deployments no longer exist, unexpected current replicas)
 - **THEN** system prompts "Proceed with restoration? (y/N)"
+
+#### Scenario: Up phase no-op detection
+
+- **WHEN** user launches `crook up <node>` command
+- **AND** all relevant deployments are already at their target replica count (from state file)
+- **THEN** system displays message "All deployments are already scaled up - no action needed"
+- **THEN** system skips the confirmation screen
+- **THEN** system exits gracefully without making any changes
 
 ### Requirement: Real-time Progress Tracking
 
