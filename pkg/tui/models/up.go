@@ -532,11 +532,21 @@ func (m *UpModel) updateStateFromProgress(msg UpPhaseProgressMsg) {
 		if msg.Deployment != "" {
 			m.currentDeployment = msg.Deployment
 			m.deploymentsRestored++
+			// Update status item to show progress counter and current deployment
+			if item := m.statusList.Get(3); item != nil {
+				item.SetLabel(fmt.Sprintf("Restore deployments (%d/%d)", m.deploymentsRestored, len(m.restorePlan)))
+				item.SetDetails(msg.Deployment)
+			}
 		}
 	case "operator":
 		m.state = UpStateScalingOperator
 		m.updateStatusItem(3, components.StatusTypeSuccess)
 		m.updateStatusItem(4, components.StatusTypeRunning)
+		// Clear deployment details and show final count
+		if item := m.statusList.Get(3); item != nil {
+			item.SetLabel(fmt.Sprintf("Restore deployments (%d/%d)", m.deploymentsRestored, len(m.restorePlan)))
+			item.SetDetails("")
+		}
 	case "unset-noout":
 		m.state = UpStateUnsettingNoOut
 		m.updateStatusItem(4, components.StatusTypeSuccess)
@@ -684,20 +694,8 @@ func (m *UpModel) renderProgress() string {
 	b.WriteString(styles.StyleSubtle.Render(fmt.Sprintf("Elapsed: %s", m.elapsedTime.Round(time.Second))))
 	b.WriteString("\n\n")
 
-	// Status list
+	// Status list (includes deployment progress inline)
 	b.WriteString(m.statusList.View())
-
-	// Current operation details (show deployment progress when scaling)
-	if m.currentDeployment != "" {
-		b.WriteString("\n\n")
-		b.WriteString(m.progress.View())
-		b.WriteString("\n")
-		b.WriteString(styles.StyleSubtle.Render(
-			fmt.Sprintf("  %s (%d/%d)",
-				m.currentDeployment,
-				m.deploymentsRestored,
-				len(m.restorePlan))))
-	}
 
 	return b.String()
 }

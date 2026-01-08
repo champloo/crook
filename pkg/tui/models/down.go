@@ -555,8 +555,18 @@ func (m *DownModel) updateStateFromProgress(msg DownPhaseProgressMsg) {
 		m.updateStatusItem(5, components.StatusTypeRunning)
 		m.currentDeployment = msg.Deployment
 		m.deploymentsScaled++
+		// Update status item to show progress counter and current deployment
+		if item := m.statusList.Get(5); item != nil {
+			item.SetLabel(fmt.Sprintf("Scale deployments (%d/%d)", m.deploymentsScaled, m.deploymentCount))
+			item.SetDetails(msg.Deployment)
+		}
 	case "complete":
 		m.updateStatusItem(5, components.StatusTypeSuccess)
+		// Clear the details and show final count
+		if item := m.statusList.Get(5); item != nil {
+			item.SetLabel(fmt.Sprintf("Scale deployments (%d/%d)", m.deploymentsScaled, m.deploymentCount))
+			item.SetDetails("")
+		}
 	}
 }
 
@@ -691,20 +701,8 @@ func (m *DownModel) renderProgress() string {
 	b.WriteString(styles.StyleSubtle.Render(fmt.Sprintf("Elapsed: %s", m.elapsedTime.Round(time.Second))))
 	b.WriteString("\n\n")
 
-	// Status list
+	// Status list (includes deployment progress inline)
 	b.WriteString(m.statusList.View())
-
-	// Current operation details
-	if m.currentDeployment != "" {
-		b.WriteString("\n\n")
-		b.WriteString(m.progress.View())
-		b.WriteString("\n")
-		b.WriteString(styles.StyleSubtle.Render(
-			fmt.Sprintf("  %s (%d/%d)",
-				m.currentDeployment,
-				m.deploymentsScaled,
-				m.deploymentCount)))
-	}
 
 	return b.String()
 }
