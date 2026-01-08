@@ -26,6 +26,8 @@ const (
 	UpStateDiscovering
 	// UpStateConfirm waits for user confirmation of restore plan
 	UpStateConfirm
+	// UpStatePreFlight runs pre-flight validation checks
+	UpStatePreFlight
 	// UpStateUncordoning uncordons the node
 	UpStateUncordoning
 	// UpStateRestoringDeployments scales up deployments to 1 replica
@@ -49,6 +51,8 @@ func (s UpPhaseState) String() string {
 		return "Discovering Deployments"
 	case UpStateConfirm:
 		return "Awaiting Confirmation"
+	case UpStatePreFlight:
+		return "Pre-flight Checks"
 	case UpStateUncordoning:
 		return "Uncordoning Node"
 	case UpStateRestoringDeployments:
@@ -75,6 +79,8 @@ func (s UpPhaseState) Description() string {
 		return "Discovering scaled-down deployments..."
 	case UpStateConfirm:
 		return "Review the restore plan and confirm to proceed"
+	case UpStatePreFlight:
+		return "Validating cluster prerequisites and permissions"
 	case UpStateUncordoning:
 		return "Uncordoning node to allow pod scheduling"
 	case UpStateRestoringDeployments:
@@ -468,7 +474,7 @@ func (m *UpModel) exitCmd(reason FlowExitReason, err error) tea.Cmd {
 func (m *UpModel) startExecution() {
 	m.operationInProgress = true
 	m.startTime = time.Now()
-	m.state = UpStateUncordoning // First real stage is uncordon
+	m.state = UpStatePreFlight // First stage is pre-flight checks
 	m.progress = components.NewIndeterminateProgress("Processing...")
 	m.initStatusList()
 }
@@ -488,8 +494,10 @@ func (m *UpModel) initStatusList() {
 func (m *UpModel) updateStateFromProgress(msg UpPhaseProgressMsg) {
 	switch msg.Stage {
 	case "pre-flight":
+		m.state = UpStatePreFlight
 		m.updateStatusItem(0, components.StatusTypeRunning)
 	case "discover":
+		m.state = UpStateDiscovering
 		m.updateStatusItem(0, components.StatusTypeSuccess)
 		m.updateStatusItem(1, components.StatusTypeRunning)
 	case "uncordon":

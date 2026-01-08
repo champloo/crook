@@ -18,6 +18,7 @@ func TestDownPhaseState_String(t *testing.T) {
 	}{
 		{DownStateInit, "Initializing"},
 		{DownStateConfirm, "Awaiting Confirmation"},
+		{DownStatePreFlight, "Pre-flight Checks"},
 		{DownStateCordoning, "Cordoning Node"},
 		{DownStateSettingNoOut, "Setting NoOut Flag"},
 		{DownStateScalingOperator, "Scaling Operator"},
@@ -44,6 +45,7 @@ func TestDownPhaseState_Description(t *testing.T) {
 	}{
 		{DownStateInit, true},
 		{DownStateConfirm, true},
+		{DownStatePreFlight, true},
 		{DownStateCordoning, true},
 		{DownStateSettingNoOut, true},
 		{DownStateScalingOperator, true},
@@ -234,8 +236,8 @@ func TestDownModel_Update_ConfirmYes(t *testing.T) {
 		t.Error("operationInProgress should be true after confirmation")
 	}
 
-	if m.state != DownStateCordoning {
-		t.Errorf("state = %v, want %v", m.state, DownStateCordoning)
+	if m.state != DownStatePreFlight {
+		t.Errorf("state = %v, want %v", m.state, DownStatePreFlight)
 	}
 
 	if cmd == nil {
@@ -441,8 +443,8 @@ func TestDownModel_startExecution(t *testing.T) {
 		t.Error("startTime should be set")
 	}
 
-	if model.state != DownStateCordoning {
-		t.Errorf("state = %v, want %v", model.state, DownStateCordoning)
+	if model.state != DownStatePreFlight {
+		t.Errorf("state = %v, want %v", model.state, DownStatePreFlight)
 	}
 
 	if model.statusList.Count() != 6 {
@@ -461,6 +463,7 @@ func TestDownModel_updateStateFromProgress(t *testing.T) {
 		stage    string
 		expected DownPhaseState
 	}{
+		{"pre-flight", DownStatePreFlight},
 		{"cordon", DownStateCordoning},
 		{"noout", DownStateSettingNoOut},
 		{"operator", DownStateScalingOperator},

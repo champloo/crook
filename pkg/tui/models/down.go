@@ -23,6 +23,8 @@ const (
 	DownStateInit DownPhaseState = iota
 	// DownStateConfirm waits for user confirmation
 	DownStateConfirm
+	// DownStatePreFlight runs pre-flight validation checks
+	DownStatePreFlight
 	// DownStateCordoning marks the node as unschedulable
 	DownStateCordoning
 	// DownStateSettingNoOut sets the Ceph noout flag
@@ -46,6 +48,8 @@ func (s DownPhaseState) String() string {
 		return "Initializing"
 	case DownStateConfirm:
 		return "Awaiting Confirmation"
+	case DownStatePreFlight:
+		return "Pre-flight Checks"
 	case DownStateCordoning:
 		return "Cordoning Node"
 	case DownStateSettingNoOut:
@@ -72,6 +76,8 @@ func (s DownPhaseState) Description() string {
 		return "Preparing down phase workflow..."
 	case DownStateConfirm:
 		return "Review the impact and confirm to proceed"
+	case DownStatePreFlight:
+		return "Validating cluster prerequisites and permissions"
 	case DownStateCordoning:
 		return "Marking node as unschedulable to prevent new pods"
 	case DownStateSettingNoOut:
@@ -439,7 +445,7 @@ func (m *DownModel) exitCmd(reason FlowExitReason, err error) tea.Cmd {
 func (m *DownModel) startExecution() {
 	m.operationInProgress = true
 	m.startTime = time.Now()
-	m.state = DownStateCordoning
+	m.state = DownStatePreFlight // First stage is pre-flight checks
 	m.progress = components.NewIndeterminateProgress("Processing...")
 	m.initStatusList()
 }
@@ -459,6 +465,7 @@ func (m *DownModel) initStatusList() {
 func (m *DownModel) updateStateFromProgress(msg DownPhaseProgressMsg) {
 	switch msg.Stage {
 	case "pre-flight":
+		m.state = DownStatePreFlight
 		m.updateStatusItem(0, components.StatusTypeRunning)
 	case "cordon":
 		m.state = DownStateCordoning

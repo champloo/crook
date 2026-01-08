@@ -19,6 +19,7 @@ func TestUpPhaseState_String(t *testing.T) {
 		{UpStateInit, "Initializing"},
 		{UpStateDiscovering, "Discovering Deployments"},
 		{UpStateConfirm, "Awaiting Confirmation"},
+		{UpStatePreFlight, "Pre-flight Checks"},
 		{UpStateUncordoning, "Uncordoning Node"},
 		{UpStateRestoringDeployments, "Restoring Deployments"},
 		{UpStateScalingOperator, "Scaling Operator"},
@@ -45,6 +46,7 @@ func TestUpPhaseState_Description(t *testing.T) {
 		{UpStateInit, true},
 		{UpStateDiscovering, true},
 		{UpStateConfirm, true},
+		{UpStatePreFlight, true},
 		{UpStateRestoringDeployments, true},
 		{UpStateUncordoning, true},
 		{UpStateScalingOperator, true},
@@ -239,8 +241,8 @@ func TestUpModel_Update_ConfirmYes(t *testing.T) {
 		t.Error("operationInProgress should be true after confirmation")
 	}
 
-	if m.state != UpStateUncordoning {
-		t.Errorf("state = %v, want %v", m.state, UpStateUncordoning)
+	if m.state != UpStatePreFlight {
+		t.Errorf("state = %v, want %v", m.state, UpStatePreFlight)
 	}
 
 	if cmd == nil {
@@ -446,8 +448,8 @@ func TestUpModel_startExecution(t *testing.T) {
 		t.Error("startTime should be set")
 	}
 
-	if model.state != UpStateUncordoning {
-		t.Errorf("state = %v, want %v", model.state, UpStateUncordoning)
+	if model.state != UpStatePreFlight {
+		t.Errorf("state = %v, want %v", model.state, UpStatePreFlight)
 	}
 
 	if model.statusList.Count() != 6 {
@@ -466,6 +468,8 @@ func TestUpModel_updateStateFromProgress(t *testing.T) {
 		stage    string
 		expected UpPhaseState
 	}{
+		{"pre-flight", UpStatePreFlight},
+		{"discover", UpStateDiscovering},
 		{"uncordon", UpStateUncordoning},
 		{"scale-up", UpStateRestoringDeployments},
 		{"operator", UpStateScalingOperator},
