@@ -4,14 +4,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
-	"text/template"
 
 	"k8s.io/apimachinery/pkg/util/validation"
 )
-
-var placeholderPattern = regexp.MustCompile(`{{[^}]*}}`)
 
 // ValidationResult captures validation errors and warnings.
 type ValidationResult struct {
@@ -43,8 +39,6 @@ func ValidateConfig(cfg Config) ValidationResult {
 	if err := validateKubeconfigPath(cfg.Kubernetes.Kubeconfig); err != nil {
 		result.Errors = append(result.Errors, err)
 	}
-
-	result.Errors = append(result.Errors, validateStateTemplate(cfg.State.FilePathTemplate)...)
 
 	if len(cfg.DeploymentFilters.Prefixes) == 0 {
 		result.Errors = append(result.Errors, fmt.Errorf("deployment filter prefixes must be non-empty"))
@@ -108,25 +102,6 @@ func validateKubeconfigPath(path string) error {
 		return fmt.Errorf("kubeconfig file not found: %s", resolved)
 	}
 	return nil
-}
-
-func validateStateTemplate(templateValue string) []error {
-	if strings.TrimSpace(templateValue) == "" {
-		return []error{fmt.Errorf("invalid state file template: must be non-empty")}
-	}
-	if _, err := template.New("state").Parse(templateValue); err != nil {
-		return []error{fmt.Errorf("invalid state file template: %s", err.Error())}
-	}
-
-	matches := placeholderPattern.FindAllString(templateValue, -1)
-	var errs []error
-	for _, match := range matches {
-		inner := strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(match, "{{"), "}}"))
-		if inner != ".Node" {
-			errs = append(errs, fmt.Errorf("invalid state file template: unknown placeholder %s, valid: {{.Node}}", match))
-		}
-	}
-	return errs
 }
 
 func expandPath(path string) (string, error) {

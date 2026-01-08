@@ -26,12 +26,6 @@ func TestLoadConfigDefaults(t *testing.T) {
 	if cfg.Kubernetes.RookOperatorNamespace != config.DefaultRookNamespace {
 		t.Fatalf("expected rook operator namespace default %q, got %q", config.DefaultRookNamespace, cfg.Kubernetes.RookOperatorNamespace)
 	}
-	if cfg.State.FilePathTemplate != config.DefaultStateFileTemplate {
-		t.Fatalf("expected state file template default %q, got %q", config.DefaultStateFileTemplate, cfg.State.FilePathTemplate)
-	}
-	if !cfg.State.BackupEnabled {
-		t.Fatalf("expected backup enabled by default")
-	}
 	if len(cfg.DeploymentFilters.Prefixes) == 0 {
 		t.Fatalf("expected default deployment prefixes")
 	}
@@ -48,8 +42,6 @@ func TestLoadConfigPrecedence(t *testing.T) {
 	configPath := filepath.Join(tempDir, "config.yaml")
 	configContents := []byte(`kubernetes:
   rook-operator-namespace: file-op
-state:
-  file-path-template: "./file-{{.Node}}.json"
 `)
 	if err := os.WriteFile(configPath, configContents, 0o600); err != nil {
 		t.Fatalf("write config file: %v", err)
@@ -57,16 +49,11 @@ state:
 
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	flags.String("rook-operator-namespace", "", "")
-	flags.String("state-file", "", "")
 	if err := flags.Set("rook-operator-namespace", "flag-op"); err != nil {
-		t.Fatalf("set flag: %v", err)
-	}
-	if err := flags.Set("state-file", "/tmp/flag-state.json"); err != nil {
 		t.Fatalf("set flag: %v", err)
 	}
 
 	t.Setenv("CROOK_KUBERNETES_ROOK_OPERATOR_NAMESPACE", "env-op")
-	t.Setenv("CROOK_STATE_FILE_PATH_TEMPLATE", "./env-{{.Node}}.json")
 
 	result, err := config.LoadConfig(config.LoadOptions{ConfigFile: configPath, Flags: flags})
 	if err != nil {
@@ -76,9 +63,6 @@ state:
 	cfg := result.Config
 	if cfg.Kubernetes.RookOperatorNamespace != "flag-op" {
 		t.Fatalf("expected flag override, got %q", cfg.Kubernetes.RookOperatorNamespace)
-	}
-	if cfg.State.FilePathTemplate != "/tmp/flag-state.json" {
-		t.Fatalf("expected flag override for state file, got %q", cfg.State.FilePathTemplate)
 	}
 }
 
@@ -133,12 +117,6 @@ func TestLoadConfigFromFileFixture(t *testing.T) {
 	if cfg.Kubernetes.RookClusterNamespace != "custom-cluster" {
 		t.Fatalf("expected cluster namespace from file, got %q", cfg.Kubernetes.RookClusterNamespace)
 	}
-	if cfg.State.BackupEnabled {
-		t.Fatalf("expected backup disabled from file")
-	}
-	if cfg.State.BackupDirectory != "/tmp/backups" {
-		t.Fatalf("expected backup directory from file, got %q", cfg.State.BackupDirectory)
-	}
 	if len(cfg.DeploymentFilters.Prefixes) != 2 || cfg.DeploymentFilters.Prefixes[0] != "custom-a" {
 		t.Fatalf("expected deployment prefixes from file, got %v", cfg.DeploymentFilters.Prefixes)
 	}
@@ -168,12 +146,6 @@ func TestLoadConfigPartialUsesDefaults(t *testing.T) {
 	}
 	if cfg.Kubernetes.RookClusterNamespace != config.DefaultRookNamespace {
 		t.Fatalf("expected default cluster namespace, got %q", cfg.Kubernetes.RookClusterNamespace)
-	}
-	if cfg.State.FilePathTemplate != config.DefaultStateFileTemplate {
-		t.Fatalf("expected default state file template, got %q", cfg.State.FilePathTemplate)
-	}
-	if cfg.State.BackupEnabled {
-		t.Fatalf("expected backup disabled from file")
 	}
 	if cfg.UI.ProgressRefreshMS != config.DefaultProgressRefreshMS {
 		t.Fatalf("expected default progress refresh, got %d", cfg.UI.ProgressRefreshMS)

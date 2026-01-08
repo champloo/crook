@@ -86,7 +86,6 @@ func BindFlags(v *viper.Viper, flags *pflag.FlagSet) error {
 		"namespace":               "namespace",
 		"rook-operator-namespace": "kubernetes.rook-operator-namespace",
 		"rook-cluster-namespace":  "kubernetes.rook-cluster-namespace",
-		"state-file":              "state.file-path-template",
 		"log-level":               "logging.level",
 		"log-file":                "logging.file",
 	}
@@ -110,10 +109,6 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("kubernetes.rook-cluster-namespace", defaults.Kubernetes.RookClusterNamespace)
 	v.SetDefault("kubernetes.kubeconfig", defaults.Kubernetes.Kubeconfig)
 	v.SetDefault("kubernetes.context", defaults.Kubernetes.Context)
-
-	v.SetDefault("state.file-path-template", defaults.State.FilePathTemplate)
-	v.SetDefault("state.backup-enabled", defaults.State.BackupEnabled)
-	v.SetDefault("state.backup-directory", defaults.State.BackupDirectory)
 
 	v.SetDefault("deployment-filters.prefixes", defaults.DeploymentFilters.Prefixes)
 
@@ -203,7 +198,6 @@ func knownConfigKeys() map[string]bool {
 	return map[string]bool{
 		// Top-level sections
 		"kubernetes":         true,
-		"state":              true,
 		"deployment-filters": true,
 		"ui":                 true,
 		"timeouts":           true,
@@ -214,11 +208,6 @@ func knownConfigKeys() map[string]bool {
 		"kubernetes.rook-cluster-namespace":  true,
 		"kubernetes.kubeconfig":              true,
 		"kubernetes.context":                 true,
-
-		// state section
-		"state.file-path-template": true,
-		"state.backup-enabled":     true,
-		"state.backup-directory":   true,
 
 		// deployment-filters section
 		"deployment-filters.prefixes": true,

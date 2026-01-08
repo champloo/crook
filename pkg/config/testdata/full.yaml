@@ -3,11 +3,6 @@ kubernetes:
   rook-cluster-namespace: custom-cluster
   context: test-context
 
-state:
-  file-path-template: "/tmp/state-{{.Node}}.json"
-  backup-enabled: false
-  backup-directory: /tmp/backups
-
 deployment-filters:
   prefixes:
     - custom-a

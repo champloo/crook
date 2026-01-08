@@ -9,8 +9,6 @@ import (
 
 const (
 	DefaultRookNamespace                = "rook-ceph"
-	DefaultStateFileTemplate            = "./crook-state-{{.Node}}.json"
-	DefaultStateBackupDirectory         = "~/.local/state/crook/backups"
 	DefaultTheme                        = "default"
 	DefaultProgressRefreshMS            = 100
 	DefaultLsRefreshNodesMS             = 2000
@@ -35,7 +33,6 @@ var DefaultDeploymentPrefixes = []string{
 // Config holds the full configuration schema for crook.
 type Config struct {
 	Kubernetes        KubernetesConfig       `mapstructure:"kubernetes" yaml:"kubernetes" json:"kubernetes"`
-	State             StateConfig            `mapstructure:"state" yaml:"state" json:"state"`
 	DeploymentFilters DeploymentFilterConfig `mapstructure:"deployment-filters" yaml:"deployment-filters" json:"deployment-filters"`
 	UI                UIConfig               `mapstructure:"ui" yaml:"ui" json:"ui"`
 	Timeouts          TimeoutConfig          `mapstructure:"timeouts" yaml:"timeouts" json:"timeouts"`
@@ -48,13 +45,6 @@ type KubernetesConfig struct {
 	RookClusterNamespace  string `mapstructure:"rook-cluster-namespace" yaml:"rook-cluster-namespace" json:"rook-cluster-namespace" validate:"required"`
 	Kubeconfig            string `mapstructure:"kubeconfig" yaml:"kubeconfig" json:"kubeconfig"`
 	Context               string `mapstructure:"context" yaml:"context" json:"context"`
-}
-
-// StateConfig controls state file behavior.
-type StateConfig struct {
-	FilePathTemplate string `mapstructure:"file-path-template" yaml:"file-path-template" json:"file-path-template" validate:"required"`
-	BackupEnabled    bool   `mapstructure:"backup-enabled" yaml:"backup-enabled" json:"backup-enabled"`
-	BackupDirectory  string `mapstructure:"backup-directory" yaml:"backup-directory" json:"backup-directory"`
 }
 
 // DeploymentFilterConfig defines which deployments are in scope for maintenance.
@@ -100,11 +90,6 @@ func DefaultConfig() Config {
 			RookClusterNamespace:  DefaultRookNamespace,
 			Kubeconfig:            "",
 			Context:               "",
-		},
-		State: StateConfig{
-			FilePathTemplate: DefaultStateFileTemplate,
-			BackupEnabled:    true,
-			BackupDirectory:  DefaultStateBackupDirectory,
 		},
 		DeploymentFilters: DeploymentFilterConfig{
 			Prefixes: prefixes,
