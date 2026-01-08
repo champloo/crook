@@ -244,8 +244,13 @@ type PodInfoForLS struct {
 	OwnerDeployment string
 }
 
-// ListCephPods returns Ceph pods with detailed info
+// ListCephPods returns Ceph pods with detailed info.
+// If prefixes is nil or empty, uses DefaultRookCephPrefixes.
 func (c *Client) ListCephPods(ctx context.Context, namespace string, prefixes []string, nodeFilter string) ([]PodInfoForLS, error) {
+	if len(prefixes) == 0 {
+		prefixes = DefaultRookCephPrefixes
+	}
+
 	// Build list options
 	listOpts := metav1.ListOptions{}
 	if nodeFilter != "" {
@@ -299,9 +304,6 @@ func (c *Client) ListCephPods(ctx context.Context, namespace string, prefixes []
 
 // matchesPodPrefix checks if a pod name matches any of the given prefixes
 func matchesPodPrefix(name string, prefixes []string) bool {
-	if len(prefixes) == 0 {
-		return true
-	}
 	for _, prefix := range prefixes {
 		if strings.HasPrefix(name, prefix) {
 			return true

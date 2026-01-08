@@ -11,6 +11,15 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// DefaultRookCephPrefixes are the deployment name prefixes for Rook-Ceph components.
+// These prefixes identify node-pinned Ceph deployments that need management during maintenance.
+var DefaultRookCephPrefixes = []string{
+	"rook-ceph-osd",
+	"rook-ceph-mon",
+	"rook-ceph-exporter",
+	"rook-ceph-crashcollector",
+}
+
 // DeploymentStatus holds the status information for a deployment
 type DeploymentStatus struct {
 	Name              string
@@ -77,10 +86,11 @@ func (c *Client) ListDeploymentsInNamespace(ctx context.Context, namespace strin
 	return deploymentList.Items, nil
 }
 
-// FilterDeploymentsByPrefix returns deployments whose names start with any of the given prefixes
+// FilterDeploymentsByPrefix returns deployments whose names start with any of the given prefixes.
+// If prefixes is nil or empty, uses DefaultRookCephPrefixes.
 func FilterDeploymentsByPrefix(deployments []appsv1.Deployment, prefixes []string) []appsv1.Deployment {
 	if len(prefixes) == 0 {
-		return deployments
+		prefixes = DefaultRookCephPrefixes
 	}
 
 	filtered := make([]appsv1.Deployment, 0)

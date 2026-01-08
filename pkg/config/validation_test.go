@@ -22,11 +22,10 @@ func TestValidateConfigMultipleErrors(t *testing.T) {
 	cfg.Kubernetes.Kubeconfig = filepath.Join(t.TempDir(), "missing-kubeconfig")
 	cfg.Timeouts.APICallTimeoutSeconds = 0
 	cfg.Timeouts.CephCommandTimeoutSeconds = -1
-	cfg.DeploymentFilters.Prefixes = []string{}
 	cfg.UI.ProgressRefreshMS = 50
 
 	result := ValidateConfig(cfg)
-	if len(result.Errors) < 4 {
+	if len(result.Errors) < 3 {
 		t.Fatalf("expected multiple errors, got %d", len(result.Errors))
 	}
 	if !result.HasWarnings() {
@@ -36,7 +35,6 @@ func TestValidateConfigMultipleErrors(t *testing.T) {
 	assertErrorContains(t, result.Errors, "invalid namespace")
 	assertErrorContains(t, result.Errors, "kubeconfig file not found")
 	assertErrorContains(t, result.Errors, "timeout must be >= 1 second")
-	assertErrorContains(t, result.Errors, "deployment filter prefixes must be non-empty")
 }
 
 func TestValidateConfigKubeconfigExists(t *testing.T) {

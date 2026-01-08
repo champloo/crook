@@ -110,8 +110,6 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("kubernetes.kubeconfig", defaults.Kubernetes.Kubeconfig)
 	v.SetDefault("kubernetes.context", defaults.Kubernetes.Context)
 
-	v.SetDefault("deployment-filters.prefixes", defaults.DeploymentFilters.Prefixes)
-
 	v.SetDefault("ui.theme", defaults.UI.Theme)
 	v.SetDefault("ui.progress-refresh-ms", defaults.UI.ProgressRefreshMS)
 	v.SetDefault("ui.ls-refresh-nodes-ms", defaults.UI.LsRefreshNodesMS)
@@ -197,20 +195,16 @@ func applyNamespaceOverride(v *viper.Viper, cfg *Config) {
 func knownConfigKeys() map[string]bool {
 	return map[string]bool{
 		// Top-level sections
-		"kubernetes":         true,
-		"deployment-filters": true,
-		"ui":                 true,
-		"timeouts":           true,
-		"logging":            true,
+		"kubernetes": true,
+		"ui":         true,
+		"timeouts":   true,
+		"logging":    true,
 
 		// kubernetes section
 		"kubernetes.rook-operator-namespace": true,
 		"kubernetes.rook-cluster-namespace":  true,
 		"kubernetes.kubeconfig":              true,
 		"kubernetes.context":                 true,
-
-		// deployment-filters section
-		"deployment-filters.prefixes": true,
 
 		// ui section
 		"ui.theme":                     true,

@@ -23,20 +23,12 @@ const (
 	DefaultLogFormat                    = "text"
 )
 
-var DefaultDeploymentPrefixes = []string{
-	"rook-ceph-osd",
-	"rook-ceph-mon",
-	"rook-ceph-exporter",
-	"rook-ceph-crashcollector",
-}
-
 // Config holds the full configuration schema for crook.
 type Config struct {
-	Kubernetes        KubernetesConfig       `mapstructure:"kubernetes" yaml:"kubernetes" json:"kubernetes"`
-	DeploymentFilters DeploymentFilterConfig `mapstructure:"deployment-filters" yaml:"deployment-filters" json:"deployment-filters"`
-	UI                UIConfig               `mapstructure:"ui" yaml:"ui" json:"ui"`
-	Timeouts          TimeoutConfig          `mapstructure:"timeouts" yaml:"timeouts" json:"timeouts"`
-	Logging           LoggingConfig          `mapstructure:"logging" yaml:"logging" json:"logging"`
+	Kubernetes KubernetesConfig `mapstructure:"kubernetes" yaml:"kubernetes" json:"kubernetes"`
+	UI         UIConfig         `mapstructure:"ui" yaml:"ui" json:"ui"`
+	Timeouts   TimeoutConfig    `mapstructure:"timeouts" yaml:"timeouts" json:"timeouts"`
+	Logging    LoggingConfig    `mapstructure:"logging" yaml:"logging" json:"logging"`
 }
 
 // KubernetesConfig captures cluster-related settings.
@@ -45,11 +37,6 @@ type KubernetesConfig struct {
 	RookClusterNamespace  string `mapstructure:"rook-cluster-namespace" yaml:"rook-cluster-namespace" json:"rook-cluster-namespace" validate:"required"`
 	Kubeconfig            string `mapstructure:"kubeconfig" yaml:"kubeconfig" json:"kubeconfig"`
 	Context               string `mapstructure:"context" yaml:"context" json:"context"`
-}
-
-// DeploymentFilterConfig defines which deployments are in scope for maintenance.
-type DeploymentFilterConfig struct {
-	Prefixes []string `mapstructure:"prefixes" yaml:"prefixes" json:"prefixes" validate:"required"`
 }
 
 // UIConfig holds terminal UI settings.
@@ -81,18 +68,12 @@ type LoggingConfig struct {
 
 // DefaultConfig returns a config with all default values applied.
 func DefaultConfig() Config {
-	prefixes := make([]string, 0, len(DefaultDeploymentPrefixes))
-	prefixes = append(prefixes, DefaultDeploymentPrefixes...)
-
 	return Config{
 		Kubernetes: KubernetesConfig{
 			RookOperatorNamespace: DefaultRookNamespace,
 			RookClusterNamespace:  DefaultRookNamespace,
 			Kubeconfig:            "",
 			Context:               "",
-		},
-		DeploymentFilters: DeploymentFilterConfig{
-			Prefixes: prefixes,
 		},
 		UI: UIConfig{
 			Theme:                  DefaultTheme,

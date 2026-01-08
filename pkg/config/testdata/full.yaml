@@ -3,11 +3,6 @@ kubernetes:
   rook-cluster-namespace: custom-cluster
   context: test-context
 
-deployment-filters:
-  prefixes:
-    - custom-a
-    - custom-b
-
 ui:
   theme: neon
   progress-refresh-ms: 150

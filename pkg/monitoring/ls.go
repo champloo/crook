@@ -24,9 +24,6 @@ type LsMonitorConfig struct {
 	// Namespace is the Rook-Ceph namespace
 	Namespace string
 
-	// Prefixes are the deployment name prefixes to filter
-	Prefixes []string
-
 	// NodeFilter optionally filters resources to a specific node
 	NodeFilter string
 
@@ -39,11 +36,10 @@ type LsMonitorConfig struct {
 }
 
 // DefaultLsMonitorConfig returns a config with default refresh intervals
-func DefaultLsMonitorConfig(client *k8s.Client, namespace string, prefixes []string) *LsMonitorConfig {
+func DefaultLsMonitorConfig(client *k8s.Client, namespace string) *LsMonitorConfig {
 	return &LsMonitorConfig{
 		Client:                     client,
 		Namespace:                  namespace,
-		Prefixes:                   prefixes,
 		NodesRefreshInterval:       2 * time.Second,
 		DeploymentsRefreshInterval: 2 * time.Second,
 		PodsRefreshInterval:        2 * time.Second,
@@ -214,7 +210,7 @@ func (m *LsMonitor) startNodesPoller() <-chan []views.NodeInfo {
 
 // fetchNodes fetches all nodes with Ceph pods
 func (m *LsMonitor) fetchNodes() ([]views.NodeInfo, error) {
-	nodes, err := m.config.Client.ListNodesWithCephPods(m.ctx, m.config.Namespace, m.config.Prefixes)
+	nodes, err := m.config.Client.ListNodesWithCephPods(m.ctx, m.config.Namespace, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -249,7 +245,7 @@ func (m *LsMonitor) startDeploymentsPoller() <-chan []views.DeploymentInfo {
 
 // fetchDeployments fetches all Ceph deployments
 func (m *LsMonitor) fetchDeployments() ([]views.DeploymentInfo, error) {
-	deployments, err := m.config.Client.ListCephDeployments(m.ctx, m.config.Namespace, m.config.Prefixes)
+	deployments, err := m.config.Client.ListCephDeployments(m.ctx, m.config.Namespace, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -289,7 +285,7 @@ func (m *LsMonitor) startPodsPoller() <-chan []views.PodInfo {
 
 // fetchPods fetches all Ceph pods
 func (m *LsMonitor) fetchPods() ([]views.PodInfo, error) {
-	pods, err := m.config.Client.ListCephPods(m.ctx, m.config.Namespace, m.config.Prefixes, m.config.NodeFilter)
+	pods, err := m.config.Client.ListCephPods(m.ctx, m.config.Namespace, nil, m.config.NodeFilter)
 	if err != nil {
 		return nil, err
 	}

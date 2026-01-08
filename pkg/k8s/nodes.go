@@ -147,8 +147,13 @@ type NodeInfoForLS struct {
 	KubeletVersion string
 }
 
-// ListNodesWithCephPods returns all nodes with Ceph pod counts
+// ListNodesWithCephPods returns all nodes with Ceph pod counts.
+// If prefixes is nil or empty, uses DefaultRookCephPrefixes.
 func (c *Client) ListNodesWithCephPods(ctx context.Context, namespace string, prefixes []string) ([]NodeInfoForLS, error) {
+	if len(prefixes) == 0 {
+		prefixes = DefaultRookCephPrefixes
+	}
+
 	// Get all nodes
 	nodes, err := c.ListNodes(ctx)
 	if err != nil {

@@ -40,17 +40,6 @@ func ValidateConfig(cfg Config) ValidationResult {
 		result.Errors = append(result.Errors, err)
 	}
 
-	if len(cfg.DeploymentFilters.Prefixes) == 0 {
-		result.Errors = append(result.Errors, fmt.Errorf("deployment filter prefixes must be non-empty"))
-	} else {
-		for _, prefix := range cfg.DeploymentFilters.Prefixes {
-			if strings.TrimSpace(prefix) == "" {
-				result.Errors = append(result.Errors, fmt.Errorf("deployment filter prefixes must be non-empty"))
-				break
-			}
-		}
-	}
-
 	for _, timeout := range []int{
 		cfg.Timeouts.APICallTimeoutSeconds,
 		cfg.Timeouts.WaitDeploymentTimeoutSeconds,

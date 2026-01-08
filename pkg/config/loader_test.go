@@ -26,9 +26,6 @@ func TestLoadConfigDefaults(t *testing.T) {
 	if cfg.Kubernetes.RookOperatorNamespace != config.DefaultRookNamespace {
 		t.Fatalf("expected rook operator namespace default %q, got %q", config.DefaultRookNamespace, cfg.Kubernetes.RookOperatorNamespace)
 	}
-	if len(cfg.DeploymentFilters.Prefixes) == 0 {
-		t.Fatalf("expected default deployment prefixes")
-	}
 	if cfg.Timeouts.APICallTimeoutSeconds != config.DefaultAPICallTimeoutSeconds {
 		t.Fatalf("expected api timeout default %d, got %d", config.DefaultAPICallTimeoutSeconds, cfg.Timeouts.APICallTimeoutSeconds)
 	}
@@ -117,9 +114,6 @@ func TestLoadConfigFromFileFixture(t *testing.T) {
 	if cfg.Kubernetes.RookClusterNamespace != "custom-cluster" {
 		t.Fatalf("expected cluster namespace from file, got %q", cfg.Kubernetes.RookClusterNamespace)
 	}
-	if len(cfg.DeploymentFilters.Prefixes) != 2 || cfg.DeploymentFilters.Prefixes[0] != "custom-a" {
-		t.Fatalf("expected deployment prefixes from file, got %v", cfg.DeploymentFilters.Prefixes)
-	}
 	if cfg.UI.Theme != "neon" {
 		t.Fatalf("expected ui theme from file, got %q", cfg.UI.Theme)
 	}
@@ -152,9 +146,6 @@ func TestLoadConfigPartialUsesDefaults(t *testing.T) {
 	}
 	if !strings.EqualFold(cfg.UI.Theme, "minimal") {
 		t.Fatalf("expected ui theme from file, got %q", cfg.UI.Theme)
-	}
-	if len(cfg.DeploymentFilters.Prefixes) != len(config.DefaultDeploymentPrefixes) {
-		t.Fatalf("expected default deployment prefixes, got %v", cfg.DeploymentFilters.Prefixes)
 	}
 }
 

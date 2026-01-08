@@ -191,7 +191,6 @@ func FetchData(ctx context.Context, opts FetchOptions) (*Data, error) {
 	}
 
 	namespace := opts.Config.Kubernetes.RookClusterNamespace
-	prefixes := opts.Config.DeploymentFilters.Prefixes
 
 	// Always fetch cluster health for header (non-fatal - Ceph may be degraded)
 	health, err := fetchClusterHealth(ctx, opts.Client, namespace)
@@ -206,14 +205,14 @@ func FetchData(ctx context.Context, opts FetchOptions) (*Data, error) {
 	for _, rt := range opts.ResourceTypes {
 		switch rt {
 		case ResourceNodes:
-			nodes, fetchErr := fetchNodes(ctx, opts.Client, namespace, prefixes)
+			nodes, fetchErr := fetchNodes(ctx, opts.Client, namespace)
 			if fetchErr != nil {
 				return nil, fetchErr
 			}
 			data.Nodes = nodes
 
 		case ResourceDeployments:
-			deployments, fetchErr := fetchDeployments(ctx, opts.Client, namespace, prefixes, opts.NodeFilter)
+			deployments, fetchErr := fetchDeployments(ctx, opts.Client, namespace, opts.NodeFilter)
 			if fetchErr != nil {
 				return nil, fetchErr
 			}
@@ -230,7 +229,7 @@ func FetchData(ctx context.Context, opts FetchOptions) (*Data, error) {
 			}
 
 		case ResourcePods:
-			pods, fetchErr := fetchPods(ctx, opts.Client, namespace, prefixes, opts.NodeFilter)
+			pods, fetchErr := fetchPods(ctx, opts.Client, namespace, opts.NodeFilter)
 			if fetchErr != nil {
 				return nil, fetchErr
 			}
@@ -279,8 +278,8 @@ func fetchClusterHealth(ctx context.Context, client *k8s.Client, namespace strin
 }
 
 // fetchNodes fetches node data
-func fetchNodes(ctx context.Context, client *k8s.Client, namespace string, prefixes []string) ([]NodeOutput, error) {
-	nodes, err := client.ListNodesWithCephPods(ctx, namespace, prefixes)
+func fetchNodes(ctx context.Context, client *k8s.Client, namespace string) ([]NodeOutput, error) {
+	nodes, err := client.ListNodesWithCephPods(ctx, namespace, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -302,8 +301,8 @@ func fetchNodes(ctx context.Context, client *k8s.Client, namespace string, prefi
 }
 
 // fetchDeployments fetches deployment data
-func fetchDeployments(ctx context.Context, client *k8s.Client, namespace string, prefixes []string, nodeFilter string) ([]DeploymentOutput, error) {
-	deployments, err := client.ListCephDeployments(ctx, namespace, prefixes)
+func fetchDeployments(ctx context.Context, client *k8s.Client, namespace string, nodeFilter string) ([]DeploymentOutput, error) {
+	deployments, err := client.ListCephDeployments(ctx, namespace, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -360,8 +359,8 @@ func fetchOSDs(ctx context.Context, client *k8s.Client, namespace, nodeFilter st
 }
 
 // fetchPods fetches pod data
-func fetchPods(ctx context.Context, client *k8s.Client, namespace string, prefixes []string, nodeFilter string) ([]PodOutput, error) {
-	pods, err := client.ListCephPods(ctx, namespace, prefixes, nodeFilter)
+func fetchPods(ctx context.Context, client *k8s.Client, namespace string, nodeFilter string) ([]PodOutput, error) {
+	pods, err := client.ListCephPods(ctx, namespace, nil, nodeFilter)
 	if err != nil {
 		return nil, err
 	}

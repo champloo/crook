@@ -254,18 +254,26 @@ func TestFilterDeploymentsByPrefix(t *testing.T) {
 	}
 }
 
-func TestFilterDeploymentsByPrefix_EmptyPrefixes(t *testing.T) {
+func TestFilterDeploymentsByPrefix_EmptyPrefixes_UsesDefaults(t *testing.T) {
 	replicas := int32(1)
 	deployments := []appsv1.Deployment{
 		{
-			ObjectMeta: metav1.ObjectMeta{Name: "deployment-1"},
+			ObjectMeta: metav1.ObjectMeta{Name: "rook-ceph-osd-0"},
+			Spec:       appsv1.DeploymentSpec{Replicas: &replicas},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{Name: "other-deployment"},
 			Spec:       appsv1.DeploymentSpec{Replicas: &replicas},
 		},
 	}
 
+	// When prefixes is empty, should use DefaultRookCephPrefixes
 	filtered := FilterDeploymentsByPrefix(deployments, []string{})
-	if len(filtered) != len(deployments) {
-		t.Errorf("expected all deployments when prefixes is empty, got %d", len(filtered))
+	if len(filtered) != 1 {
+		t.Errorf("expected 1 deployment (using defaults), got %d", len(filtered))
+	}
+	if len(filtered) > 0 && filtered[0].Name != "rook-ceph-osd-0" {
+		t.Errorf("expected rook-ceph-osd-0, got %s", filtered[0].Name)
 	}
 }
 

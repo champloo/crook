@@ -11,7 +11,7 @@ func TestConfigStringIncludesSections(t *testing.T) {
 	cfg := config.DefaultConfig()
 	output := cfg.String()
 
-	for _, section := range []string{"kubernetes:", "deployment-filters:", "ui:", "timeouts:", "logging:"} {
+	for _, section := range []string{"kubernetes:", "ui:", "timeouts:", "logging:"} {
 		if !strings.Contains(output, section) {
 			t.Fatalf("expected output to include %q", section)
 		}
