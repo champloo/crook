@@ -5,16 +5,22 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
+	"github.com/andri/crook/pkg/config"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
+// DefaultCephTimeout is the default timeout for Ceph CLI commands.
+const DefaultCephTimeout = time.Duration(config.DefaultCephCommandTimeoutSeconds) * time.Second
+
 // Client wraps Kubernetes clientset with additional functionality
 type Client struct {
-	Clientset kubernetes.Interface
-	config    *rest.Config
+	Clientset          kubernetes.Interface
+	config             *rest.Config
+	cephCommandTimeout time.Duration
 }
 
 // ClientConfig holds configuration for creating a Kubernetes client
@@ -27,6 +33,10 @@ type ClientConfig struct {
 
 	// Context name to use from kubeconfig. If empty, uses current context.
 	Context string
+
+	// CephCommandTimeout is the timeout for Ceph CLI commands.
+	// If zero, uses DefaultCephTimeout.
+	CephCommandTimeout time.Duration
 }
 
 // NewClient creates a new Kubernetes client with the given configuration
@@ -41,9 +51,15 @@ func NewClient(ctx context.Context, cfg ClientConfig) (*Client, error) {
 		return nil, fmt.Errorf("failed to create kubernetes clientset: %w", clientErr)
 	}
 
+	cephTimeout := cfg.CephCommandTimeout
+	if cephTimeout == 0 {
+		cephTimeout = DefaultCephTimeout
+	}
+
 	client := &Client{
-		Clientset: clientset,
-		config:    config,
+		Clientset:          clientset,
+		config:             config,
+		cephCommandTimeout: cephTimeout,
 	}
 
 	// Validate connectivity by checking the /version endpoint
@@ -58,7 +74,8 @@ func NewClient(ctx context.Context, cfg ClientConfig) (*Client, error) {
 // This is primarily useful for testing with fake clientsets.
 func NewClientFromClientset(clientset kubernetes.Interface) *Client {
 	return &Client{
-		Clientset: clientset,
+		Clientset:          clientset,
+		cephCommandTimeout: DefaultCephTimeout,
 	}
 }
 

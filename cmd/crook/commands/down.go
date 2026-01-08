@@ -93,8 +93,9 @@ func runDown(ctx context.Context, nodeName string, opts *DownOptions) error {
 	// Initialize Kubernetes client
 	logger.Info("connecting to kubernetes cluster")
 	client, err := k8s.NewClient(ctx, k8s.ClientConfig{
-		Kubeconfig: cfg.Kubernetes.Kubeconfig,
-		Context:    cfg.Kubernetes.Context,
+		Kubeconfig:         cfg.Kubernetes.Kubeconfig,
+		Context:            cfg.Kubernetes.Context,
+		CephCommandTimeout: time.Duration(cfg.Timeouts.CephCommandTimeoutSeconds) * time.Second,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create kubernetes client: %w", err)
