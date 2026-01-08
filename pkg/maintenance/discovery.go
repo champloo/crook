@@ -114,8 +114,18 @@ func GroupDeploymentsByPrefix(deployments []appsv1.Deployment, prefixes []string
 	return grouped
 }
 
-// OrderDeploymentsForDown returns deployments ordered for safe down phase
-// Order: rook-ceph-osd (first), rook-ceph-mon, rook-ceph-exporter, rook-ceph-crashcollector (last)
+// OrderDeploymentsForDown returns deployments ordered for safe down phase.
+// Order: rook-ceph-osd (first), rook-ceph-mon, rook-ceph-exporter, rook-ceph-crashcollector (last).
+//
+// MON handling asymmetry note: Unlike the UP phase, the DOWN phase does not
+// require special MON separation or quorum checks. This is because:
+//   - The noout flag is set BEFORE scaling down, preventing Ceph rebalancing
+//   - OSDs are scaled down first to ensure clean shutdown before MONs
+//   - No quorum check is needed since the cluster is going offline anyway
+//
+// The UP phase (see restoreDeployments in up.go) explicitly separates MONs
+// and waits for quorum before scaling OSDs, since OSDs require MON quorum
+// to recover properly.
 func OrderDeploymentsForDown(deployments []appsv1.Deployment) []appsv1.Deployment {
 	downOrder := []string{
 		"rook-ceph-osd",
@@ -127,8 +137,18 @@ func OrderDeploymentsForDown(deployments []appsv1.Deployment) []appsv1.Deploymen
 	return orderByPrefixes(deployments, downOrder)
 }
 
-// OrderDeploymentsForUp returns deployments ordered for safe up phase
-// Order: rook-ceph-mon (first), rook-ceph-osd, rook-ceph-exporter, rook-ceph-crashcollector (last)
+// OrderDeploymentsForUp returns non-MON deployments ordered for the UP phase.
+// Order: rook-ceph-osd (first), rook-ceph-exporter, rook-ceph-crashcollector (last).
+//
+// IMPORTANT: This function is called on non-MON deployments only. MON deployments
+// are separated and scaled BEFORE this ordering is applied (see restoreDeployments
+// in up.go). The caller (restoreDeployments) handles MONs explicitly:
+//  1. Scale up MON deployments first
+//  2. Wait for Ceph monitor quorum
+//  3. Then call OrderDeploymentsForUp for remaining deployments
+//
+// The "rook-ceph-mon" prefix in the order list below is kept for defensive
+// ordering in case MONs are inadvertently passed to this function.
 func OrderDeploymentsForUp(deployments []appsv1.Deployment) []appsv1.Deployment {
 	upOrder := []string{
 		"rook-ceph-mon",

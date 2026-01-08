@@ -94,9 +94,25 @@ func ExecuteUpPhase(
 	return nil
 }
 
-// restoreDeployments scales up deployments in the correct order
-// MON deployments are scaled first, then quorum is verified before scaling OSDs
-// All deployments are scaled to 1 replica (Rook-Ceph node-pinned deployments always use 1)
+// restoreDeployments scales up deployments in the correct order.
+//
+// MON handling: Unlike the DOWN phase, the UP phase requires explicit MON
+// separation and quorum verification. This is because:
+//   - OSDs cannot recover properly without an active MON quorum
+//   - MONs must be running and in quorum before OSD pods can start
+//   - Scaling OSDs before MON quorum causes OSD startup failures
+//
+// The DOWN phase (see ExecuteDownPhase) uses simple ordering without MON
+// separation since the noout flag prevents rebalancing and quorum doesn't
+// matter when going offline.
+//
+// Workflow:
+//  1. Separate MON deployments from other deployments
+//  2. Scale up MON deployments first
+//  3. Wait for Ceph monitor quorum to establish
+//  4. Scale up remaining deployments (OSDs, exporters, etc.) in order
+//
+// All deployments are scaled to 1 replica (Rook-Ceph node-pinned deployments always use 1).
 func restoreDeployments(ctx context.Context, client *k8s.Client, cfg config.Config, deployments []appsv1.Deployment, opts UpPhaseOptions) error {
 	if len(deployments) == 0 {
 		sendUpProgress(opts.ProgressCallback, "skip", "No scaled-down deployments to restore", "")
@@ -149,7 +165,9 @@ func restoreDeployments(ctx context.Context, client *k8s.Client, cfg config.Conf
 	return nil
 }
 
-// separateMonDeploymentsFromList separates MON deployments from other deployments
+// separateMonDeploymentsFromList separates MON deployments from other deployments.
+// This separation is essential for the UP phase to ensure MONs are scaled and
+// reach quorum before OSDs attempt recovery. See restoreDeployments for details.
 func separateMonDeploymentsFromList(deployments []appsv1.Deployment) (monDeployments, otherDeployments []appsv1.Deployment) {
 	for _, deployment := range deployments {
 		if strings.HasPrefix(deployment.Name, "rook-ceph-mon") {

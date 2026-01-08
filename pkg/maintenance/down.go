@@ -92,6 +92,9 @@ func ExecuteDownPhase(
 	ValidateDeploymentReplicas(deployments)
 
 	// Step 6: Order deployments for safe down phase
+	// Note: Unlike UP phase, DOWN does not require special MON separation.
+	// The noout flag prevents rebalancing, and we're going offline anyway.
+	// See OrderDeploymentsForDown documentation for the full rationale.
 	orderedDeployments := OrderDeploymentsForDown(deployments)
 
 	// Step 7: Scale down each deployment and wait
