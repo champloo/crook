@@ -84,7 +84,7 @@ func FilterDeploymentsByPrefix(deployments []appsv1.Deployment, prefixes []strin
 	filtered := make([]appsv1.Deployment, 0)
 	for _, deployment := range deployments {
 		for _, prefix := range prefixes {
-			if len(deployment.Name) >= len(prefix) && deployment.Name[:len(prefix)] == prefix {
+			if strings.HasPrefix(deployment.Name, prefix) {
 				filtered = append(filtered, deployment)
 				break
 			}
@@ -370,21 +370,28 @@ func GetDeploymentTargetNode(dep *appsv1.Deployment) string {
 	}
 
 	// Fallback: Check nodeAffinity requiredDuringScheduling
-	if affinity := dep.Spec.Template.Spec.Affinity; affinity != nil {
-		if na := affinity.NodeAffinity; na != nil {
-			if req := na.RequiredDuringSchedulingIgnoredDuringExecution; req != nil {
-				for _, term := range req.NodeSelectorTerms {
-					for _, expr := range term.MatchExpressions {
-						if expr.Key == "kubernetes.io/hostname" &&
-							expr.Operator == corev1.NodeSelectorOpIn && len(expr.Values) > 0 {
-							return expr.Values[0]
-						}
-					}
-				}
+	return getNodeAffinityHostname(dep.Spec.Template.Spec.Affinity)
+}
+
+// getNodeAffinityHostname extracts the hostname from nodeAffinity requiredDuringScheduling.
+// Returns empty string if no hostname constraint is found.
+func getNodeAffinityHostname(affinity *corev1.Affinity) string {
+	if affinity == nil || affinity.NodeAffinity == nil {
+		return ""
+	}
+	na := affinity.NodeAffinity
+	if na.RequiredDuringSchedulingIgnoredDuringExecution == nil {
+		return ""
+	}
+	for _, term := range na.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
+		for _, expr := range term.MatchExpressions {
+			if expr.Key == "kubernetes.io/hostname" &&
+				expr.Operator == corev1.NodeSelectorOpIn && len(expr.Values) > 0 {
+				return expr.Values[0]
 			}
 		}
 	}
-	return "" // Not node-pinned
+	return ""
 }
 
 // ListNodePinnedDeployments returns deployments pinned to a specific node.
@@ -431,7 +438,7 @@ func (c *Client) ListScaledDownDeploymentsForNode(
 
 	var scaledDown []appsv1.Deployment
 	for _, dep := range pinned {
-		if dep.Spec.Replicas != nil && *dep.Spec.Replicas == 0 {
+		if getDeploymentDesiredReplicas(&dep) == 0 {
 			scaledDown = append(scaledDown, dep)
 		}
 	}

@@ -1,6 +1,7 @@
 package maintenance
 
 import (
+	"strings"
 	"testing"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -11,11 +12,11 @@ func TestSeparateMonDeploymentsFromList(t *testing.T) {
 	t.Parallel()
 
 	deployments := []appsv1.Deployment{
-		makeTestDeployment("rook-ceph-mon-a", "rook-ceph"),
-		makeTestDeployment("rook-ceph-mon-b", "rook-ceph"),
-		makeTestDeployment("rook-ceph-osd-0", "rook-ceph"),
-		makeTestDeployment("rook-ceph-osd-1", "rook-ceph"),
-		makeTestDeployment("rook-ceph-exporter-worker-01", "rook-ceph"),
+		makeTestDeployment("rook-ceph-mon-a"),
+		makeTestDeployment("rook-ceph-mon-b"),
+		makeTestDeployment("rook-ceph-osd-0"),
+		makeTestDeployment("rook-ceph-osd-1"),
+		makeTestDeployment("rook-ceph-exporter-worker-01"),
 	}
 
 	monDeployments, otherDeployments := separateMonDeploymentsFromList(deployments)
@@ -30,14 +31,14 @@ func TestSeparateMonDeploymentsFromList(t *testing.T) {
 
 	// Verify MON deployments
 	for _, d := range monDeployments {
-		if !startsWithPrefixString(d.Name, "rook-ceph-mon") {
+		if !strings.HasPrefix(d.Name, "rook-ceph-mon") {
 			t.Errorf("expected MON deployment, got %s", d.Name)
 		}
 	}
 
 	// Verify other deployments don't include MONs
 	for _, d := range otherDeployments {
-		if startsWithPrefixString(d.Name, "rook-ceph-mon") {
+		if strings.HasPrefix(d.Name, "rook-ceph-mon") {
 			t.Errorf("unexpected MON deployment in others: %s", d.Name)
 		}
 	}
@@ -61,8 +62,8 @@ func TestSeparateMonDeploymentsFromList_NoMons(t *testing.T) {
 	t.Parallel()
 
 	deployments := []appsv1.Deployment{
-		makeTestDeployment("rook-ceph-osd-0", "rook-ceph"),
-		makeTestDeployment("rook-ceph-exporter-worker-01", "rook-ceph"),
+		makeTestDeployment("rook-ceph-osd-0"),
+		makeTestDeployment("rook-ceph-exporter-worker-01"),
 	}
 
 	monDeployments, otherDeployments := separateMonDeploymentsFromList(deployments)
@@ -79,8 +80,8 @@ func TestSeparateMonDeploymentsFromList_OnlyMons(t *testing.T) {
 	t.Parallel()
 
 	deployments := []appsv1.Deployment{
-		makeTestDeployment("rook-ceph-mon-a", "rook-ceph"),
-		makeTestDeployment("rook-ceph-mon-b", "rook-ceph"),
+		makeTestDeployment("rook-ceph-mon-a"),
+		makeTestDeployment("rook-ceph-mon-b"),
 	}
 
 	monDeployments, otherDeployments := separateMonDeploymentsFromList(deployments)
@@ -99,9 +100,9 @@ func TestOrderDeploymentsForUp_ExcludesMonitors(t *testing.T) {
 	// OrderDeploymentsForUp should properly order non-MON deployments
 	// (MONs are handled separately now)
 	deployments := []appsv1.Deployment{
-		makeTestDeployment("rook-ceph-crashcollector-worker-01", "rook-ceph"),
-		makeTestDeployment("rook-ceph-osd-0", "rook-ceph"),
-		makeTestDeployment("rook-ceph-exporter-worker-01", "rook-ceph"),
+		makeTestDeployment("rook-ceph-crashcollector-worker-01"),
+		makeTestDeployment("rook-ceph-osd-0"),
+		makeTestDeployment("rook-ceph-exporter-worker-01"),
 	}
 
 	ordered := OrderDeploymentsForUp(deployments)
@@ -126,16 +127,11 @@ func TestOrderDeploymentsForUp_ExcludesMonitors(t *testing.T) {
 }
 
 // makeTestDeployment creates a test deployment for testing
-func makeTestDeployment(name, _ string) appsv1.Deployment {
+func makeTestDeployment(name string) appsv1.Deployment {
 	return appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: "rook-ceph",
 		},
 	}
-}
-
-// startsWithPrefixString checks if a string starts with a prefix (test helper)
-func startsWithPrefixString(s, prefix string) bool {
-	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
 }
