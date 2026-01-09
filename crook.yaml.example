@@ -12,30 +12,13 @@
 #   2. Environment variables (CROOK_* prefix)
 #   3. Config file
 #   4. Built-in defaults
-
-# Kubernetes cluster configuration
-kubernetes:
-  # Namespace where the Rook operator is deployed
-  # Default: rook-ceph
-  rook-operator-namespace: rook-ceph
-
-  # Namespace where the Rook Ceph cluster resources are deployed
-  # Default: rook-ceph
-  rook-cluster-namespace: rook-ceph
-
-  # Kubernetes context to use (from kubeconfig)
-  # If not specified, uses current context
-  # Default: (empty, use current context)
-  # context: my-cluster-context
+#
+# Note: Kubernetes namespace is configured via CLI only:
+#   --namespace rook-ceph    (sets both operator and cluster namespace)
+#   CROOK_NAMESPACE=rook-ceph (environment variable)
 
 # Terminal UI configuration
 ui:
-  # Color theme for TUI
-  # Currently only 'default' is supported
-  # Future: support custom themes
-  # Default: default
-  theme: default
-
   # Progress bar refresh rate in milliseconds
   # Lower values = smoother animation but more CPU usage
   # Default: 100
@@ -61,8 +44,8 @@ timeouts:
   wait-deployment-timeout-seconds: 300
 
   # Timeout for Ceph commands (e.g., setting noout flag) in seconds
-  # Default: 60
-  ceph-command-timeout-seconds: 60
+  # Default: 20
+  ceph-command-timeout-seconds: 20
 
 # Logging configuration
 # Note: These can also be set via CLI flags (--log-level, --log-file)

@@ -170,18 +170,20 @@ crook searches for configuration in:
 
 Or specify a custom location: `--config /path/to/config.yaml`
 
+### Global Flags
+
+| Flag | Description |
+|------|-------------|
+| `--namespace` | Rook-Ceph namespace (default: rook-ceph) |
+| `--config` | Config file path |
+| `--log-level` | Log level: debug, info, warn, error |
+| `--log-file` | Log file path (default: stderr) |
+
 ### Configuration Options
 
 ```yaml
-# Kubernetes cluster configuration
-kubernetes:
-  rook-operator-namespace: rook-ceph
-  rook-cluster-namespace: rook-ceph
-  # context: my-cluster-context
-
 # Terminal UI configuration
 ui:
-  theme: default
   progress-refresh-ms: 100
   ls-refresh-nodes-ms: 2000
   ls-refresh-deployments-ms: 2000
@@ -193,7 +195,7 @@ ui:
 timeouts:
   api-call-timeout-seconds: 30
   wait-deployment-timeout-seconds: 300
-  ceph-command-timeout-seconds: 60
+  ceph-command-timeout-seconds: 20
 
 # Logging configuration
 logging:
@@ -202,6 +204,8 @@ logging:
   format: text  # text, json
 ```
 
+Note: Kubernetes namespace is configured via CLI flag (`--namespace`) or environment variable (`CROOK_NAMESPACE`), not in the config file.
+
 See `crook.yaml.example` for a fully documented example configuration.
 
 ### Environment Variables
@@ -209,7 +213,7 @@ See `crook.yaml.example` for a fully documented example configuration.
 All configuration options can be set via environment variables with the `CROOK_` prefix:
 
 ```bash
-export CROOK_KUBERNETES_ROOK_OPERATOR_NAMESPACE=rook-ceph
+export CROOK_NAMESPACE=rook-ceph
 export CROOK_LOGGING_LEVEL=debug
 ```
 
