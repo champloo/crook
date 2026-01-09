@@ -238,17 +238,26 @@ func TestRenderJSONParseable(t *testing.T) {
 		t.Fatalf("RenderJSON() error: %v", err)
 	}
 
-	// Verify can be parsed back into the same structure
-	var parsed output.Data
+	// Verify JSON is valid and contains expected fields
+	var parsed map[string]any
 	if parseErr := json.Unmarshal(buf.Bytes(), &parsed); parseErr != nil {
-		t.Fatalf("RenderJSON() output not parseable as Data: %v", parseErr)
+		t.Fatalf("RenderJSON() output not parseable: %v", parseErr)
 	}
 
-	if parsed.ClusterHealth.Status != "HEALTH_OK" {
-		t.Errorf("Parsed health status = %q, want %q", parsed.ClusterHealth.Status, "HEALTH_OK")
+	health, ok := parsed["cluster_health"].(map[string]any)
+	if !ok {
+		t.Fatal("missing cluster_health")
 	}
-	if len(parsed.Nodes) != 2 {
-		t.Errorf("Parsed nodes count = %d, want %d", len(parsed.Nodes), 2)
+	if health["status"] != "HEALTH_OK" {
+		t.Errorf("Parsed health status = %v, want %q", health["status"], "HEALTH_OK")
+	}
+
+	nodes, ok := parsed["nodes"].([]any)
+	if !ok {
+		t.Fatal("missing nodes")
+	}
+	if len(nodes) != 2 {
+		t.Errorf("Parsed nodes count = %d, want %d", len(nodes), 2)
 	}
 }
 
@@ -285,14 +294,18 @@ func TestRenderYAMLParseable(t *testing.T) {
 		t.Fatalf("RenderYAML() error: %v", err)
 	}
 
-	// Verify can be parsed back
-	var parsed output.Data
+	// Verify YAML is valid and contains expected fields
+	var parsed map[string]any
 	if parseErr := yaml.Unmarshal(buf.Bytes(), &parsed); parseErr != nil {
-		t.Fatalf("RenderYAML() output not parseable as Data: %v", parseErr)
+		t.Fatalf("RenderYAML() output not parseable: %v", parseErr)
 	}
 
-	if parsed.ClusterHealth.Status != "HEALTH_OK" {
-		t.Errorf("Parsed health status = %q, want %q", parsed.ClusterHealth.Status, "HEALTH_OK")
+	health, ok := parsed["cluster_health"].(map[string]any)
+	if !ok {
+		t.Fatal("missing cluster_health")
+	}
+	if health["status"] != "HEALTH_OK" {
+		t.Errorf("Parsed health status = %v, want %q", health["status"], "HEALTH_OK")
 	}
 }
 
