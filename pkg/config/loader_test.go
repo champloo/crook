@@ -36,8 +36,8 @@ func TestLoadConfigDefaults(t *testing.T) {
 
 func TestLoadConfigFlagOverridesDefault(t *testing.T) {
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
-	flags.String("rook-operator-namespace", "", "")
-	if err := flags.Set("rook-operator-namespace", "flag-op"); err != nil {
+	flags.String("namespace", "", "")
+	if err := flags.Set("namespace", "flag-ns"); err != nil {
 		t.Fatalf("set flag: %v", err)
 	}
 
@@ -47,8 +47,11 @@ func TestLoadConfigFlagOverridesDefault(t *testing.T) {
 	}
 
 	cfg := result.Config
-	if cfg.Kubernetes.RookOperatorNamespace != "flag-op" {
-		t.Fatalf("expected flag override, got %q", cfg.Kubernetes.RookOperatorNamespace)
+	if cfg.Kubernetes.RookOperatorNamespace != "flag-ns" {
+		t.Fatalf("expected flag override for operator namespace, got %q", cfg.Kubernetes.RookOperatorNamespace)
+	}
+	if cfg.Kubernetes.RookClusterNamespace != "flag-ns" {
+		t.Fatalf("expected flag override for cluster namespace, got %q", cfg.Kubernetes.RookClusterNamespace)
 	}
 }
 
@@ -133,7 +136,7 @@ func TestLoadConfigPartialUsesDefaults(t *testing.T) {
 }
 
 func TestLoadConfigEnvOverridesDefault(t *testing.T) {
-	t.Setenv("CROOK_KUBERNETES_ROOK_OPERATOR_NAMESPACE", "env-operator")
+	t.Setenv("CROOK_NAMESPACE", "env-ns")
 	t.Setenv("CROOK_UI_PROGRESS_REFRESH_MS", "220")
 
 	result, err := config.LoadConfig(config.LoadOptions{ConfigFile: testdataPath(t, "full.yaml")})
@@ -142,8 +145,11 @@ func TestLoadConfigEnvOverridesDefault(t *testing.T) {
 	}
 
 	cfg := result.Config
-	if cfg.Kubernetes.RookOperatorNamespace != "env-operator" {
+	if cfg.Kubernetes.RookOperatorNamespace != "env-ns" {
 		t.Fatalf("expected env override for operator namespace, got %q", cfg.Kubernetes.RookOperatorNamespace)
+	}
+	if cfg.Kubernetes.RookClusterNamespace != "env-ns" {
+		t.Fatalf("expected env override for cluster namespace, got %q", cfg.Kubernetes.RookClusterNamespace)
 	}
 	if cfg.UI.ProgressRefreshMS != 220 {
 		t.Fatalf("expected env override for progress refresh, got %d", cfg.UI.ProgressRefreshMS)

@@ -52,7 +52,7 @@ func LoadConfig(opts LoadOptions) (LoadResult, error) {
 	if unmarshalErr := v.Unmarshal(&cfg); unmarshalErr != nil {
 		return LoadResult{}, fmt.Errorf("unmarshal config: %w", unmarshalErr)
 	}
-	applyKubernetesDefaults(v, &cfg)
+	applyKubernetesDefaults(&cfg)
 	applyNamespaceOverride(v, &cfg)
 
 	validation := ValidateConfig(cfg)
@@ -84,11 +84,9 @@ func LoadConfig(opts LoadOptions) (LoadResult, error) {
 // BindFlags binds supported CLI flags to viper keys.
 func BindFlags(v *viper.Viper, flags *pflag.FlagSet) error {
 	bindings := map[string]string{
-		"namespace":               "namespace",
-		"rook-operator-namespace": "kubernetes.rook-operator-namespace",
-		"rook-cluster-namespace":  "kubernetes.rook-cluster-namespace",
-		"log-level":               "logging.level",
-		"log-file":                "logging.file",
+		"namespace": "namespace",
+		"log-level": "logging.level",
+		"log-file":  "logging.file",
 	}
 
 	for flag, key := range bindings {
@@ -179,24 +177,17 @@ func defaultConfigFiles() []string {
 }
 
 // applyKubernetesDefaults applies default values for kubernetes settings.
-// These are handled via CLI flags only, not config files, so we apply defaults
-// directly to the Config struct after unmarshaling.
-func applyKubernetesDefaults(v *viper.Viper, cfg *Config) {
+// Kubernetes namespace is configured via --namespace flag only.
+func applyKubernetesDefaults(cfg *Config) {
 	if cfg == nil {
 		return
 	}
 	defaults := DefaultConfig()
 
-	// Check for flag or env overrides first, otherwise use defaults
-	if operatorNS := strings.TrimSpace(v.GetString("kubernetes.rook-operator-namespace")); operatorNS != "" {
-		cfg.Kubernetes.RookOperatorNamespace = operatorNS
-	} else if cfg.Kubernetes.RookOperatorNamespace == "" {
+	if cfg.Kubernetes.RookOperatorNamespace == "" {
 		cfg.Kubernetes.RookOperatorNamespace = defaults.Kubernetes.RookOperatorNamespace
 	}
-
-	if clusterNS := strings.TrimSpace(v.GetString("kubernetes.rook-cluster-namespace")); clusterNS != "" {
-		cfg.Kubernetes.RookClusterNamespace = clusterNS
-	} else if cfg.Kubernetes.RookClusterNamespace == "" {
+	if cfg.Kubernetes.RookClusterNamespace == "" {
 		cfg.Kubernetes.RookClusterNamespace = defaults.Kubernetes.RookClusterNamespace
 	}
 }

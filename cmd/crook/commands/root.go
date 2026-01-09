@@ -37,12 +37,6 @@ type RootOptions struct {
 	// Namespace sets both rook-operator-namespace and rook-cluster-namespace
 	Namespace string
 
-	// RookOperatorNamespace is the namespace where the rook-ceph operator is deployed
-	RookOperatorNamespace string
-
-	// RookClusterNamespace is the namespace where the rook-ceph cluster is deployed
-	RookClusterNamespace string
-
 	// LogLevel sets the logging level (debug, info, warn, error)
 	LogLevel string
 
@@ -109,11 +103,7 @@ func addGlobalFlags(cmd *cobra.Command) {
 	flags.StringVar(&GlobalOptions.ConfigFile, "config", "",
 		"config file (default: ./crook.yaml, ~/.config/crook/config.yaml, /etc/crook/config.yaml)")
 	flags.StringVar(&GlobalOptions.Namespace, "namespace", "",
-		"rook-ceph namespace (sets both operator and cluster namespace)")
-	flags.StringVar(&GlobalOptions.RookOperatorNamespace, "rook-operator-namespace", "",
-		"namespace where the rook-ceph operator is deployed (default: rook-ceph)")
-	flags.StringVar(&GlobalOptions.RookClusterNamespace, "rook-cluster-namespace", "",
-		"namespace where the rook-ceph cluster is deployed (default: rook-ceph)")
+		"rook-ceph namespace (default: rook-ceph)")
 	flags.StringVar(&GlobalOptions.LogLevel, "log-level", "",
 		"log level: debug, info, warn, error (default: info)")
 	flags.StringVar(&GlobalOptions.LogFile, "log-file", "",
@@ -172,8 +162,6 @@ func buildFlagSet(cmd *cobra.Command) *pflag.FlagSet {
 
 	// Add relevant flags for config binding
 	addIfExists("namespace")
-	addIfExists("rook-operator-namespace")
-	addIfExists("rook-cluster-namespace")
 	addIfExists("log-level")
 	addIfExists("log-file")
 
