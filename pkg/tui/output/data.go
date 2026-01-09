@@ -103,71 +103,18 @@ type ClusterHealth struct {
 	TotalBytes int64 `json:"total_bytes" yaml:"total_bytes"`
 }
 
-// NodeOutput represents a node for output
-type NodeOutput struct {
-	Name           string   `json:"name" yaml:"name"`
-	Status         string   `json:"status" yaml:"status"`
-	Roles          []string `json:"roles" yaml:"roles"`
-	Schedulable    bool     `json:"schedulable" yaml:"schedulable"`
-	Cordoned       bool     `json:"cordoned" yaml:"cordoned"`
-	CephPodCount   int      `json:"ceph_pod_count" yaml:"ceph_pod_count"`
-	Age            string   `json:"age" yaml:"age"`
-	KubeletVersion string   `json:"kubelet_version" yaml:"kubelet_version"`
-}
-
-// DeploymentOutput represents a deployment for output
-type DeploymentOutput struct {
-	Name            string `json:"name" yaml:"name"`
-	Namespace       string `json:"namespace" yaml:"namespace"`
-	ReadyReplicas   int32  `json:"ready_replicas" yaml:"ready_replicas"`
-	DesiredReplicas int32  `json:"desired_replicas" yaml:"desired_replicas"`
-	NodeName        string `json:"node_name,omitempty" yaml:"node_name,omitempty"`
-	Age             string `json:"age" yaml:"age"`
-	Status          string `json:"status" yaml:"status"`
-	Type            string `json:"type" yaml:"type"`
-	OsdID           string `json:"osd_id,omitempty" yaml:"osd_id,omitempty"`
-}
-
-// OSDOutput represents an OSD for output
-type OSDOutput struct {
-	ID             int     `json:"id" yaml:"id"`
-	Name           string  `json:"name" yaml:"name"`
-	Hostname       string  `json:"hostname" yaml:"hostname"`
-	Status         string  `json:"status" yaml:"status"`
-	InOut          string  `json:"in_out" yaml:"in_out"`
-	Weight         float64 `json:"weight" yaml:"weight"`
-	Reweight       float64 `json:"reweight" yaml:"reweight"`
-	DeviceClass    string  `json:"device_class" yaml:"device_class"`
-	DeploymentName string  `json:"deployment_name,omitempty" yaml:"deployment_name,omitempty"`
-}
-
-// PodOutput represents a pod for output
-type PodOutput struct {
-	Name            string `json:"name" yaml:"name"`
-	Namespace       string `json:"namespace" yaml:"namespace"`
-	Status          string `json:"status" yaml:"status"`
-	ReadyContainers int    `json:"ready_containers" yaml:"ready_containers"`
-	TotalContainers int    `json:"total_containers" yaml:"total_containers"`
-	Restarts        int32  `json:"restarts" yaml:"restarts"`
-	NodeName        string `json:"node_name" yaml:"node_name"`
-	Age             string `json:"age" yaml:"age"`
-	Type            string `json:"type" yaml:"type"`
-	IP              string `json:"ip,omitempty" yaml:"ip,omitempty"`
-	OwnerDeployment string `json:"owner_deployment,omitempty" yaml:"owner_deployment,omitempty"`
-}
-
 // Data holds all data for output formatting
 type Data struct {
 	// ClusterHealth contains Ceph cluster health information
 	ClusterHealth *ClusterHealth `json:"cluster_health,omitempty" yaml:"cluster_health,omitempty"`
 	// Nodes contains node information
-	Nodes []NodeOutput `json:"nodes,omitempty" yaml:"nodes,omitempty"`
+	Nodes []k8s.NodeInfo `json:"nodes,omitempty" yaml:"nodes,omitempty"`
 	// Deployments contains deployment information
-	Deployments []DeploymentOutput `json:"deployments,omitempty" yaml:"deployments,omitempty"`
+	Deployments []k8s.DeploymentInfo `json:"deployments,omitempty" yaml:"deployments,omitempty"`
 	// OSDs contains OSD information
-	OSDs []OSDOutput `json:"osds,omitempty" yaml:"osds,omitempty"`
+	OSDs []k8s.OSDInfo `json:"osds,omitempty" yaml:"osds,omitempty"`
 	// Pods contains pod information
-	Pods []PodOutput `json:"pods,omitempty" yaml:"pods,omitempty"`
+	Pods []k8s.PodInfo `json:"pods,omitempty" yaml:"pods,omitempty"`
 	// FetchedAt is when the data was fetched
 	FetchedAt time.Time `json:"fetched_at" yaml:"fetched_at"`
 }
@@ -278,159 +225,55 @@ func fetchClusterHealth(ctx context.Context, client *k8s.Client, namespace strin
 }
 
 // fetchNodes fetches node data
-func fetchNodes(ctx context.Context, client *k8s.Client, namespace string) ([]NodeOutput, error) {
-	nodes, err := client.ListNodesWithCephPods(ctx, namespace)
-	if err != nil {
-		return nil, err
-	}
-
-	result := make([]NodeOutput, 0, len(nodes))
-	for _, n := range nodes {
-		result = append(result, NodeOutput{
-			Name:           n.Name,
-			Status:         n.Status,
-			Roles:          n.Roles,
-			Schedulable:    n.Schedulable,
-			Cordoned:       n.Cordoned,
-			CephPodCount:   n.CephPodCount,
-			Age:            formatDuration(n.Age.Duration()),
-			KubeletVersion: n.KubeletVersion,
-		})
-	}
-	return result, nil
+func fetchNodes(ctx context.Context, client *k8s.Client, namespace string) ([]k8s.NodeInfo, error) {
+	return client.ListNodesWithCephPods(ctx, namespace)
 }
 
 // fetchDeployments fetches deployment data
-func fetchDeployments(ctx context.Context, client *k8s.Client, namespace string, nodeFilter string) ([]DeploymentOutput, error) {
+func fetchDeployments(ctx context.Context, client *k8s.Client, namespace string, nodeFilter string) ([]k8s.DeploymentInfo, error) {
 	deployments, err := client.ListCephDeployments(ctx, namespace)
 	if err != nil {
 		return nil, err
 	}
 
-	result := make([]DeploymentOutput, 0)
-	for _, d := range deployments {
-		// Apply node filter if specified
-		if nodeFilter != "" && d.NodeName != nodeFilter {
-			continue
-		}
+	// No filter - return all
+	if nodeFilter == "" {
+		return deployments, nil
+	}
 
-		result = append(result, DeploymentOutput{
-			Name:            d.Name,
-			Namespace:       d.Namespace,
-			ReadyReplicas:   d.ReadyReplicas,
-			DesiredReplicas: d.DesiredReplicas,
-			NodeName:        d.NodeName,
-			Age:             formatDuration(d.Age.Duration()),
-			Status:          d.Status,
-			Type:            d.Type,
-			OsdID:           d.OsdID,
-		})
+	// Apply node filter
+	result := make([]k8s.DeploymentInfo, 0, len(deployments))
+	for _, d := range deployments {
+		if d.NodeName == nodeFilter {
+			result = append(result, d)
+		}
 	}
 	return result, nil
 }
 
 // fetchOSDs fetches OSD data
-func fetchOSDs(ctx context.Context, client *k8s.Client, namespace, nodeFilter string) ([]OSDOutput, error) {
+func fetchOSDs(ctx context.Context, client *k8s.Client, namespace, nodeFilter string) ([]k8s.OSDInfo, error) {
 	osds, err := client.GetOSDInfoList(ctx, namespace)
 	if err != nil {
 		return nil, err
 	}
 
-	result := make([]OSDOutput, 0)
-	for _, o := range osds {
-		// Apply node filter if specified
-		if nodeFilter != "" && o.Hostname != nodeFilter {
-			continue
-		}
+	// No filter - return all
+	if nodeFilter == "" {
+		return osds, nil
+	}
 
-		result = append(result, OSDOutput{
-			ID:             o.ID,
-			Name:           o.Name,
-			Hostname:       o.Hostname,
-			Status:         o.Status,
-			InOut:          o.InOut,
-			Weight:         o.Weight,
-			Reweight:       o.Reweight,
-			DeviceClass:    o.DeviceClass,
-			DeploymentName: o.DeploymentName,
-		})
+	// Apply node filter
+	result := make([]k8s.OSDInfo, 0, len(osds))
+	for _, o := range osds {
+		if o.Hostname == nodeFilter {
+			result = append(result, o)
+		}
 	}
 	return result, nil
 }
 
 // fetchPods fetches pod data
-func fetchPods(ctx context.Context, client *k8s.Client, namespace string, nodeFilter string) ([]PodOutput, error) {
-	pods, err := client.ListCephPods(ctx, namespace, nodeFilter)
-	if err != nil {
-		return nil, err
-	}
-
-	result := make([]PodOutput, 0, len(pods))
-	for _, p := range pods {
-		result = append(result, PodOutput{
-			Name:            p.Name,
-			Namespace:       p.Namespace,
-			Status:          p.Status,
-			ReadyContainers: p.ReadyContainers,
-			TotalContainers: p.TotalContainers,
-			Restarts:        p.Restarts,
-			NodeName:        p.NodeName,
-			Age:             formatDuration(p.Age.Duration()),
-			Type:            p.Type,
-			IP:              p.IP,
-			OwnerDeployment: p.OwnerDeployment,
-		})
-	}
-	return result, nil
-}
-
-// formatDuration formats a duration as a human-readable age string
-func formatDuration(d time.Duration) string {
-	if d < time.Minute {
-		return formatInt(int(d.Seconds())) + "s"
-	}
-	if d < time.Hour {
-		return formatInt(int(d.Minutes())) + "m"
-	}
-	if d < 24*time.Hour {
-		return formatInt(int(d.Hours())) + "h"
-	}
-	days := int(d.Hours() / 24)
-	if days < 30 {
-		return formatInt(days) + "d"
-	}
-	if days < 365 {
-		return formatInt(days/30) + "mo"
-	}
-	return formatInt(days/365) + "y"
-}
-
-// formatInt converts an int to a string (simple implementation without strconv)
-func formatInt(n int) string {
-	if n == 0 {
-		return "0"
-	}
-
-	negative := false
-	if n < 0 {
-		negative = true
-		n = -n
-	}
-
-	// Build digits in reverse
-	digits := make([]byte, 0, 20)
-	for n > 0 {
-		digits = append(digits, byte('0'+n%10))
-		n /= 10
-	}
-
-	// Reverse
-	for i, j := 0, len(digits)-1; i < j; i, j = i+1, j-1 {
-		digits[i], digits[j] = digits[j], digits[i]
-	}
-
-	if negative {
-		return "-" + string(digits)
-	}
-	return string(digits)
+func fetchPods(ctx context.Context, client *k8s.Client, namespace string, nodeFilter string) ([]k8s.PodInfo, error) {
+	return client.ListCephPods(ctx, namespace, nodeFilter)
 }

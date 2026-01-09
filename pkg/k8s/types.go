@@ -43,6 +43,11 @@ func (d Duration) Duration() time.Duration {
 	return time.Duration(d)
 }
 
+// String returns a human-readable representation of the duration
+func (d Duration) String() string {
+	return formatDuration(time.Duration(d))
+}
+
 // formatDuration formats a duration as a human-readable age string
 func formatDuration(d time.Duration) string {
 	if d < time.Minute {

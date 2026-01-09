@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/andri/crook/pkg/k8s"
 	"github.com/andri/crook/pkg/tui/format"
 	"golang.org/x/term"
 )
@@ -162,7 +163,7 @@ func (tw *TableWriter) writeSectionHeader(title string, count int) {
 }
 
 // writeNodesTable writes the nodes table
-func (tw *TableWriter) writeNodesTable(nodes []NodeOutput) {
+func (tw *TableWriter) writeNodesTable(nodes []k8s.NodeInfo) {
 	// Column widths
 	cols := []column{
 		{header: "NAME", width: 30},
@@ -205,14 +206,14 @@ func (tw *TableWriter) writeNodesTable(nodes []NodeOutput) {
 			{value: rolesStr},
 			{value: scheduleStr, color: scheduleColor},
 			{value: fmt.Sprintf("%d", node.CephPodCount)},
-			{value: node.Age},
+			{value: node.Age.String()},
 		}
 		tw.writeTableRow(cols, row)
 	}
 }
 
 // writeDeploymentsTable writes the deployments table
-func (tw *TableWriter) writeDeploymentsTable(deployments []DeploymentOutput) {
+func (tw *TableWriter) writeDeploymentsTable(deployments []k8s.DeploymentInfo) {
 	cols := []column{
 		{header: "NAME", width: 35},
 		{header: "NAMESPACE", width: 15},
@@ -255,7 +256,7 @@ func (tw *TableWriter) writeDeploymentsTable(deployments []DeploymentOutput) {
 			{value: dep.Namespace},
 			{value: readyStr, color: readyColor},
 			{value: nodeName},
-			{value: dep.Age},
+			{value: dep.Age.String()},
 			{value: dep.Status, color: statusColor},
 		}
 		tw.writeTableRow(cols, row)
@@ -263,7 +264,7 @@ func (tw *TableWriter) writeDeploymentsTable(deployments []DeploymentOutput) {
 }
 
 // writeOSDsTable writes the OSDs table
-func (tw *TableWriter) writeOSDsTable(osds []OSDOutput) {
+func (tw *TableWriter) writeOSDsTable(osds []k8s.OSDInfo) {
 	cols := []column{
 		{header: "OSD", width: 10},
 		{header: "HOST", width: 20},
@@ -309,7 +310,7 @@ func (tw *TableWriter) writeOSDsTable(osds []OSDOutput) {
 }
 
 // writePodsTable writes the pods table
-func (tw *TableWriter) writePodsTable(pods []PodOutput) {
+func (tw *TableWriter) writePodsTable(pods []k8s.PodInfo) {
 	cols := []column{
 		{header: "NAME", width: 40},
 		{header: "NAMESPACE", width: 15},
@@ -366,7 +367,7 @@ func (tw *TableWriter) writePodsTable(pods []PodOutput) {
 			{value: pod.Status, color: statusColor},
 			{value: readyStr, color: readyColor},
 			{value: fmt.Sprintf("%d", pod.Restarts), color: restartColor},
-			{value: pod.Age},
+			{value: pod.Age.String()},
 		}
 		tw.writeTableRow(cols, row)
 	}

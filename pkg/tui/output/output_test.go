@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/andri/crook/pkg/k8s"
 	"github.com/andri/crook/pkg/tui/output"
 	"gopkg.in/yaml.v3"
 )
@@ -115,6 +116,7 @@ func TestParseResourceTypes(t *testing.T) {
 }
 
 func createTestData() *output.Data {
+	fiveDays := k8s.Duration(5 * 24 * time.Hour)
 	return &output.Data{
 		ClusterHealth: &output.ClusterHealth{
 			Status:       "HEALTH_OK",
@@ -127,7 +129,7 @@ func createTestData() *output.Data {
 			UsedBytes:    1073741824,  // 1 GB
 			TotalBytes:   10737418240, // 10 GB
 		},
-		Nodes: []output.NodeOutput{
+		Nodes: []k8s.NodeInfo{
 			{
 				Name:           "worker-1",
 				Status:         "Ready",
@@ -135,7 +137,7 @@ func createTestData() *output.Data {
 				Schedulable:    true,
 				Cordoned:       false,
 				CephPodCount:   3,
-				Age:            "5d",
+				Age:            fiveDays,
 				KubeletVersion: "v1.28.0",
 			},
 			{
@@ -145,24 +147,24 @@ func createTestData() *output.Data {
 				Schedulable:    false,
 				Cordoned:       true,
 				CephPodCount:   2,
-				Age:            "5d",
+				Age:            fiveDays,
 				KubeletVersion: "v1.28.0",
 			},
 		},
-		Deployments: []output.DeploymentOutput{
+		Deployments: []k8s.DeploymentInfo{
 			{
 				Name:            "rook-ceph-osd-0",
 				Namespace:       "rook-ceph",
 				ReadyReplicas:   1,
 				DesiredReplicas: 1,
 				NodeName:        "worker-1",
-				Age:             "5d",
+				Age:             fiveDays,
 				Status:          "Ready",
 				Type:            "osd",
 				OsdID:           "0",
 			},
 		},
-		OSDs: []output.OSDOutput{
+		OSDs: []k8s.OSDInfo{
 			{
 				ID:             0,
 				Name:           "osd.0",
@@ -175,7 +177,7 @@ func createTestData() *output.Data {
 				DeploymentName: "rook-ceph-osd-0",
 			},
 		},
-		Pods: []output.PodOutput{
+		Pods: []k8s.PodInfo{
 			{
 				Name:            "rook-ceph-osd-0-abc123",
 				Namespace:       "rook-ceph",
@@ -184,7 +186,7 @@ func createTestData() *output.Data {
 				TotalContainers: 1,
 				Restarts:        0,
 				NodeName:        "worker-1",
-				Age:             "5d",
+				Age:             fiveDays,
 				Type:            "osd",
 				IP:              "10.0.0.1",
 				OwnerDeployment: "rook-ceph-osd-0",
