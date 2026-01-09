@@ -193,45 +193,45 @@ func (c *Client) ListPodsInNamespace(ctx context.Context, namespace string) ([]c
 	return podList.Items, nil
 }
 
-// PodInfoForLS holds pod information for the ls command view
-type PodInfoForLS struct {
+// PodInfo holds pod information for display and serialization
+type PodInfo struct {
 	// Name is the pod name
-	Name string
+	Name string `json:"name"`
 
 	// Namespace is the pod namespace
-	Namespace string
+	Namespace string `json:"namespace"`
 
 	// Status is the pod status (Running/Pending/Failed/etc.)
-	Status string
+	Status string `json:"status"`
 
 	// ReadyContainers is the number of ready containers
-	ReadyContainers int
+	ReadyContainers int `json:"ready_containers"`
 
 	// TotalContainers is the total number of containers
-	TotalContainers int
+	TotalContainers int `json:"total_containers"`
 
 	// Restarts is the total number of container restarts
-	Restarts int32
+	Restarts int32 `json:"restarts"`
 
 	// NodeName is the node where the pod runs
-	NodeName string
+	NodeName string `json:"node_name"`
 
 	// Age is the time since the pod was created
-	Age time.Duration
+	Age Duration `json:"age"`
 
 	// Type is the pod type (osd/mon/exporter/crashcollector)
-	Type string
+	Type string `json:"type"`
 
 	// IP is the pod IP address
-	IP string
+	IP string `json:"ip,omitempty"`
 
 	// OwnerDeployment is the name of the owning deployment (if any)
-	OwnerDeployment string
+	OwnerDeployment string `json:"owner_deployment,omitempty"`
 }
 
 // ListCephPods returns Ceph pods with detailed info.
 // Uses DefaultRookCephPrefixes() to filter pods.
-func (c *Client) ListCephPods(ctx context.Context, namespace string, nodeFilter string) ([]PodInfoForLS, error) {
+func (c *Client) ListCephPods(ctx context.Context, namespace string, nodeFilter string) ([]PodInfo, error) {
 	prefixes := DefaultRookCephPrefixes()
 
 	// Build list options
@@ -247,7 +247,7 @@ func (c *Client) ListCephPods(ctx context.Context, namespace string, nodeFilter 
 	}
 
 	// Build result
-	var result []PodInfoForLS
+	var result []PodInfo
 	now := time.Now()
 
 	for _, pod := range podList.Items {
@@ -266,7 +266,7 @@ func (c *Client) ListCephPods(ctx context.Context, namespace string, nodeFilter 
 		// Calculate ready containers and restarts
 		readyContainers, totalContainers, restarts := getPodContainerStats(&pod)
 
-		info := PodInfoForLS{
+		info := PodInfo{
 			Name:            pod.Name,
 			Namespace:       pod.Namespace,
 			Status:          getPodStatus(&pod),
@@ -274,7 +274,7 @@ func (c *Client) ListCephPods(ctx context.Context, namespace string, nodeFilter 
 			TotalContainers: totalContainers,
 			Restarts:        restarts,
 			NodeName:        pod.Spec.NodeName,
-			Age:             now.Sub(pod.CreationTimestamp.Time),
+			Age:             Duration(now.Sub(pod.CreationTimestamp.Time)),
 			Type:            extractPodType(pod.Name),
 			IP:              pod.Status.PodIP,
 			OwnerDeployment: ownerDeployment,

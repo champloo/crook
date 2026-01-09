@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/andri/crook/pkg/k8s"
+
 	"github.com/andri/crook/pkg/config"
 	"github.com/andri/crook/pkg/monitoring"
 	"github.com/andri/crook/pkg/tui/components"
-	"github.com/andri/crook/pkg/tui/views"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -426,9 +427,9 @@ func TestLsModel_handleKeyPress_Navigation(t *testing.T) {
 	})
 
 	// Set up nodes view with test data so cursor navigation works
-	testNodes := make([]views.NodeInfo, 10)
+	testNodes := make([]k8s.NodeInfo, 10)
 	for i := 0; i < 10; i++ {
-		testNodes[i] = views.NodeInfo{Name: fmt.Sprintf("node-%d", i)}
+		testNodes[i] = k8s.NodeInfo{Name: fmt.Sprintf("node-%d", i)}
 	}
 	model.nodesView.SetNodes(testNodes)
 	model.nodeCount = 10
@@ -613,7 +614,7 @@ func TestLsModel_handleKeyPress_MaintenanceFlowOpens(t *testing.T) {
 	})
 	model.setActivePane(LsPaneNodes)
 
-	nodes := []views.NodeInfo{{Name: "node-a"}, {Name: "node-b"}}
+	nodes := []k8s.NodeInfo{{Name: "node-a"}, {Name: "node-b"}}
 	model.nodesView.SetNodes(nodes)
 	model.nodeCount = len(nodes)
 	model.nodesView.SetCursor(1)
@@ -633,7 +634,7 @@ func TestLsModel_handleKeyPress_MaintenanceFlowIgnoredOutsideNodesPane(t *testin
 	})
 	model.setActivePane(LsPaneDeployments)
 
-	nodes := []views.NodeInfo{{Name: "node-a"}}
+	nodes := []k8s.NodeInfo{{Name: "node-a"}}
 	model.nodesView.SetNodes(nodes)
 	model.nodeCount = len(nodes)
 
@@ -685,14 +686,14 @@ func TestLsModel_reselectNodeAfterUpdate(t *testing.T) {
 	})
 	model.setActivePane(LsPaneNodes)
 
-	nodes := []views.NodeInfo{{Name: "node-a"}, {Name: "node-b"}, {Name: "node-c"}}
+	nodes := []k8s.NodeInfo{{Name: "node-a"}, {Name: "node-b"}, {Name: "node-c"}}
 	model.nodesView.SetNodes(nodes)
 	model.nodeCount = len(nodes)
 	model.nodesView.SetCursor(2)
 
 	model.pendingReselectNode = "node-c"
 	update := &monitoring.LsMonitorUpdate{
-		Nodes: []views.NodeInfo{
+		Nodes: []k8s.NodeInfo{
 			{Name: "node-c"},
 			{Name: "node-a"},
 			{Name: "node-b"},
@@ -715,23 +716,23 @@ func TestLsModel_getMaxCursor(t *testing.T) {
 	})
 
 	// Set up test data in views
-	testNodes := make([]views.NodeInfo, 5)
+	testNodes := make([]k8s.NodeInfo, 5)
 	for i := 0; i < 5; i++ {
-		testNodes[i] = views.NodeInfo{Name: fmt.Sprintf("node-%d", i)}
+		testNodes[i] = k8s.NodeInfo{Name: fmt.Sprintf("node-%d", i)}
 	}
 	model.nodesView.SetNodes(testNodes)
 	model.nodeCount = 5
 
-	testDeployments := make([]views.DeploymentInfo, 10)
+	testDeployments := make([]k8s.DeploymentInfo, 10)
 	for i := 0; i < 10; i++ {
-		testDeployments[i] = views.DeploymentInfo{Name: fmt.Sprintf("dep-%d", i)}
+		testDeployments[i] = k8s.DeploymentInfo{Name: fmt.Sprintf("dep-%d", i)}
 	}
 	model.deploymentsPodsView.SetDeployments(testDeployments)
 	model.deploymentCount = 10
 
-	testOSDs := make([]views.OSDInfo, 3)
+	testOSDs := make([]k8s.OSDInfo, 3)
 	for i := 0; i < 3; i++ {
-		testOSDs[i] = views.OSDInfo{ID: i}
+		testOSDs[i] = k8s.OSDInfo{ID: i}
 	}
 	model.osdsView.SetOSDs(testOSDs)
 	model.osdCount = 3
@@ -790,9 +791,9 @@ func TestLsModel_View_AllPanesVisible(t *testing.T) {
 	model.height = 50
 
 	// Set up some test data
-	model.nodesView.SetNodes([]views.NodeInfo{{Name: "test-node"}})
-	model.deploymentsPodsView.SetDeployments([]views.DeploymentInfo{{Name: "test-deploy"}})
-	model.osdsView.SetOSDs([]views.OSDInfo{{ID: 0}})
+	model.nodesView.SetNodes([]k8s.NodeInfo{{Name: "test-node"}})
+	model.deploymentsPodsView.SetDeployments([]k8s.DeploymentInfo{{Name: "test-deploy"}})
+	model.osdsView.SetOSDs([]k8s.OSDInfo{{ID: 0}})
 	model.updateAllCounts()
 
 	view := model.View()
@@ -955,23 +956,23 @@ func TestLsModel_CursorNavigationOnlyAffectsActivePane(t *testing.T) {
 	})
 
 	// Set up test data in all views
-	testNodes := make([]views.NodeInfo, 5)
+	testNodes := make([]k8s.NodeInfo, 5)
 	for i := 0; i < 5; i++ {
-		testNodes[i] = views.NodeInfo{Name: fmt.Sprintf("node-%d", i)}
+		testNodes[i] = k8s.NodeInfo{Name: fmt.Sprintf("node-%d", i)}
 	}
 	model.nodesView.SetNodes(testNodes)
 	model.nodeCount = 5
 
-	testDeployments := make([]views.DeploymentInfo, 5)
+	testDeployments := make([]k8s.DeploymentInfo, 5)
 	for i := 0; i < 5; i++ {
-		testDeployments[i] = views.DeploymentInfo{Name: fmt.Sprintf("dep-%d", i)}
+		testDeployments[i] = k8s.DeploymentInfo{Name: fmt.Sprintf("dep-%d", i)}
 	}
 	model.deploymentsPodsView.SetDeployments(testDeployments)
 	model.deploymentCount = 5
 
-	testOSDs := make([]views.OSDInfo, 5)
+	testOSDs := make([]k8s.OSDInfo, 5)
 	for i := 0; i < 5; i++ {
-		testOSDs[i] = views.OSDInfo{ID: i}
+		testOSDs[i] = k8s.OSDInfo{ID: i}
 	}
 	model.osdsView.SetOSDs(testOSDs)
 	model.osdCount = 5

@@ -120,36 +120,36 @@ func (c *Client) ListNodes(ctx context.Context) ([]corev1.Node, error) {
 	return nodeList.Items, nil
 }
 
-// NodeInfoForLS holds node information for the ls command view
-type NodeInfoForLS struct {
+// NodeInfo holds node information for display and serialization
+type NodeInfo struct {
 	// Name is the node name
-	Name string
+	Name string `json:"name"`
 
 	// Status is the node status (Ready/NotReady/Unknown)
-	Status string
+	Status string `json:"status"`
 
 	// Roles are the node roles (control-plane, worker, etc.)
-	Roles []string
+	Roles []string `json:"roles"`
 
 	// Schedulable indicates if the node accepts new pods
-	Schedulable bool
+	Schedulable bool `json:"schedulable"`
 
 	// Cordoned indicates if the node is cordoned (unschedulable)
-	Cordoned bool
+	Cordoned bool `json:"cordoned"`
 
 	// CephPodCount is the number of Ceph pods on this node
-	CephPodCount int
+	CephPodCount int `json:"ceph_pod_count"`
 
 	// Age is the time since the node was created
-	Age time.Duration
+	Age Duration `json:"age"`
 
 	// KubeletVersion is the kubelet version
-	KubeletVersion string
+	KubeletVersion string `json:"kubelet_version"`
 }
 
 // ListNodesWithCephPods returns all nodes with Ceph pod counts.
 // Uses DefaultRookCephPrefixes() to filter pods.
-func (c *Client) ListNodesWithCephPods(ctx context.Context, namespace string) ([]NodeInfoForLS, error) {
+func (c *Client) ListNodesWithCephPods(ctx context.Context, namespace string) ([]NodeInfo, error) {
 	prefixes := DefaultRookCephPrefixes()
 
 	// Get all nodes
@@ -174,18 +174,18 @@ func (c *Client) ListNodesWithCephPods(ctx context.Context, namespace string) ([
 	}
 
 	// Build result
-	result := make([]NodeInfoForLS, 0, len(nodes))
+	result := make([]NodeInfo, 0, len(nodes))
 	now := time.Now()
 
 	for _, node := range nodes {
-		info := NodeInfoForLS{
+		info := NodeInfo{
 			Name:           node.Name,
 			Status:         getNodeStatus(&node),
 			Roles:          extractNodeRoles(&node),
 			Schedulable:    !node.Spec.Unschedulable,
 			Cordoned:       node.Spec.Unschedulable,
 			CephPodCount:   nodePodCounts[node.Name],
-			Age:            now.Sub(node.CreationTimestamp.Time),
+			Age:            Duration(now.Sub(node.CreationTimestamp.Time)),
 			KubeletVersion: node.Status.NodeInfo.KubeletVersion,
 		}
 		result = append(result, info)

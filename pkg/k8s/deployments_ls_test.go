@@ -125,7 +125,7 @@ func TestListCephDeployments(t *testing.T) {
 	}
 
 	// Check deployment info
-	depMap := make(map[string]DeploymentInfoForLS)
+	depMap := make(map[string]DeploymentInfo)
 	for _, d := range result {
 		depMap[d.Name] = d
 	}
@@ -280,7 +280,7 @@ func TestListCephDeployments_OverlappingNames(t *testing.T) {
 	}
 
 	// Build map for easier lookup
-	depMap := make(map[string]DeploymentInfoForLS)
+	depMap := make(map[string]DeploymentInfo)
 	for _, d := range result {
 		depMap[d.Name] = d
 	}

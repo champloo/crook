@@ -5,8 +5,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/andri/crook/pkg/k8s"
+
 	"github.com/andri/crook/pkg/tui/components"
-	"github.com/andri/crook/pkg/tui/views"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -24,14 +25,14 @@ func TestDetailPanel_ShowNode(t *testing.T) {
 	dp := components.NewDetailPanel()
 	dp.SetSize(80, 24)
 
-	node := views.NodeInfo{
+	node := k8s.NodeInfo{
 		Name:           "worker-1",
 		Status:         "Ready",
 		Roles:          []string{"worker"},
 		Schedulable:    true,
 		Cordoned:       false,
 		CephPodCount:   3,
-		Age:            5 * 24 * time.Hour,
+		Age:            k8s.Duration(5 * 24 * time.Hour),
 		KubeletVersion: "v1.28.0",
 	}
 
@@ -64,13 +65,13 @@ func TestDetailPanel_ShowDeployment(t *testing.T) {
 	dp := components.NewDetailPanel()
 	dp.SetSize(80, 24)
 
-	dep := views.DeploymentInfo{
+	dep := k8s.DeploymentInfo{
 		Name:            "rook-ceph-osd-0",
 		Namespace:       "rook-ceph",
 		ReadyReplicas:   1,
 		DesiredReplicas: 1,
 		NodeName:        "worker-1",
-		Age:             5 * 24 * time.Hour,
+		Age:             k8s.Duration(5 * 24 * time.Hour),
 		Status:          "Ready",
 		Type:            "osd",
 		OsdID:           "0",
@@ -95,7 +96,7 @@ func TestDetailPanel_ShowOSD(t *testing.T) {
 	dp := components.NewDetailPanel()
 	dp.SetSize(80, 24)
 
-	osd := views.OSDInfo{
+	osd := k8s.OSDInfo{
 		ID:             0,
 		Name:           "osd.0",
 		Hostname:       "worker-1",
@@ -126,16 +127,16 @@ func TestDetailPanel_ShowPod(t *testing.T) {
 	dp := components.NewDetailPanel()
 	dp.SetSize(80, 24)
 
-	pod := views.PodInfo{
-		Name:            "rook-ceph-osd-0-abc123",
-		Namespace:       "rook-ceph",
-		Status:          "Running",
-		Ready:           true,
+	pod := k8s.PodInfo{
+		Name:      "rook-ceph-osd-0-abc123",
+		Namespace: "rook-ceph",
+		Status:    "Running",
+		// Ready field removed,
 		ReadyContainers: 1,
 		TotalContainers: 1,
 		Restarts:        0,
 		NodeName:        "worker-1",
-		Age:             5 * 24 * time.Hour,
+		Age:             k8s.Duration(5 * 24 * time.Hour),
 		Type:            "osd",
 		IP:              "10.0.0.1",
 		OwnerDeployment: "rook-ceph-osd-0",
@@ -160,7 +161,7 @@ func TestDetailPanel_Hide(t *testing.T) {
 	dp := components.NewDetailPanel()
 	dp.SetSize(80, 24)
 
-	node := views.NodeInfo{Name: "test-node", Status: "Ready"}
+	node := k8s.NodeInfo{Name: "test-node", Status: "Ready"}
 	dp.ShowNode(node, nil)
 
 	if !dp.IsVisible() {
@@ -179,7 +180,7 @@ func TestDetailPanel_KeyNavigation(t *testing.T) {
 	dp.SetSize(80, 10) // Small height to test scrolling
 
 	// Create node with lots of related resources to enable scrolling
-	node := views.NodeInfo{
+	node := k8s.NodeInfo{
 		Name:           "worker-1",
 		Status:         "Ready",
 		Roles:          []string{"worker"},
@@ -220,7 +221,7 @@ func TestDetailPanel_CloseWithEsc(t *testing.T) {
 	dp := components.NewDetailPanel()
 	dp.SetSize(80, 24)
 
-	node := views.NodeInfo{Name: "test-node", Status: "Ready"}
+	node := k8s.NodeInfo{Name: "test-node", Status: "Ready"}
 	dp.ShowNode(node, nil)
 
 	_, cmd := dp.Update(tea.KeyMsg{Type: tea.KeyEsc})
@@ -244,7 +245,7 @@ func TestDetailPanel_CloseWithQ(t *testing.T) {
 	dp := components.NewDetailPanel()
 	dp.SetSize(80, 24)
 
-	node := views.NodeInfo{Name: "test-node", Status: "Ready"}
+	node := k8s.NodeInfo{Name: "test-node", Status: "Ready"}
 	dp.ShowNode(node, nil)
 
 	_, cmd := dp.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
@@ -272,7 +273,7 @@ func TestDetailPanel_RelatedResources(t *testing.T) {
 	dp := components.NewDetailPanel()
 	dp.SetSize(100, 40)
 
-	node := views.NodeInfo{
+	node := k8s.NodeInfo{
 		Name:   "worker-1",
 		Status: "Ready",
 	}
@@ -299,7 +300,7 @@ func TestDetailPanel_RelatedResources(t *testing.T) {
 func TestDetailPanel_SetSize(t *testing.T) {
 	dp := components.NewDetailPanel()
 
-	node := views.NodeInfo{Name: "test-node", Status: "Ready"}
+	node := k8s.NodeInfo{Name: "test-node", Status: "Ready"}
 	dp.ShowNode(node, nil)
 
 	// Set size and verify panel still works
@@ -315,7 +316,7 @@ func TestDetailPanel_CordonedNode(t *testing.T) {
 	dp := components.NewDetailPanel()
 	dp.SetSize(80, 24)
 
-	node := views.NodeInfo{
+	node := k8s.NodeInfo{
 		Name:        "worker-1",
 		Status:      "Ready",
 		Cordoned:    true,
@@ -334,7 +335,7 @@ func TestDetailPanel_HighRestartPod(t *testing.T) {
 	dp := components.NewDetailPanel()
 	dp.SetSize(80, 24)
 
-	pod := views.PodInfo{
+	pod := k8s.PodInfo{
 		Name:            "crashy-pod",
 		Namespace:       "rook-ceph",
 		Status:          "Running",
@@ -356,7 +357,7 @@ func TestDetailPanel_OSDDown(t *testing.T) {
 	dp := components.NewDetailPanel()
 	dp.SetSize(80, 24)
 
-	osd := views.OSDInfo{
+	osd := k8s.OSDInfo{
 		ID:       0,
 		Name:     "osd.0",
 		Hostname: "worker-1",
@@ -380,7 +381,7 @@ func TestDetailPanel_DeploymentScaling(t *testing.T) {
 	dp := components.NewDetailPanel()
 	dp.SetSize(80, 24)
 
-	dep := views.DeploymentInfo{
+	dep := k8s.DeploymentInfo{
 		Name:            "scaling-deployment",
 		Namespace:       "rook-ceph",
 		ReadyReplicas:   0,

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/andri/crook/pkg/k8s"
 	"github.com/andri/crook/pkg/tui/format"
 	"github.com/andri/crook/pkg/tui/styles"
 	tea "github.com/charmbracelet/bubbletea"
@@ -13,10 +14,10 @@ import (
 // PodsView displays Rook-Ceph pods with ownership information
 type PodsView struct {
 	// pods is the list of pods to display (may be filtered by node)
-	pods []PodInfo
+	pods []k8s.PodInfo
 
 	// allPods stores all pods before node filtering
-	allPods []PodInfo
+	allPods []k8s.PodInfo
 
 	// cursor is the currently selected row
 	cursor int
@@ -34,14 +35,14 @@ type PodsView struct {
 // NewPodsView creates a new pods view
 func NewPodsView() *PodsView {
 	return &PodsView{
-		pods:    make([]PodInfo, 0),
-		allPods: make([]PodInfo, 0),
+		pods:    make([]k8s.PodInfo, 0),
+		allPods: make([]k8s.PodInfo, 0),
 	}
 }
 
 // PodSelectedMsg is sent when a pod is selected
 type PodSelectedMsg struct {
-	Pod PodInfo
+	Pod k8s.PodInfo
 }
 
 // Init implements tea.Model
@@ -149,7 +150,7 @@ func (v *PodsView) renderHeader() string {
 }
 
 // renderRow renders a single pod row
-func (v *PodsView) renderRow(pod PodInfo, selected bool) string {
+func (v *PodsView) renderRow(pod k8s.PodInfo, selected bool) string {
 	var nameStyle, statusStyle, readyStyle, restartStyle lipgloss.Style
 
 	if selected {
@@ -219,7 +220,7 @@ func (v *PodsView) renderRow(pod PodInfo, selected bool) string {
 		statusStyle.Render(format.PadRight(pod.Status, 12)),
 		readyStyle.Render(format.PadRight(readyStr, 8)),
 		restartStyle.Render(format.PadRight(restartStr, 10)),
-		styles.StyleSubtle.Render(format.PadRight(formatAge(pod.Age), 8)),
+		styles.StyleSubtle.Render(format.PadRight(formatAge(pod.Age.Duration()), 8)),
 	}
 
 	return strings.Join(cols, " ")
@@ -245,7 +246,7 @@ func (v *PodsView) getTableWidth() int {
 }
 
 // SetPods updates the pods list
-func (v *PodsView) SetPods(pods []PodInfo) {
+func (v *PodsView) SetPods(pods []k8s.PodInfo) {
 	v.allPods = pods
 	v.applyNodeFilter()
 }
@@ -261,7 +262,7 @@ func (v *PodsView) applyNodeFilter() {
 	if v.nodeFilter == "" {
 		v.pods = v.allPods
 	} else {
-		v.pods = make([]PodInfo, 0, len(v.allPods))
+		v.pods = make([]k8s.PodInfo, 0, len(v.allPods))
 		for _, pod := range v.allPods {
 			if pod.NodeName == v.nodeFilter {
 				v.pods = append(v.pods, pod)
@@ -307,7 +308,7 @@ func (v *PodsView) TotalCount() int {
 }
 
 // GetSelectedPod returns the currently selected pod
-func (v *PodsView) GetSelectedPod() *PodInfo {
+func (v *PodsView) GetSelectedPod() *k8s.PodInfo {
 	if v.cursor >= 0 && v.cursor < len(v.pods) {
 		return &v.pods[v.cursor]
 	}

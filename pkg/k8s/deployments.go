@@ -191,39 +191,39 @@ func (c *Client) GetDeployment(ctx context.Context, namespace, name string) (*ap
 	return deployment, nil
 }
 
-// DeploymentInfoForLS holds deployment information for the ls command view
-type DeploymentInfoForLS struct {
+// DeploymentInfo holds deployment information for display and serialization
+type DeploymentInfo struct {
 	// Name is the deployment name
-	Name string
+	Name string `json:"name"`
 
 	// Namespace is the deployment namespace
-	Namespace string
+	Namespace string `json:"namespace"`
 
 	// ReadyReplicas is the number of ready replicas
-	ReadyReplicas int32
+	ReadyReplicas int32 `json:"ready_replicas"`
 
 	// DesiredReplicas is the desired number of replicas
-	DesiredReplicas int32
+	DesiredReplicas int32 `json:"desired_replicas"`
 
 	// NodeName is the node where the deployment's pod runs
-	NodeName string
+	NodeName string `json:"node_name,omitempty"`
 
 	// Age is the time since the deployment was created
-	Age time.Duration
+	Age Duration `json:"age"`
 
 	// Status is the deployment status (Ready/Scaling/Unavailable)
-	Status string
+	Status string `json:"status"`
 
 	// Type is the deployment type (osd/mon/exporter/crashcollector)
-	Type string
+	Type string `json:"type"`
 
 	// OsdID is the OSD ID (from label ceph-osd-id, if applicable)
-	OsdID string
+	OsdID string `json:"osd_id,omitempty"`
 }
 
 // ListCephDeployments returns Ceph deployments with detailed info.
 // Uses DefaultRookCephPrefixes() to filter deployments.
-func (c *Client) ListCephDeployments(ctx context.Context, namespace string) ([]DeploymentInfoForLS, error) {
+func (c *Client) ListCephDeployments(ctx context.Context, namespace string) ([]DeploymentInfo, error) {
 	// Get all deployments in the namespace
 	deployments, err := c.ListDeploymentsInNamespace(ctx, namespace)
 	if err != nil {
@@ -268,7 +268,7 @@ func (c *Client) ListCephDeployments(ctx context.Context, namespace string) ([]D
 	}
 
 	// Build result
-	result := make([]DeploymentInfoForLS, 0, len(filtered))
+	result := make([]DeploymentInfo, 0, len(filtered))
 	now := time.Now()
 
 	for _, dep := range filtered {
@@ -280,13 +280,13 @@ func (c *Client) ListCephDeployments(ctx context.Context, namespace string) ([]D
 			nodeName = deploymentNodes[dep.Name]
 		}
 
-		info := DeploymentInfoForLS{
+		info := DeploymentInfo{
 			Name:            dep.Name,
 			Namespace:       dep.Namespace,
 			ReadyReplicas:   dep.Status.ReadyReplicas,
 			DesiredReplicas: getDeploymentDesiredReplicas(&dep),
 			NodeName:        nodeName,
-			Age:             now.Sub(dep.CreationTimestamp.Time),
+			Age:             Duration(now.Sub(dep.CreationTimestamp.Time)),
 			Status:          getDeploymentStatusString(&dep),
 			Type:            extractDeploymentType(dep.Name),
 			OsdID:           extractOsdID(&dep),

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/andri/crook/pkg/k8s"
 	"github.com/andri/crook/pkg/tui/format"
 	"github.com/andri/crook/pkg/tui/styles"
 	tea "github.com/charmbracelet/bubbletea"
@@ -13,7 +14,7 @@ import (
 // OSDsView displays Ceph OSD status from ceph osd tree
 type OSDsView struct {
 	// osds is the list of OSDs to display
-	osds []OSDInfo
+	osds []k8s.OSDInfo
 
 	// cursor is the currently selected row
 	cursor int
@@ -31,13 +32,13 @@ type OSDsView struct {
 // NewOSDsView creates a new OSDs view
 func NewOSDsView() *OSDsView {
 	return &OSDsView{
-		osds: make([]OSDInfo, 0),
+		osds: make([]k8s.OSDInfo, 0),
 	}
 }
 
 // OSDSelectedMsg is sent when an OSD is selected
 type OSDSelectedMsg struct {
-	OSD OSDInfo
+	OSD k8s.OSDInfo
 }
 
 // Init implements tea.Model
@@ -152,7 +153,7 @@ func (v *OSDsView) renderHeader() string {
 }
 
 // renderRow renders a single OSD row
-func (v *OSDsView) renderRow(osd OSDInfo, selected bool) string {
+func (v *OSDsView) renderRow(osd k8s.OSDInfo, selected bool) string {
 	var nameStyle, statusStyle, inOutStyle lipgloss.Style
 
 	if selected {
@@ -225,7 +226,7 @@ func (v *OSDsView) getTableWidth() int {
 }
 
 // SetOSDs updates the OSDs list
-func (v *OSDsView) SetOSDs(osds []OSDInfo) {
+func (v *OSDsView) SetOSDs(osds []k8s.OSDInfo) {
 	v.osds = osds
 	// Reset cursor if out of bounds
 	if v.cursor >= len(v.osds) {
@@ -265,7 +266,7 @@ func (v *OSDsView) Count() int {
 }
 
 // GetSelectedOSD returns the currently selected OSD
-func (v *OSDsView) GetSelectedOSD() *OSDInfo {
+func (v *OSDsView) GetSelectedOSD() *k8s.OSDInfo {
 	if v.cursor >= 0 && v.cursor < len(v.osds) {
 		return &v.osds[v.cursor]
 	}

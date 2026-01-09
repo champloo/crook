@@ -1,5 +1,9 @@
 package views
 
+import (
+	"github.com/andri/crook/pkg/k8s"
+)
+
 // DeploymentsPodsView is a composite view that can toggle between showing
 // deployments or pods. It wraps the existing DeploymentsView and PodsView,
 // forwarding all operations to the currently active sub-view.
@@ -93,12 +97,12 @@ func (v *DeploymentsPodsView) Count() int {
 }
 
 // SetDeployments updates the deployments in the deployments sub-view.
-func (v *DeploymentsPodsView) SetDeployments(deployments []DeploymentInfo) {
+func (v *DeploymentsPodsView) SetDeployments(deployments []k8s.DeploymentInfo) {
 	v.deploymentsView.SetDeployments(deployments)
 }
 
 // SetPods updates the pods in the pods sub-view.
-func (v *DeploymentsPodsView) SetPods(pods []PodInfo) {
+func (v *DeploymentsPodsView) SetPods(pods []k8s.PodInfo) {
 	v.podsView.SetPods(pods)
 }
 
@@ -123,7 +127,7 @@ func (v *DeploymentsPodsView) PodsCount() int {
 }
 
 // GetSelectedDeployment returns the selected deployment if showing deployments.
-func (v *DeploymentsPodsView) GetSelectedDeployment() *DeploymentInfo {
+func (v *DeploymentsPodsView) GetSelectedDeployment() *k8s.DeploymentInfo {
 	if v.showPods {
 		return nil
 	}
@@ -131,7 +135,7 @@ func (v *DeploymentsPodsView) GetSelectedDeployment() *DeploymentInfo {
 }
 
 // GetSelectedPod returns the selected pod if showing pods.
-func (v *DeploymentsPodsView) GetSelectedPod() *PodInfo {
+func (v *DeploymentsPodsView) GetSelectedPod() *k8s.PodInfo {
 	if !v.showPods {
 		return nil
 	}

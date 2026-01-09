@@ -9,7 +9,6 @@ import (
 
 	"github.com/andri/crook/pkg/k8s"
 	"github.com/andri/crook/pkg/tui/components"
-	"github.com/andri/crook/pkg/tui/views"
 )
 
 // LsMonitorConfig holds configuration for the ls monitor
@@ -51,16 +50,16 @@ func DefaultLsMonitorConfig(client *k8s.Client, namespace string) *LsMonitorConf
 // LsMonitorUpdate contains the latest monitoring data for the ls TUI
 type LsMonitorUpdate struct {
 	// Nodes is the list of cluster nodes
-	Nodes []views.NodeInfo
+	Nodes []k8s.NodeInfo
 
 	// Deployments is the list of Rook-Ceph deployments
-	Deployments []views.DeploymentInfo
+	Deployments []k8s.DeploymentInfo
 
 	// Pods is the list of Rook-Ceph pods
-	Pods []views.PodInfo
+	Pods []k8s.PodInfo
 
 	// OSDs is the list of Ceph OSDs
-	OSDs []views.OSDInfo
+	OSDs []k8s.OSDInfo
 
 	// Header is the cluster header data
 	Header *components.ClusterHeaderData
@@ -197,8 +196,8 @@ func runPoller[T any](
 }
 
 // startNodesPoller starts background node polling
-func (m *LsMonitor) startNodesPoller() <-chan []views.NodeInfo {
-	updates := make(chan []views.NodeInfo, 1)
+func (m *LsMonitor) startNodesPoller() <-chan []k8s.NodeInfo {
+	updates := make(chan []k8s.NodeInfo, 1)
 	m.wg.Add(1)
 	go func() {
 		defer m.wg.Done()
@@ -209,31 +208,13 @@ func (m *LsMonitor) startNodesPoller() <-chan []views.NodeInfo {
 }
 
 // fetchNodes fetches all nodes with Ceph pods
-func (m *LsMonitor) fetchNodes() ([]views.NodeInfo, error) {
-	nodes, err := m.config.Client.ListNodesWithCephPods(m.ctx, m.config.Namespace)
-	if err != nil {
-		return nil, err
-	}
-
-	result := make([]views.NodeInfo, len(nodes))
-	for i, n := range nodes {
-		result[i] = views.NodeInfo{
-			Name:           n.Name,
-			Status:         n.Status,
-			Roles:          n.Roles,
-			Schedulable:    n.Schedulable,
-			Cordoned:       n.Cordoned,
-			CephPodCount:   n.CephPodCount,
-			Age:            n.Age,
-			KubeletVersion: n.KubeletVersion,
-		}
-	}
-	return result, nil
+func (m *LsMonitor) fetchNodes() ([]k8s.NodeInfo, error) {
+	return m.config.Client.ListNodesWithCephPods(m.ctx, m.config.Namespace)
 }
 
 // startDeploymentsPoller starts background deployment polling
-func (m *LsMonitor) startDeploymentsPoller() <-chan []views.DeploymentInfo {
-	updates := make(chan []views.DeploymentInfo, 1)
+func (m *LsMonitor) startDeploymentsPoller() <-chan []k8s.DeploymentInfo {
+	updates := make(chan []k8s.DeploymentInfo, 1)
 	m.wg.Add(1)
 	go func() {
 		defer m.wg.Done()
@@ -244,36 +225,29 @@ func (m *LsMonitor) startDeploymentsPoller() <-chan []views.DeploymentInfo {
 }
 
 // fetchDeployments fetches all Ceph deployments
-func (m *LsMonitor) fetchDeployments() ([]views.DeploymentInfo, error) {
+func (m *LsMonitor) fetchDeployments() ([]k8s.DeploymentInfo, error) {
 	deployments, err := m.config.Client.ListCephDeployments(m.ctx, m.config.Namespace)
 	if err != nil {
 		return nil, err
 	}
 
-	result := make([]views.DeploymentInfo, 0)
+	// Apply node filter if specified
+	if m.config.NodeFilter == "" {
+		return deployments, nil
+	}
+
+	result := make([]k8s.DeploymentInfo, 0, len(deployments))
 	for _, d := range deployments {
-		// Apply node filter if specified
-		if m.config.NodeFilter != "" && d.NodeName != m.config.NodeFilter {
-			continue
+		if d.NodeName == m.config.NodeFilter {
+			result = append(result, d)
 		}
-		result = append(result, views.DeploymentInfo{
-			Name:            d.Name,
-			Namespace:       d.Namespace,
-			ReadyReplicas:   d.ReadyReplicas,
-			DesiredReplicas: d.DesiredReplicas,
-			NodeName:        d.NodeName,
-			Age:             d.Age,
-			Status:          d.Status,
-			Type:            d.Type,
-			OsdID:           d.OsdID,
-		})
 	}
 	return result, nil
 }
 
 // startPodsPoller starts background pod polling
-func (m *LsMonitor) startPodsPoller() <-chan []views.PodInfo {
-	updates := make(chan []views.PodInfo, 1)
+func (m *LsMonitor) startPodsPoller() <-chan []k8s.PodInfo {
+	updates := make(chan []k8s.PodInfo, 1)
 	m.wg.Add(1)
 	go func() {
 		defer m.wg.Done()
@@ -284,35 +258,13 @@ func (m *LsMonitor) startPodsPoller() <-chan []views.PodInfo {
 }
 
 // fetchPods fetches all Ceph pods
-func (m *LsMonitor) fetchPods() ([]views.PodInfo, error) {
-	pods, err := m.config.Client.ListCephPods(m.ctx, m.config.Namespace, m.config.NodeFilter)
-	if err != nil {
-		return nil, err
-	}
-
-	result := make([]views.PodInfo, len(pods))
-	for i, p := range pods {
-		result[i] = views.PodInfo{
-			Name:            p.Name,
-			Namespace:       p.Namespace,
-			Status:          p.Status,
-			Ready:           p.ReadyContainers == p.TotalContainers && p.TotalContainers > 0,
-			ReadyContainers: p.ReadyContainers,
-			TotalContainers: p.TotalContainers,
-			Restarts:        p.Restarts,
-			NodeName:        p.NodeName,
-			Age:             p.Age,
-			Type:            p.Type,
-			IP:              p.IP,
-			OwnerDeployment: p.OwnerDeployment,
-		}
-	}
-	return result, nil
+func (m *LsMonitor) fetchPods() ([]k8s.PodInfo, error) {
+	return m.config.Client.ListCephPods(m.ctx, m.config.Namespace, m.config.NodeFilter)
 }
 
 // startOSDsPoller starts background OSD polling
-func (m *LsMonitor) startOSDsPoller() <-chan []views.OSDInfo {
-	updates := make(chan []views.OSDInfo, 1)
+func (m *LsMonitor) startOSDsPoller() <-chan []k8s.OSDInfo {
+	updates := make(chan []k8s.OSDInfo, 1)
 	m.wg.Add(1)
 	go func() {
 		defer m.wg.Done()
@@ -323,29 +275,22 @@ func (m *LsMonitor) startOSDsPoller() <-chan []views.OSDInfo {
 }
 
 // fetchOSDs fetches all OSD info
-func (m *LsMonitor) fetchOSDs() ([]views.OSDInfo, error) {
+func (m *LsMonitor) fetchOSDs() ([]k8s.OSDInfo, error) {
 	osds, err := m.config.Client.GetOSDInfoList(m.ctx, m.config.Namespace)
 	if err != nil {
 		return nil, err
 	}
 
-	result := make([]views.OSDInfo, 0)
+	// Apply node filter if specified
+	if m.config.NodeFilter == "" {
+		return osds, nil
+	}
+
+	result := make([]k8s.OSDInfo, 0, len(osds))
 	for _, o := range osds {
-		// Apply node filter if specified
-		if m.config.NodeFilter != "" && o.Hostname != m.config.NodeFilter {
-			continue
+		if o.Hostname == m.config.NodeFilter {
+			result = append(result, o)
 		}
-		result = append(result, views.OSDInfo{
-			ID:             o.ID,
-			Name:           o.Name,
-			Hostname:       o.Hostname,
-			Status:         o.Status,
-			InOut:          o.InOut,
-			Weight:         o.Weight,
-			Reweight:       o.Reweight,
-			DeviceClass:    o.DeviceClass,
-			DeploymentName: o.DeploymentName,
-		})
 	}
 	return result, nil
 }
@@ -402,10 +347,10 @@ func (m *LsMonitor) fetchHeader() (*components.ClusterHeaderData, error) {
 
 // aggregator combines updates from all pollers
 func (m *LsMonitor) aggregator(
-	nodesCh <-chan []views.NodeInfo,
-	deploymentsCh <-chan []views.DeploymentInfo,
-	podsCh <-chan []views.PodInfo,
-	osdsCh <-chan []views.OSDInfo,
+	nodesCh <-chan []k8s.NodeInfo,
+	deploymentsCh <-chan []k8s.DeploymentInfo,
+	podsCh <-chan []k8s.PodInfo,
+	osdsCh <-chan []k8s.OSDInfo,
 	headerCh <-chan *components.ClusterHeaderData,
 ) {
 	defer m.wg.Done()
@@ -464,7 +409,7 @@ func (m *LsMonitor) aggregator(
 }
 
 // updateNodes updates the nodes in the latest cache
-func (m *LsMonitor) updateNodes(nodes []views.NodeInfo) {
+func (m *LsMonitor) updateNodes(nodes []k8s.NodeInfo) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.latest.Nodes = nodes
@@ -473,7 +418,7 @@ func (m *LsMonitor) updateNodes(nodes []views.NodeInfo) {
 }
 
 // updateDeployments updates the deployments in the latest cache
-func (m *LsMonitor) updateDeployments(deployments []views.DeploymentInfo) {
+func (m *LsMonitor) updateDeployments(deployments []k8s.DeploymentInfo) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.latest.Deployments = deployments
@@ -482,7 +427,7 @@ func (m *LsMonitor) updateDeployments(deployments []views.DeploymentInfo) {
 }
 
 // updatePods updates the pods in the latest cache
-func (m *LsMonitor) updatePods(pods []views.PodInfo) {
+func (m *LsMonitor) updatePods(pods []k8s.PodInfo) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.latest.Pods = pods
@@ -491,7 +436,7 @@ func (m *LsMonitor) updatePods(pods []views.PodInfo) {
 }
 
 // updateOSDs updates the OSDs in the latest cache
-func (m *LsMonitor) updateOSDs(osds []views.OSDInfo) {
+func (m *LsMonitor) updateOSDs(osds []k8s.OSDInfo) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.latest.OSDs = osds

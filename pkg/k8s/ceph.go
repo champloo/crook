@@ -406,41 +406,41 @@ func (s *StorageUsage) GetPoolByName(name string) *PoolUsage {
 	return nil
 }
 
-// OSDInfoForLS holds OSD information for the ls command view
-type OSDInfoForLS struct {
+// OSDInfo holds OSD information for display and serialization
+type OSDInfo struct {
 	// ID is the numeric OSD ID
-	ID int
+	ID int `json:"id"`
 
 	// Name is the OSD name ('osd.0' format)
-	Name string
+	Name string `json:"name"`
 
 	// Hostname is the node hostname from CRUSH tree
-	Hostname string
+	Hostname string `json:"hostname"`
 
 	// Status is the OSD status ('up' or 'down')
-	Status string
+	Status string `json:"status"`
 
 	// InOut indicates if OSD is 'in' or 'out' of the cluster
-	InOut string
+	InOut string `json:"in_out"`
 
 	// Weight is the CRUSH weight
-	Weight float64
+	Weight float64 `json:"weight"`
 
 	// Reweight is the OSD reweight value
-	Reweight float64
+	Reweight float64 `json:"reweight"`
 
 	// DeviceClass is the device class (hdd/ssd/nvme)
-	DeviceClass string
+	DeviceClass string `json:"device_class"`
 
 	// DeploymentName is the mapped K8s deployment name
-	DeploymentName string
+	DeploymentName string `json:"deployment_name,omitempty"`
 
 	// PGCount is the number of primary PGs (if available)
-	PGCount int
+	PGCount int `json:"pg_count,omitempty"`
 }
 
 // GetOSDInfoList returns a list of OSD info with hostname mappings from the CRUSH tree
-func (c *Client) GetOSDInfoList(ctx context.Context, namespace string) ([]OSDInfoForLS, error) {
+func (c *Client) GetOSDInfoList(ctx context.Context, namespace string) ([]OSDInfo, error) {
 	// Get the OSD tree
 	tree, err := c.GetOSDTree(ctx, namespace)
 	if err != nil {
@@ -451,7 +451,7 @@ func (c *Client) GetOSDInfoList(ctx context.Context, namespace string) ([]OSDInf
 	hostMap := buildHostnameMap(tree)
 
 	// Extract OSDs
-	result := make([]OSDInfoForLS, 0)
+	result := make([]OSDInfo, 0)
 	for _, node := range tree.Nodes {
 		if node.Type != "osd" {
 			continue
@@ -462,7 +462,7 @@ func (c *Client) GetOSDInfoList(ctx context.Context, namespace string) ([]OSDInf
 			inOut = "out"
 		}
 
-		info := OSDInfoForLS{
+		info := OSDInfo{
 			ID:             node.ID,
 			Name:           node.Name,
 			Hostname:       hostMap[node.ID],

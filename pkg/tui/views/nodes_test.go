@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/andri/crook/pkg/k8s"
+
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -27,7 +29,7 @@ func TestNewNodesView(t *testing.T) {
 func TestNodesView_SetNodes(t *testing.T) {
 	v := NewNodesView()
 
-	nodes := []NodeInfo{
+	nodes := []k8s.NodeInfo{
 		{Name: "node-1", Status: "Ready", CephPodCount: 3},
 		{Name: "node-2", Status: "Ready", CephPodCount: 2},
 		{Name: "node-3", Status: "NotReady", CephPodCount: 0},
@@ -48,7 +50,7 @@ func TestNodesView_CursorNavigation(t *testing.T) {
 	v := NewNodesView()
 	v.SetSize(100, 50)
 
-	nodes := []NodeInfo{
+	nodes := []k8s.NodeInfo{
 		{Name: "node-1"},
 		{Name: "node-2"},
 		{Name: "node-3"},
@@ -96,7 +98,7 @@ func TestNodesView_CursorNavigation(t *testing.T) {
 func TestNodesView_Enter(t *testing.T) {
 	v := NewNodesView()
 
-	nodes := []NodeInfo{
+	nodes := []k8s.NodeInfo{
 		{Name: "node-1", Status: "Ready"},
 		{Name: "node-2", Status: "Ready"},
 	}
@@ -124,14 +126,14 @@ func TestNodesView_View(t *testing.T) {
 	v := NewNodesView()
 	v.SetSize(120, 30)
 
-	nodes := []NodeInfo{
+	nodes := []k8s.NodeInfo{
 		{
 			Name:         "worker-1",
 			Status:       "Ready",
 			Roles:        []string{"worker"},
 			Cordoned:     false,
 			CephPodCount: 3,
-			Age:          24 * time.Hour,
+			Age:          k8s.Duration(24 * time.Hour),
 		},
 		{
 			Name:         "control-plane-1",
@@ -139,7 +141,7 @@ func TestNodesView_View(t *testing.T) {
 			Roles:        []string{"control-plane"},
 			Cordoned:     true,
 			CephPodCount: 1,
-			Age:          48 * time.Hour,
+			Age:          k8s.Duration(48 * time.Hour),
 		},
 	}
 	v.SetNodes(nodes)
@@ -174,7 +176,7 @@ func TestNodesView_View(t *testing.T) {
 func TestNodesView_View_TinyHeightLimitsOutput(t *testing.T) {
 	v := NewNodesView()
 	v.SetSize(120, 3)
-	v.SetNodes([]NodeInfo{
+	v.SetNodes([]k8s.NodeInfo{
 		{Name: "node-1", Status: "Ready"},
 		{Name: "node-2", Status: "Ready"},
 		{Name: "node-3", Status: "Ready"},
@@ -192,7 +194,7 @@ func TestNodesView_View_TinyHeightLimitsOutput(t *testing.T) {
 func TestNodesView_View_TruncatesRolesWithEllipsis(t *testing.T) {
 	v := NewNodesView()
 	v.SetSize(82, 30) // includes Roles column with width 14
-	v.SetNodes([]NodeInfo{
+	v.SetNodes([]k8s.NodeInfo{
 		{Name: "node-1", Status: "Ready", Roles: []string{"control-plane", "very-long-role-name"}},
 	})
 
@@ -221,7 +223,7 @@ func TestNodesView_GetSelectedNode(t *testing.T) {
 		t.Error("GetSelectedNode() on empty view should return nil")
 	}
 
-	nodes := []NodeInfo{
+	nodes := []k8s.NodeInfo{
 		{Name: "node-1"},
 		{Name: "node-2"},
 	}

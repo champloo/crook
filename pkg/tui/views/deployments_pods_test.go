@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/andri/crook/pkg/k8s"
+
 	"github.com/andri/crook/pkg/tui/views"
 )
 
@@ -67,7 +69,7 @@ func TestDeploymentsPodsView_Toggle_ResetsCursor(t *testing.T) {
 	v := views.NewDeploymentsPodsView()
 
 	// Add some deployments and set cursor
-	deployments := []views.DeploymentInfo{
+	deployments := []k8s.DeploymentInfo{
 		{Name: "dep1", Namespace: "ns", Status: "Ready"},
 		{Name: "dep2", Namespace: "ns", Status: "Ready"},
 		{Name: "dep3", Namespace: "ns", Status: "Ready"},
@@ -80,7 +82,7 @@ func TestDeploymentsPodsView_Toggle_ResetsCursor(t *testing.T) {
 	}
 
 	// Add some pods and set cursor
-	pods := []views.PodInfo{
+	pods := []k8s.PodInfo{
 		{Name: "pod1", Namespace: "ns", Status: "Running"},
 		{Name: "pod2", Namespace: "ns", Status: "Running"},
 	}
@@ -135,14 +137,14 @@ func TestDeploymentsPodsView_GetTitle(t *testing.T) {
 func TestDeploymentsPodsView_Count_DelegatesToActiveView(t *testing.T) {
 	v := views.NewDeploymentsPodsView()
 
-	deployments := []views.DeploymentInfo{
+	deployments := []k8s.DeploymentInfo{
 		{Name: "dep1", Namespace: "ns", Status: "Ready"},
 		{Name: "dep2", Namespace: "ns", Status: "Ready"},
 		{Name: "dep3", Namespace: "ns", Status: "Ready"},
 	}
 	v.SetDeployments(deployments)
 
-	pods := []views.PodInfo{
+	pods := []k8s.PodInfo{
 		{Name: "pod1", Namespace: "ns", Status: "Running"},
 		{Name: "pod2", Namespace: "ns", Status: "Running"},
 	}
@@ -166,8 +168,8 @@ func TestDeploymentsPodsView_SetSize_ApplesToBothViews(t *testing.T) {
 	v.SetSize(100, 50)
 
 	// Can't directly check internal view sizes, but we can verify View() works
-	v.SetDeployments([]views.DeploymentInfo{})
-	v.SetPods([]views.PodInfo{})
+	v.SetDeployments([]k8s.DeploymentInfo{})
+	v.SetPods([]k8s.PodInfo{})
 
 	// Should not panic
 	_ = v.View()
@@ -178,7 +180,7 @@ func TestDeploymentsPodsView_SetSize_ApplesToBothViews(t *testing.T) {
 func TestDeploymentsPodsView_SetNodeFilter(t *testing.T) {
 	v := views.NewDeploymentsPodsView()
 
-	pods := []views.PodInfo{
+	pods := []k8s.PodInfo{
 		{Name: "pod1", Namespace: "ns", NodeName: "node1", Status: "Running"},
 		{Name: "pod2", Namespace: "ns", NodeName: "node2", Status: "Running"},
 		{Name: "pod3", Namespace: "ns", NodeName: "node1", Status: "Running"},
@@ -203,13 +205,13 @@ func TestDeploymentsPodsView_View(t *testing.T) {
 	v := views.NewDeploymentsPodsView()
 	v.SetSize(100, 20)
 
-	deployments := []views.DeploymentInfo{
-		{Name: "test-deployment", Namespace: "ns", Status: "Ready", Age: time.Hour},
+	deployments := []k8s.DeploymentInfo{
+		{Name: "test-deployment", Namespace: "ns", Status: "Ready", Age: k8s.Duration(time.Hour)},
 	}
 	v.SetDeployments(deployments)
 
-	pods := []views.PodInfo{
-		{Name: "test-pod", Namespace: "ns", Status: "Running", Age: time.Hour},
+	pods := []k8s.PodInfo{
+		{Name: "test-pod", Namespace: "ns", Status: "Running", Age: k8s.Duration(time.Hour)},
 	}
 	v.SetPods(pods)
 
@@ -235,7 +237,7 @@ func TestDeploymentsPodsView_View(t *testing.T) {
 func TestDeploymentsPodsView_DeploymentsCount(t *testing.T) {
 	v := views.NewDeploymentsPodsView()
 
-	deployments := []views.DeploymentInfo{
+	deployments := []k8s.DeploymentInfo{
 		{Name: "dep1", Namespace: "ns", Status: "Ready"},
 		{Name: "dep2", Namespace: "ns", Status: "Ready"},
 	}
@@ -256,7 +258,7 @@ func TestDeploymentsPodsView_DeploymentsCount(t *testing.T) {
 func TestDeploymentsPodsView_PodsCount(t *testing.T) {
 	v := views.NewDeploymentsPodsView()
 
-	pods := []views.PodInfo{
+	pods := []k8s.PodInfo{
 		{Name: "pod1", Namespace: "ns", Status: "Running"},
 		{Name: "pod2", Namespace: "ns", Status: "Running"},
 		{Name: "pod3", Namespace: "ns", Status: "Running"},
@@ -278,7 +280,7 @@ func TestDeploymentsPodsView_PodsCount(t *testing.T) {
 func TestDeploymentsPodsView_GetSelectedDeployment(t *testing.T) {
 	v := views.NewDeploymentsPodsView()
 
-	deployments := []views.DeploymentInfo{
+	deployments := []k8s.DeploymentInfo{
 		{Name: "dep1", Namespace: "ns", Status: "Ready"},
 		{Name: "dep2", Namespace: "ns", Status: "Ready"},
 	}
@@ -303,7 +305,7 @@ func TestDeploymentsPodsView_GetSelectedDeployment(t *testing.T) {
 func TestDeploymentsPodsView_GetSelectedPod(t *testing.T) {
 	v := views.NewDeploymentsPodsView()
 
-	pods := []views.PodInfo{
+	pods := []k8s.PodInfo{
 		{Name: "pod1", Namespace: "ns", Status: "Running"},
 		{Name: "pod2", Namespace: "ns", Status: "Running"},
 	}
@@ -341,7 +343,7 @@ func TestDeploymentsPodsView_GetViews(t *testing.T) {
 func TestDeploymentsPodsView_Toggle_NoOpWhenAlreadyOnView(t *testing.T) {
 	v := views.NewDeploymentsPodsView()
 
-	deployments := []views.DeploymentInfo{
+	deployments := []k8s.DeploymentInfo{
 		{Name: "dep1", Namespace: "ns", Status: "Ready"},
 		{Name: "dep2", Namespace: "ns", Status: "Ready"},
 	}
@@ -356,7 +358,7 @@ func TestDeploymentsPodsView_Toggle_NoOpWhenAlreadyOnView(t *testing.T) {
 
 	// Switch to pods
 	v.ShowPods()
-	pods := []views.PodInfo{
+	pods := []k8s.PodInfo{
 		{Name: "pod1", Namespace: "ns", Status: "Running"},
 		{Name: "pod2", Namespace: "ns", Status: "Running"},
 	}

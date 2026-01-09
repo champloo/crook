@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/andri/crook/pkg/k8s"
+
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -30,7 +32,7 @@ func TestNewOSDsView(t *testing.T) {
 func TestOSDsView_SetOSDs(t *testing.T) {
 	v := NewOSDsView()
 
-	osds := []OSDInfo{
+	osds := []k8s.OSDInfo{
 		{ID: 0, Name: "osd.0", Status: "up", InOut: "in", Hostname: "worker-1"},
 		{ID: 1, Name: "osd.1", Status: "up", InOut: "in", Hostname: "worker-1"},
 		{ID: 2, Name: "osd.2", Status: "down", InOut: "out", Hostname: "worker-2"},
@@ -51,7 +53,7 @@ func TestOSDsView_CursorNavigation(t *testing.T) {
 	v := NewOSDsView()
 	v.SetSize(100, 50)
 
-	osds := []OSDInfo{
+	osds := []k8s.OSDInfo{
 		{ID: 0, Name: "osd.0"},
 		{ID: 1, Name: "osd.1"},
 		{ID: 2, Name: "osd.2"},
@@ -86,7 +88,7 @@ func TestOSDsView_CursorNavigation(t *testing.T) {
 func TestOSDsView_Enter(t *testing.T) {
 	v := NewOSDsView()
 
-	osds := []OSDInfo{
+	osds := []k8s.OSDInfo{
 		{ID: 0, Name: "osd.0", Status: "up"},
 		{ID: 1, Name: "osd.1", Status: "up"},
 	}
@@ -114,7 +116,7 @@ func TestOSDsView_View(t *testing.T) {
 	v := NewOSDsView()
 	v.SetSize(120, 30)
 
-	osds := []OSDInfo{
+	osds := []k8s.OSDInfo{
 		{
 			ID:             0,
 			Name:           "osd.0",
@@ -169,7 +171,7 @@ func TestOSDsView_NooutBanner(t *testing.T) {
 	v := NewOSDsView()
 	v.SetSize(120, 30)
 
-	osds := []OSDInfo{
+	osds := []k8s.OSDInfo{
 		{ID: 0, Name: "osd.0", Status: "up"},
 	}
 	v.SetOSDs(osds)
@@ -207,7 +209,7 @@ func TestOSDsView_GetSelectedOSD(t *testing.T) {
 		t.Error("GetSelectedOSD() on empty view should return nil")
 	}
 
-	osds := []OSDInfo{
+	osds := []k8s.OSDInfo{
 		{ID: 0, Name: "osd.0"},
 		{ID: 1, Name: "osd.1"},
 	}
@@ -233,7 +235,7 @@ func TestOSDsView_GetSelectedOSD(t *testing.T) {
 func TestOSDsView_CountDownOut(t *testing.T) {
 	v := NewOSDsView()
 
-	osds := []OSDInfo{
+	osds := []k8s.OSDInfo{
 		{ID: 0, Name: "osd.0", Status: "up", InOut: "in"},
 		{ID: 1, Name: "osd.1", Status: "down", InOut: "in"},
 		{ID: 2, Name: "osd.2", Status: "up", InOut: "out"},

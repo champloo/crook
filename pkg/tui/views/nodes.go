@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/andri/crook/pkg/k8s"
 	"github.com/andri/crook/pkg/tui/format"
 	"github.com/andri/crook/pkg/tui/styles"
 	tea "github.com/charmbracelet/bubbletea"
@@ -15,7 +16,7 @@ import (
 // NodesView displays cluster nodes with Ceph workload information
 type NodesView struct {
 	// nodes is the list of nodes to display
-	nodes []NodeInfo
+	nodes []k8s.NodeInfo
 
 	// cursor is the currently selected row
 	cursor int
@@ -42,13 +43,13 @@ type nodesColumnLayout struct {
 // NewNodesView creates a new nodes view
 func NewNodesView() *NodesView {
 	return &NodesView{
-		nodes: make([]NodeInfo, 0),
+		nodes: make([]k8s.NodeInfo, 0),
 	}
 }
 
 // NodeSelectedMsg is sent when a node is selected
 type NodeSelectedMsg struct {
-	Node NodeInfo
+	Node k8s.NodeInfo
 }
 
 // Init implements tea.Model
@@ -223,7 +224,7 @@ func (v *NodesView) renderHeader() string {
 }
 
 // renderRow renders a single node row
-func (v *NodesView) renderRow(node NodeInfo, selected bool) string {
+func (v *NodesView) renderRow(node k8s.NodeInfo, selected bool) string {
 	layout := v.columnLayout()
 
 	// Determine styles based on node state
@@ -282,7 +283,7 @@ func (v *NodesView) renderRow(node NodeInfo, selected bool) string {
 		v.renderCephPodCount(node.CephPodCount, selected, layout.cephPods),
 	)
 	if layout.showAge {
-		cols = append(cols, styles.StyleSubtle.Render(format.PadRight(formatAge(node.Age), layout.age)))
+		cols = append(cols, styles.StyleSubtle.Render(format.PadRight(formatAge(node.Age.Duration()), layout.age)))
 	}
 
 	return strings.Join(cols, " ")
@@ -324,7 +325,7 @@ func (v *NodesView) getTableWidth() int {
 }
 
 // SetNodes updates the nodes list
-func (v *NodesView) SetNodes(nodes []NodeInfo) {
+func (v *NodesView) SetNodes(nodes []k8s.NodeInfo) {
 	v.nodes = nodes
 	// Reset cursor if out of bounds
 	if v.cursor >= len(v.nodes) {
@@ -370,7 +371,7 @@ func (v *NodesView) Count() int {
 }
 
 // GetSelectedNode returns the currently selected node
-func (v *NodesView) GetSelectedNode() *NodeInfo {
+func (v *NodesView) GetSelectedNode() *k8s.NodeInfo {
 	if v.cursor >= 0 && v.cursor < len(v.nodes) {
 		return &v.nodes[v.cursor]
 	}

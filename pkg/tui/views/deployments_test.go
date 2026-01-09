@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/andri/crook/pkg/k8s"
+
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -31,7 +33,7 @@ func TestNewDeploymentsView(t *testing.T) {
 func TestDeploymentsView_SetDeployments(t *testing.T) {
 	v := NewDeploymentsView()
 
-	deployments := []DeploymentInfo{
+	deployments := []k8s.DeploymentInfo{
 		{Name: "rook-ceph-osd-0", Type: "osd", ReadyReplicas: 1, DesiredReplicas: 1, Status: "Ready"},
 		{Name: "rook-ceph-osd-1", Type: "osd", ReadyReplicas: 1, DesiredReplicas: 1, Status: "Ready"},
 		{Name: "rook-ceph-mon-a", Type: "mon", ReadyReplicas: 1, DesiredReplicas: 1, Status: "Ready"},
@@ -52,7 +54,7 @@ func TestDeploymentsView_CursorNavigation(t *testing.T) {
 	v := NewDeploymentsView()
 	v.SetSize(100, 50)
 
-	deployments := []DeploymentInfo{
+	deployments := []k8s.DeploymentInfo{
 		{Name: "dep-1", Type: "osd"},
 		{Name: "dep-2", Type: "osd"},
 		{Name: "dep-3", Type: "mon"},
@@ -87,7 +89,7 @@ func TestDeploymentsView_CursorNavigation(t *testing.T) {
 func TestDeploymentsView_Enter(t *testing.T) {
 	v := NewDeploymentsView()
 
-	deployments := []DeploymentInfo{
+	deployments := []k8s.DeploymentInfo{
 		{Name: "rook-ceph-osd-0", Type: "osd", Status: "Ready"},
 		{Name: "rook-ceph-mon-a", Type: "mon", Status: "Ready"},
 	}
@@ -116,7 +118,7 @@ func TestDeploymentsView_View(t *testing.T) {
 	v := NewDeploymentsView()
 	v.SetSize(120, 30)
 
-	deployments := []DeploymentInfo{
+	deployments := []k8s.DeploymentInfo{
 		{
 			Name:            "rook-ceph-osd-0",
 			Namespace:       "rook-ceph",
@@ -125,7 +127,7 @@ func TestDeploymentsView_View(t *testing.T) {
 			DesiredReplicas: 1,
 			NodeName:        "worker-1",
 			Status:          "Ready",
-			Age:             24 * time.Hour,
+			Age:             k8s.Duration(24 * time.Hour),
 		},
 		{
 			Name:            "rook-ceph-mon-a",
@@ -135,7 +137,7 @@ func TestDeploymentsView_View(t *testing.T) {
 			DesiredReplicas: 1,
 			NodeName:        "worker-2",
 			Status:          "Ready",
-			Age:             48 * time.Hour,
+			Age:             k8s.Duration(48 * time.Hour),
 		},
 		{
 			Name:            "rook-ceph-crashcollector",
@@ -144,7 +146,7 @@ func TestDeploymentsView_View(t *testing.T) {
 			ReadyReplicas:   0,
 			DesiredReplicas: 0,
 			Status:          "Scaled Down",
-			Age:             72 * time.Hour,
+			Age:             k8s.Duration(72 * time.Hour),
 		},
 	}
 	v.SetDeployments(deployments)
@@ -198,7 +200,7 @@ func TestDeploymentsView_GetSelectedDeployment(t *testing.T) {
 		t.Error("GetSelectedDeployment() on empty view should return nil")
 	}
 
-	deployments := []DeploymentInfo{
+	deployments := []k8s.DeploymentInfo{
 		{Name: "dep-1", Type: "osd"},
 		{Name: "dep-2", Type: "osd"},
 	}
@@ -222,7 +224,7 @@ func TestDeploymentsView_Grouping(t *testing.T) {
 	v := NewDeploymentsView()
 	v.SetSize(120, 50)
 
-	deployments := []DeploymentInfo{
+	deployments := []k8s.DeploymentInfo{
 		{Name: "rook-ceph-mon-a", Type: "mon"},
 		{Name: "rook-ceph-osd-0", Type: "osd"},
 		{Name: "rook-ceph-osd-1", Type: "osd"},

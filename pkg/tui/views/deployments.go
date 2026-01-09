@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/andri/crook/pkg/k8s"
 	"github.com/andri/crook/pkg/tui/format"
 	"github.com/andri/crook/pkg/tui/styles"
 	tea "github.com/charmbracelet/bubbletea"
@@ -25,7 +26,7 @@ const (
 // DeploymentsView displays Rook-Ceph deployments with node mapping
 type DeploymentsView struct {
 	// deployments is the list of deployments to display
-	deployments []DeploymentInfo
+	deployments []k8s.DeploymentInfo
 
 	// cursor is the currently selected row
 	cursor int
@@ -43,14 +44,14 @@ type DeploymentsView struct {
 // NewDeploymentsView creates a new deployments view
 func NewDeploymentsView() *DeploymentsView {
 	return &DeploymentsView{
-		deployments: make([]DeploymentInfo, 0),
+		deployments: make([]k8s.DeploymentInfo, 0),
 		groupByType: true,
 	}
 }
 
 // DeploymentSelectedMsg is sent when a deployment is selected
 type DeploymentSelectedMsg struct {
-	Deployment DeploymentInfo
+	Deployment k8s.DeploymentInfo
 }
 
 // Init implements tea.Model
@@ -224,7 +225,7 @@ func (v *DeploymentsView) renderGrouped(startIdx, endIdx int) string {
 }
 
 // renderRow renders a single deployment row
-func (v *DeploymentsView) renderRow(dep DeploymentInfo, selected bool) string {
+func (v *DeploymentsView) renderRow(dep k8s.DeploymentInfo, selected bool) string {
 	var nameStyle, statusStyle lipgloss.Style
 
 	if selected {
@@ -278,7 +279,7 @@ func (v *DeploymentsView) renderRow(dep DeploymentInfo, selected bool) string {
 		styles.StyleSubtle.Render(format.PadRight(dep.Namespace, namespaceColWidth)),
 		readyStyle.Render(format.PadRight(readyStr, readyColWidth)),
 		styles.StyleNormal.Render(format.PadRight(nodeName, nodeColWidth)),
-		styles.StyleSubtle.Render(format.PadRight(formatAge(dep.Age), ageColWidth)),
+		styles.StyleSubtle.Render(format.PadRight(formatAge(dep.Age.Duration()), ageColWidth)),
 		statusStyle.Render(format.PadRight(dep.Status, statusColWidth)),
 	}
 
@@ -292,7 +293,7 @@ func (v *DeploymentsView) getTableWidth() int {
 }
 
 // SetDeployments updates the deployments list
-func (v *DeploymentsView) SetDeployments(deployments []DeploymentInfo) {
+func (v *DeploymentsView) SetDeployments(deployments []k8s.DeploymentInfo) {
 	v.deployments = deployments
 	v.sortDeployments()
 }
@@ -358,7 +359,7 @@ func (v *DeploymentsView) Count() int {
 }
 
 // GetSelectedDeployment returns the currently selected deployment
-func (v *DeploymentsView) GetSelectedDeployment() *DeploymentInfo {
+func (v *DeploymentsView) GetSelectedDeployment() *k8s.DeploymentInfo {
 	if v.cursor >= 0 && v.cursor < len(v.deployments) {
 		return &v.deployments[v.cursor]
 	}

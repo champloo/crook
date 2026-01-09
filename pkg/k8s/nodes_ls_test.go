@@ -137,7 +137,7 @@ func TestListNodesWithCephPods(t *testing.T) {
 	}
 
 	// Check node info
-	nodeMap := make(map[string]NodeInfoForLS)
+	nodeMap := make(map[string]NodeInfo)
 	for _, n := range result {
 		nodeMap[n.Name] = n
 	}

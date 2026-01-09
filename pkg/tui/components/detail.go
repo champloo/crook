@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/andri/crook/pkg/k8s"
 	"github.com/andri/crook/pkg/tui/format"
 	"github.com/andri/crook/pkg/tui/styles"
-	"github.com/andri/crook/pkg/tui/views"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -125,7 +125,7 @@ func (d *DetailPanel) View() string {
 }
 
 // ShowNode displays node details
-func (d *DetailPanel) ShowNode(node views.NodeInfo, related []RelatedResource) {
+func (d *DetailPanel) ShowNode(node k8s.NodeInfo, related []RelatedResource) {
 	d.resourceType = ResourceTypeNode
 	d.resource = node
 	d.relatedResources = related
@@ -135,7 +135,7 @@ func (d *DetailPanel) ShowNode(node views.NodeInfo, related []RelatedResource) {
 }
 
 // ShowDeployment displays deployment details
-func (d *DetailPanel) ShowDeployment(dep views.DeploymentInfo, related []RelatedResource) {
+func (d *DetailPanel) ShowDeployment(dep k8s.DeploymentInfo, related []RelatedResource) {
 	d.resourceType = ResourceTypeDeployment
 	d.resource = dep
 	d.relatedResources = related
@@ -145,7 +145,7 @@ func (d *DetailPanel) ShowDeployment(dep views.DeploymentInfo, related []Related
 }
 
 // ShowOSD displays OSD details
-func (d *DetailPanel) ShowOSD(osd views.OSDInfo, related []RelatedResource) {
+func (d *DetailPanel) ShowOSD(osd k8s.OSDInfo, related []RelatedResource) {
 	d.resourceType = ResourceTypeOSD
 	d.resource = osd
 	d.relatedResources = related
@@ -155,7 +155,7 @@ func (d *DetailPanel) ShowOSD(osd views.OSDInfo, related []RelatedResource) {
 }
 
 // ShowPod displays pod details
-func (d *DetailPanel) ShowPod(pod views.PodInfo, related []RelatedResource) {
+func (d *DetailPanel) ShowPod(pod k8s.PodInfo, related []RelatedResource) {
 	d.resourceType = ResourceTypePod
 	d.resource = pod
 	d.relatedResources = related
@@ -211,7 +211,7 @@ func (d *DetailPanel) renderContent() {
 
 // renderNodeContent renders node detail content
 func (d *DetailPanel) renderNodeContent() {
-	node, ok := d.resource.(views.NodeInfo)
+	node, ok := d.resource.(k8s.NodeInfo)
 	if !ok {
 		d.content = append(d.content, "Error: invalid node data")
 		return
@@ -235,7 +235,7 @@ func (d *DetailPanel) renderNodeContent() {
 	}
 
 	d.addField("Ceph Pods", fmt.Sprintf("%d", node.CephPodCount))
-	d.addField("Age", formatAge(node.Age))
+	d.addField("Age", formatAge(node.Age.Duration()))
 
 	d.content = append(d.content, "")
 	d.addRelatedResources()
@@ -243,7 +243,7 @@ func (d *DetailPanel) renderNodeContent() {
 
 // renderDeploymentContent renders deployment detail content
 func (d *DetailPanel) renderDeploymentContent() {
-	dep, ok := d.resource.(views.DeploymentInfo)
+	dep, ok := d.resource.(k8s.DeploymentInfo)
 	if !ok {
 		d.content = append(d.content, "Error: invalid deployment data")
 		return
@@ -273,7 +273,7 @@ func (d *DetailPanel) renderDeploymentContent() {
 		d.addField("Node", dep.NodeName)
 	}
 
-	d.addField("Age", formatAge(dep.Age))
+	d.addField("Age", formatAge(dep.Age.Duration()))
 
 	d.content = append(d.content, "")
 	d.addRelatedResources()
@@ -281,7 +281,7 @@ func (d *DetailPanel) renderDeploymentContent() {
 
 // renderOSDContent renders OSD detail content
 func (d *DetailPanel) renderOSDContent() {
-	osd, ok := d.resource.(views.OSDInfo)
+	osd, ok := d.resource.(k8s.OSDInfo)
 	if !ok {
 		d.content = append(d.content, "Error: invalid OSD data")
 		return
@@ -331,7 +331,7 @@ func (d *DetailPanel) renderOSDContent() {
 
 // renderPodContent renders pod detail content
 func (d *DetailPanel) renderPodContent() {
-	pod, ok := d.resource.(views.PodInfo)
+	pod, ok := d.resource.(k8s.PodInfo)
 	if !ok {
 		d.content = append(d.content, "Error: invalid pod data")
 		return
@@ -372,7 +372,7 @@ func (d *DetailPanel) renderPodContent() {
 		d.addField("Deployment", pod.OwnerDeployment)
 	}
 
-	d.addField("Age", formatAge(pod.Age))
+	d.addField("Age", formatAge(pod.Age.Duration()))
 
 	d.content = append(d.content, "")
 	d.addRelatedResources()
@@ -551,19 +551,19 @@ func (d *DetailPanel) renderPanel() string {
 func (d *DetailPanel) getTitle() string {
 	switch d.resourceType {
 	case ResourceTypeNode:
-		if node, ok := d.resource.(views.NodeInfo); ok {
+		if node, ok := d.resource.(k8s.NodeInfo); ok {
 			return "Node: " + node.Name
 		}
 	case ResourceTypeDeployment:
-		if dep, ok := d.resource.(views.DeploymentInfo); ok {
+		if dep, ok := d.resource.(k8s.DeploymentInfo); ok {
 			return "Deployment: " + dep.Name
 		}
 	case ResourceTypeOSD:
-		if osd, ok := d.resource.(views.OSDInfo); ok {
+		if osd, ok := d.resource.(k8s.OSDInfo); ok {
 			return "OSD: " + osd.Name
 		}
 	case ResourceTypePod:
-		if pod, ok := d.resource.(views.PodInfo); ok {
+		if pod, ok := d.resource.(k8s.PodInfo); ok {
 			return "Pod: " + pod.Name
 		}
 	}

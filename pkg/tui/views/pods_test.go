@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/andri/crook/pkg/k8s"
 )
 
 func TestNewPodsView(t *testing.T) {
@@ -22,7 +24,7 @@ func TestNewPodsView(t *testing.T) {
 func TestPodsView_SetPods(t *testing.T) {
 	v := NewPodsView()
 
-	pods := []PodInfo{
+	pods := []k8s.PodInfo{
 		{Name: "rook-ceph-osd-0-abc", Status: "Running", NodeName: "node-1"},
 		{Name: "rook-ceph-mon-a-xyz", Status: "Running", NodeName: "node-2"},
 	}
@@ -40,7 +42,7 @@ func TestPodsView_SetPods(t *testing.T) {
 func TestPodsView_SetNodeFilter(t *testing.T) {
 	v := NewPodsView()
 
-	pods := []PodInfo{
+	pods := []k8s.PodInfo{
 		{Name: "rook-ceph-osd-0-abc", Status: "Running", NodeName: "node-1"},
 		{Name: "rook-ceph-mon-a-xyz", Status: "Running", NodeName: "node-2"},
 		{Name: "rook-ceph-osd-1-def", Status: "Pending", NodeName: "node-1"},
@@ -67,7 +69,7 @@ func TestPodsView_View_WithPods(t *testing.T) {
 	v := NewPodsView()
 	v.SetSize(120, 30)
 
-	pods := []PodInfo{
+	pods := []k8s.PodInfo{
 		{
 			Name:            "rook-ceph-osd-0-abc123",
 			Namespace:       "rook-ceph",
@@ -76,7 +78,7 @@ func TestPodsView_View_WithPods(t *testing.T) {
 			TotalContainers: 2,
 			Restarts:        0,
 			NodeName:        "worker-01",
-			Age:             24 * time.Hour,
+			Age:             k8s.Duration(24 * time.Hour),
 		},
 	}
 
@@ -112,7 +114,7 @@ func TestPodsView_View_WithPods(t *testing.T) {
 func TestPodsView_Cursor(t *testing.T) {
 	v := NewPodsView()
 
-	pods := []PodInfo{
+	pods := []k8s.PodInfo{
 		{Name: "pod-1", Status: "Running"},
 		{Name: "pod-2", Status: "Running"},
 		{Name: "pod-3", Status: "Running"},
@@ -144,7 +146,7 @@ func TestPodsView_GetSelectedPod(t *testing.T) {
 		t.Error("expected nil for empty view")
 	}
 
-	pods := []PodInfo{
+	pods := []k8s.PodInfo{
 		{Name: "pod-1", Status: "Running"},
 		{Name: "pod-2", Status: "Pending"},
 	}
@@ -164,7 +166,7 @@ func TestPodsView_GetSelectedPod(t *testing.T) {
 func TestPodsView_CountByStatus(t *testing.T) {
 	v := NewPodsView()
 
-	pods := []PodInfo{
+	pods := []k8s.PodInfo{
 		{Name: "pod-1", Status: "Running"},
 		{Name: "pod-2", Status: "Running"},
 		{Name: "pod-3", Status: "Pending"},
@@ -187,7 +189,7 @@ func TestPodsView_CountByStatus(t *testing.T) {
 func TestPodsView_CountHighRestarts(t *testing.T) {
 	v := NewPodsView()
 
-	pods := []PodInfo{
+	pods := []k8s.PodInfo{
 		{Name: "pod-1", Restarts: 0},
 		{Name: "pod-2", Restarts: 3},
 		{Name: "pod-3", Restarts: 6},  // High

@@ -7,7 +7,6 @@ import (
 
 	"github.com/andri/crook/pkg/k8s"
 	"github.com/andri/crook/pkg/tui/components"
-	"github.com/andri/crook/pkg/tui/views"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -302,10 +301,10 @@ func TestLsMonitorAggregator(t *testing.T) {
 	monitor := NewLsMonitor(cfg)
 
 	// Create test channels
-	nodesCh := make(chan []views.NodeInfo, 1)
-	deploymentsCh := make(chan []views.DeploymentInfo, 1)
-	podsCh := make(chan []views.PodInfo, 1)
-	osdsCh := make(chan []views.OSDInfo, 1)
+	nodesCh := make(chan []k8s.NodeInfo, 1)
+	deploymentsCh := make(chan []k8s.DeploymentInfo, 1)
+	podsCh := make(chan []k8s.PodInfo, 1)
+	osdsCh := make(chan []k8s.OSDInfo, 1)
 	headerCh := make(chan *components.ClusterHeaderData, 1)
 
 	// Start aggregator
@@ -313,7 +312,7 @@ func TestLsMonitorAggregator(t *testing.T) {
 	go monitor.aggregator(nodesCh, deploymentsCh, podsCh, osdsCh, headerCh)
 
 	// Send test data
-	nodesCh <- []views.NodeInfo{
+	nodesCh <- []k8s.NodeInfo{
 		{Name: "test-node", Status: "Ready"},
 	}
 
@@ -372,10 +371,10 @@ func TestLsMonitorAggregatorAllChannels(t *testing.T) {
 	monitor := NewLsMonitor(cfg)
 
 	// Create test channels
-	nodesCh := make(chan []views.NodeInfo, 1)
-	deploymentsCh := make(chan []views.DeploymentInfo, 1)
-	podsCh := make(chan []views.PodInfo, 1)
-	osdsCh := make(chan []views.OSDInfo, 1)
+	nodesCh := make(chan []k8s.NodeInfo, 1)
+	deploymentsCh := make(chan []k8s.DeploymentInfo, 1)
+	podsCh := make(chan []k8s.PodInfo, 1)
+	osdsCh := make(chan []k8s.OSDInfo, 1)
 	headerCh := make(chan *components.ClusterHeaderData, 1)
 
 	// Start aggregator
@@ -383,19 +382,19 @@ func TestLsMonitorAggregatorAllChannels(t *testing.T) {
 	go monitor.aggregator(nodesCh, deploymentsCh, podsCh, osdsCh, headerCh)
 
 	// Send data to all channels
-	nodesCh <- []views.NodeInfo{
+	nodesCh <- []k8s.NodeInfo{
 		{Name: "test-node", Status: "Ready"},
 	}
 
-	deploymentsCh <- []views.DeploymentInfo{
+	deploymentsCh <- []k8s.DeploymentInfo{
 		{Name: "test-deploy", Status: "Ready"},
 	}
 
-	podsCh <- []views.PodInfo{
+	podsCh <- []k8s.PodInfo{
 		{Name: "test-pod", Status: "Running"},
 	}
 
-	osdsCh <- []views.OSDInfo{
+	osdsCh <- []k8s.OSDInfo{
 		{ID: 0, Name: "osd.0", Status: "up"},
 	}
 
@@ -469,10 +468,10 @@ func TestLsMonitorAggregatorChannelFull(t *testing.T) {
 	// Override with a non-buffered channel to test the default case
 	monitor.updates = make(chan *LsMonitorUpdate)
 
-	nodesCh := make(chan []views.NodeInfo, 10)
-	deploymentsCh := make(chan []views.DeploymentInfo, 10)
-	podsCh := make(chan []views.PodInfo, 10)
-	osdsCh := make(chan []views.OSDInfo, 10)
+	nodesCh := make(chan []k8s.NodeInfo, 10)
+	deploymentsCh := make(chan []k8s.DeploymentInfo, 10)
+	podsCh := make(chan []k8s.PodInfo, 10)
+	osdsCh := make(chan []k8s.OSDInfo, 10)
 	headerCh := make(chan *components.ClusterHeaderData, 10)
 
 	// Start aggregator
@@ -481,7 +480,7 @@ func TestLsMonitorAggregatorChannelFull(t *testing.T) {
 
 	// Send multiple updates quickly without draining
 	for i := 0; i < 5; i++ {
-		nodesCh <- []views.NodeInfo{
+		nodesCh <- []k8s.NodeInfo{
 			{Name: "test-node", Status: "Ready"},
 		}
 	}
