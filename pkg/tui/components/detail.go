@@ -4,7 +4,6 @@ package components
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/andri/crook/pkg/k8s"
 	"github.com/andri/crook/pkg/tui/format"
@@ -235,7 +234,7 @@ func (d *DetailPanel) renderNodeContent() {
 	}
 
 	d.addField("Ceph Pods", fmt.Sprintf("%d", node.CephPodCount))
-	d.addField("Age", formatAge(node.Age.Duration()))
+	d.addField("Age", node.Age.String())
 
 	d.content = append(d.content, "")
 	d.addRelatedResources()
@@ -273,7 +272,7 @@ func (d *DetailPanel) renderDeploymentContent() {
 		d.addField("Node", dep.NodeName)
 	}
 
-	d.addField("Age", formatAge(dep.Age.Duration()))
+	d.addField("Age", dep.Age.String())
 
 	d.content = append(d.content, "")
 	d.addRelatedResources()
@@ -372,7 +371,7 @@ func (d *DetailPanel) renderPodContent() {
 		d.addField("Deployment", pod.OwnerDeployment)
 	}
 
-	d.addField("Age", formatAge(pod.Age.Duration()))
+	d.addField("Age", pod.Age.String())
 
 	d.content = append(d.content, "")
 	d.addRelatedResources()
@@ -568,25 +567,4 @@ func (d *DetailPanel) getTitle() string {
 		}
 	}
 	return "Details"
-}
-
-// formatAge formats a duration as a human-readable age string
-func formatAge(d time.Duration) string {
-	if d < time.Minute {
-		return fmt.Sprintf("%ds", int(d.Seconds()))
-	}
-	if d < time.Hour {
-		return fmt.Sprintf("%dm", int(d.Minutes()))
-	}
-	if d < 24*time.Hour {
-		return fmt.Sprintf("%dh", int(d.Hours()))
-	}
-	days := int(d.Hours() / 24)
-	if days < 30 {
-		return fmt.Sprintf("%dd", days)
-	}
-	if days < 365 {
-		return fmt.Sprintf("%dmo", days/30)
-	}
-	return fmt.Sprintf("%dy", days/365)
 }

@@ -4,7 +4,6 @@ package views
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/andri/crook/pkg/k8s"
 	"github.com/andri/crook/pkg/tui/format"
@@ -283,7 +282,7 @@ func (v *NodesView) renderRow(node k8s.NodeInfo, selected bool) string {
 		v.renderCephPodCount(node.CephPodCount, selected, layout.cephPods),
 	)
 	if layout.showAge {
-		cols = append(cols, styles.StyleSubtle.Render(format.PadRight(formatAge(node.Age.Duration()), layout.age)))
+		cols = append(cols, styles.StyleSubtle.Render(format.PadRight(node.Age.String(), layout.age)))
 	}
 
 	return strings.Join(cols, " ")
@@ -376,25 +375,4 @@ func (v *NodesView) GetSelectedNode() *k8s.NodeInfo {
 		return &v.nodes[v.cursor]
 	}
 	return nil
-}
-
-// formatAge formats a duration as a human-readable age string
-func formatAge(d time.Duration) string {
-	if d < time.Minute {
-		return fmt.Sprintf("%ds", int(d.Seconds()))
-	}
-	if d < time.Hour {
-		return fmt.Sprintf("%dm", int(d.Minutes()))
-	}
-	if d < 24*time.Hour {
-		return fmt.Sprintf("%dh", int(d.Hours()))
-	}
-	days := int(d.Hours() / 24)
-	if days < 30 {
-		return fmt.Sprintf("%dd", days)
-	}
-	if days < 365 {
-		return fmt.Sprintf("%dmo", days/30)
-	}
-	return fmt.Sprintf("%dy", days/365)
 }

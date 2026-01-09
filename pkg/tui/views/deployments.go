@@ -279,7 +279,7 @@ func (v *DeploymentsView) renderRow(dep k8s.DeploymentInfo, selected bool) strin
 		styles.StyleSubtle.Render(format.PadRight(dep.Namespace, namespaceColWidth)),
 		readyStyle.Render(format.PadRight(readyStr, readyColWidth)),
 		styles.StyleNormal.Render(format.PadRight(nodeName, nodeColWidth)),
-		styles.StyleSubtle.Render(format.PadRight(formatAge(dep.Age.Duration()), ageColWidth)),
+		styles.StyleSubtle.Render(format.PadRight(dep.Age.String(), ageColWidth)),
 		statusStyle.Render(format.PadRight(dep.Status, statusColWidth)),
 	}
 

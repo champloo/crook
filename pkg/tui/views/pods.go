@@ -220,7 +220,7 @@ func (v *PodsView) renderRow(pod k8s.PodInfo, selected bool) string {
 		statusStyle.Render(format.PadRight(pod.Status, 12)),
 		readyStyle.Render(format.PadRight(readyStr, 8)),
 		restartStyle.Render(format.PadRight(restartStr, 10)),
-		styles.StyleSubtle.Render(format.PadRight(formatAge(pod.Age.Duration()), 8)),
+		styles.StyleSubtle.Render(format.PadRight(pod.Age.String(), 8)),
 	}
 
 	return strings.Join(cols, " ")

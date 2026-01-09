@@ -16,11 +16,6 @@ func (d Duration) MarshalJSON() ([]byte, error) {
 	return json.Marshal(duration.HumanDuration(time.Duration(d)))
 }
 
-// Duration returns the underlying time.Duration value
-func (d Duration) Duration() time.Duration {
-	return time.Duration(d)
-}
-
 // String returns a human-readable representation of the duration (Kubernetes style)
 func (d Duration) String() string {
 	return duration.HumanDuration(time.Duration(d))

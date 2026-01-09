@@ -245,25 +245,3 @@ func TestNodesView_GetSelectedNode(t *testing.T) {
 		t.Errorf("selected node = %s, want node-2", selected.Name)
 	}
 }
-
-func TestFormatAge(t *testing.T) {
-	tests := []struct {
-		duration time.Duration
-		expected string
-	}{
-		{30 * time.Second, "30s"},
-		{5 * time.Minute, "5m"},
-		{2 * time.Hour, "2h"},
-		{24 * time.Hour, "1d"},
-		{72 * time.Hour, "3d"},
-		{45 * 24 * time.Hour, "1mo"},
-		{400 * 24 * time.Hour, "1y"},
-	}
-
-	for _, tt := range tests {
-		result := formatAge(tt.duration)
-		if result != tt.expected {
-			t.Errorf("formatAge(%v) = %s, want %s", tt.duration, result, tt.expected)
-		}
-	}
-}
