@@ -52,6 +52,7 @@ func LoadConfig(opts LoadOptions) (LoadResult, error) {
 	if unmarshalErr := v.Unmarshal(&cfg); unmarshalErr != nil {
 		return LoadResult{}, fmt.Errorf("unmarshal config: %w", unmarshalErr)
 	}
+	applyKubernetesDefaults(v, &cfg)
 	applyNamespaceOverride(v, &cfg)
 
 	validation := ValidateConfig(cfg)
@@ -105,9 +106,9 @@ func BindFlags(v *viper.Viper, flags *pflag.FlagSet) error {
 func setDefaults(v *viper.Viper) {
 	defaults := DefaultConfig()
 
-	v.SetDefault("kubernetes.rook-operator-namespace", defaults.Kubernetes.RookOperatorNamespace)
-	v.SetDefault("kubernetes.rook-cluster-namespace", defaults.Kubernetes.RookClusterNamespace)
-	v.SetDefault("kubernetes.context", defaults.Kubernetes.Context)
+	// Note: kubernetes.* settings are NOT set here as viper defaults.
+	// They're handled via CLI flags and applied directly to the Config struct.
+	// This prevents detectUnknownKeys from seeing them as config file entries.
 
 	v.SetDefault("ui.theme", defaults.UI.Theme)
 	v.SetDefault("ui.progress-refresh-ms", defaults.UI.ProgressRefreshMS)
@@ -178,6 +179,29 @@ func defaultConfigFiles() []string {
 	return files
 }
 
+// applyKubernetesDefaults applies default values for kubernetes settings.
+// These are handled via CLI flags only, not config files, so we apply defaults
+// directly to the Config struct after unmarshaling.
+func applyKubernetesDefaults(v *viper.Viper, cfg *Config) {
+	if cfg == nil {
+		return
+	}
+	defaults := DefaultConfig()
+
+	// Check for flag or env overrides first, otherwise use defaults
+	if operatorNS := strings.TrimSpace(v.GetString("kubernetes.rook-operator-namespace")); operatorNS != "" {
+		cfg.Kubernetes.RookOperatorNamespace = operatorNS
+	} else if cfg.Kubernetes.RookOperatorNamespace == "" {
+		cfg.Kubernetes.RookOperatorNamespace = defaults.Kubernetes.RookOperatorNamespace
+	}
+
+	if clusterNS := strings.TrimSpace(v.GetString("kubernetes.rook-cluster-namespace")); clusterNS != "" {
+		cfg.Kubernetes.RookClusterNamespace = clusterNS
+	} else if cfg.Kubernetes.RookClusterNamespace == "" {
+		cfg.Kubernetes.RookClusterNamespace = defaults.Kubernetes.RookClusterNamespace
+	}
+}
+
 func applyNamespaceOverride(v *viper.Viper, cfg *Config) {
 	if cfg == nil {
 		return
@@ -190,19 +214,14 @@ func applyNamespaceOverride(v *viper.Viper, cfg *Config) {
 	cfg.Kubernetes.RookClusterNamespace = namespace
 }
 
-// knownConfigKeys returns the set of all valid configuration keys
+// knownConfigKeys returns the set of all valid configuration keys for config FILES.
+// Note: kubernetes.* keys are handled via CLI flags only, not config files.
 func knownConfigKeys() map[string]bool {
 	return map[string]bool{
-		// Top-level sections
-		"kubernetes": true,
-		"ui":         true,
-		"timeouts":   true,
-		"logging":    true,
-
-		// kubernetes section
-		"kubernetes.rook-operator-namespace": true,
-		"kubernetes.rook-cluster-namespace":  true,
-		"kubernetes.context":                 true,
+		// Top-level sections (kubernetes not allowed in config files)
+		"ui":       true,
+		"timeouts": true,
+		"logging":  true,
 
 		// ui section
 		"ui.theme":                     true,

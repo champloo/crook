@@ -34,25 +34,14 @@ func TestLoadConfigDefaults(t *testing.T) {
 	}
 }
 
-func TestLoadConfigPrecedence(t *testing.T) {
-	tempDir := t.TempDir()
-	configPath := filepath.Join(tempDir, "config.yaml")
-	configContents := []byte(`kubernetes:
-  rook-operator-namespace: file-op
-`)
-	if err := os.WriteFile(configPath, configContents, 0o600); err != nil {
-		t.Fatalf("write config file: %v", err)
-	}
-
+func TestLoadConfigFlagOverridesDefault(t *testing.T) {
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	flags.String("rook-operator-namespace", "", "")
 	if err := flags.Set("rook-operator-namespace", "flag-op"); err != nil {
 		t.Fatalf("set flag: %v", err)
 	}
 
-	t.Setenv("CROOK_KUBERNETES_ROOK_OPERATOR_NAMESPACE", "env-op")
-
-	result, err := config.LoadConfig(config.LoadOptions{ConfigFile: configPath, Flags: flags})
+	result, err := config.LoadConfig(config.LoadOptions{Flags: flags})
 	if err != nil {
 		t.Fatalf("load config: %v", err)
 	}
@@ -64,23 +53,13 @@ func TestLoadConfigPrecedence(t *testing.T) {
 }
 
 func TestLoadConfigNamespaceOverride(t *testing.T) {
-	tempDir := t.TempDir()
-	configPath := filepath.Join(tempDir, "config.yaml")
-	configContents := []byte(`kubernetes:
-  rook-operator-namespace: file-op
-  rook-cluster-namespace: file-cluster
-`)
-	if err := os.WriteFile(configPath, configContents, 0o600); err != nil {
-		t.Fatalf("write config file: %v", err)
-	}
-
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	flags.String("namespace", "", "")
 	if err := flags.Set("namespace", "shared"); err != nil {
 		t.Fatalf("set flag: %v", err)
 	}
 
-	result, err := config.LoadConfig(config.LoadOptions{ConfigFile: configPath, Flags: flags})
+	result, err := config.LoadConfig(config.LoadOptions{Flags: flags})
 	if err != nil {
 		t.Fatalf("load config: %v", err)
 	}
@@ -108,11 +87,12 @@ func TestLoadConfigFromFileFixture(t *testing.T) {
 	}
 
 	cfg := result.Config
-	if cfg.Kubernetes.RookOperatorNamespace != "custom-operator" {
-		t.Fatalf("expected operator namespace from file, got %q", cfg.Kubernetes.RookOperatorNamespace)
+	// Kubernetes values should use defaults (not allowed in config files)
+	if cfg.Kubernetes.RookOperatorNamespace != config.DefaultRookNamespace {
+		t.Fatalf("expected default operator namespace, got %q", cfg.Kubernetes.RookOperatorNamespace)
 	}
-	if cfg.Kubernetes.RookClusterNamespace != "custom-cluster" {
-		t.Fatalf("expected cluster namespace from file, got %q", cfg.Kubernetes.RookClusterNamespace)
+	if cfg.Kubernetes.RookClusterNamespace != config.DefaultRookNamespace {
+		t.Fatalf("expected default cluster namespace, got %q", cfg.Kubernetes.RookClusterNamespace)
 	}
 	if cfg.UI.Theme != "neon" {
 		t.Fatalf("expected ui theme from file, got %q", cfg.UI.Theme)
@@ -135,8 +115,9 @@ func TestLoadConfigPartialUsesDefaults(t *testing.T) {
 	}
 
 	cfg := result.Config
-	if cfg.Kubernetes.RookOperatorNamespace != "partial-operator" {
-		t.Fatalf("expected operator namespace from file, got %q", cfg.Kubernetes.RookOperatorNamespace)
+	// Kubernetes values should use defaults (not allowed in config files)
+	if cfg.Kubernetes.RookOperatorNamespace != config.DefaultRookNamespace {
+		t.Fatalf("expected default operator namespace, got %q", cfg.Kubernetes.RookOperatorNamespace)
 	}
 	if cfg.Kubernetes.RookClusterNamespace != config.DefaultRookNamespace {
 		t.Fatalf("expected default cluster namespace, got %q", cfg.Kubernetes.RookClusterNamespace)
@@ -149,7 +130,7 @@ func TestLoadConfigPartialUsesDefaults(t *testing.T) {
 	}
 }
 
-func TestLoadConfigEnvOverridesFile(t *testing.T) {
+func TestLoadConfigEnvOverridesDefault(t *testing.T) {
 	t.Setenv("CROOK_KUBERNETES_ROOK_OPERATOR_NAMESPACE", "env-operator")
 	t.Setenv("CROOK_UI_PROGRESS_REFRESH_MS", "220")
 
@@ -173,11 +154,11 @@ func TestLoadConfigConfigFileDiscovery(t *testing.T) {
 	first := filepath.Join(tempDir, "first.yaml")
 	second := filepath.Join(tempDir, "second.yaml")
 
-	firstContents := []byte("kubernetes:\n  rook-operator-namespace: first\n")
+	firstContents := []byte("logging:\n  level: debug\n")
 	if err := os.WriteFile(first, firstContents, 0o600); err != nil {
 		t.Fatalf("write first config: %v", err)
 	}
-	secondContents := []byte("kubernetes:\n  rook-operator-namespace: second\n")
+	secondContents := []byte("logging:\n  level: warn\n")
 	if err := os.WriteFile(second, secondContents, 0o600); err != nil {
 		t.Fatalf("write second config: %v", err)
 	}
@@ -186,8 +167,8 @@ func TestLoadConfigConfigFileDiscovery(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load config: %v", err)
 	}
-	if result.Config.Kubernetes.RookOperatorNamespace != "first" {
-		t.Fatalf("expected first config file to win, got %q", result.Config.Kubernetes.RookOperatorNamespace)
+	if result.Config.Logging.Level != "debug" {
+		t.Fatalf("expected first config file to win, got %q", result.Config.Logging.Level)
 	}
 	if result.ConfigFileUsed != first {
 		t.Fatalf("expected ConfigFileUsed %q, got %q", first, result.ConfigFileUsed)
@@ -208,7 +189,7 @@ func TestLoadConfigNoConfigFileFound(t *testing.T) {
 func TestLoadConfigInvalidYAML(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "invalid.yaml")
-	if err := os.WriteFile(configPath, []byte("kubernetes: ["), 0o600); err != nil {
+	if err := os.WriteFile(configPath, []byte("ui: ["), 0o600); err != nil {
 		t.Fatalf("write config file: %v", err)
 	}
 
@@ -222,8 +203,8 @@ func TestLoadConfigUnknownTopLevelKey(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.yaml")
 	// unknown-section is not a valid config key
-	configContents := []byte(`kubernetes:
-  rook-operator-namespace: test
+	configContents := []byte(`logging:
+  level: info
 unknown-section:
   foo: bar
 `)
@@ -250,12 +231,42 @@ unknown-section:
 	}
 }
 
+func TestLoadConfigKubernetesInConfigFileIsError(t *testing.T) {
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "config.yaml")
+	// kubernetes section is no longer allowed in config files
+	configContents := []byte(`kubernetes:
+  rook-operator-namespace: test
+`)
+	if err := os.WriteFile(configPath, configContents, 0o600); err != nil {
+		t.Fatalf("write config file: %v", err)
+	}
+
+	// kubernetes section should cause validation error
+	result, err := config.LoadConfig(config.LoadOptions{ConfigFile: configPath})
+	if err == nil {
+		t.Fatalf("expected error for kubernetes section in config file")
+	}
+
+	// Check that an error was reported for the kubernetes section
+	found := false
+	for _, errMsg := range result.Validation.Errors {
+		if strings.Contains(errMsg.Error(), "kubernetes") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected error for kubernetes section, got errors: %v", result.Validation.Errors)
+	}
+}
+
 func TestLoadConfigUnknownNestedKey(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.yaml")
-	// kubernetes.invalid-key is not a valid config key
-	configContents := []byte(`kubernetes:
-  rook-operator-namespace: test
+	// ui.invalid-key is not a valid config key
+	configContents := []byte(`ui:
+  theme: default
   invalid-key: some-value
 `)
 	if err := os.WriteFile(configPath, configContents, 0o600); err != nil {
@@ -271,22 +282,22 @@ func TestLoadConfigUnknownNestedKey(t *testing.T) {
 	// Check that an error was reported for the unknown nested key
 	found := false
 	for _, errMsg := range result.Validation.Errors {
-		if strings.Contains(errMsg.Error(), "kubernetes.invalid-key") {
+		if strings.Contains(errMsg.Error(), "ui.invalid-key") {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Errorf("expected error for kubernetes.invalid-key, got errors: %v", result.Validation.Errors)
+		t.Errorf("expected error for ui.invalid-key, got errors: %v", result.Validation.Errors)
 	}
 }
 
 func TestLoadConfigTypoInKnownKey(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.yaml")
-	// rook-operator-namesapce is a typo of rook-operator-namespace
-	configContents := []byte(`kubernetes:
-  rook-operator-namesapce: typo-value
+	// progres-refresh-ms is a typo of progress-refresh-ms
+	configContents := []byte(`ui:
+  progres-refresh-ms: 200
 `)
 	if err := os.WriteFile(configPath, configContents, 0o600); err != nil {
 		t.Fatalf("write config file: %v", err)
@@ -301,7 +312,7 @@ func TestLoadConfigTypoInKnownKey(t *testing.T) {
 	// Check that an error was reported for the typo
 	found := false
 	for _, errMsg := range result.Validation.Errors {
-		if strings.Contains(errMsg.Error(), "rook-operator-namesapce") {
+		if strings.Contains(errMsg.Error(), "progres-refresh-ms") {
 			found = true
 			break
 		}

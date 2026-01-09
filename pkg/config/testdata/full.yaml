@@ -1,8 +1,3 @@
-kubernetes:
-  rook-operator-namespace: custom-operator
-  rook-cluster-namespace: custom-cluster
-  context: test-context
-
 ui:
   theme: neon
   progress-refresh-ms: 150

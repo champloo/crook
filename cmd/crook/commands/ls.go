@@ -126,7 +126,6 @@ func runLs(opts *LsOptions) error {
 
 	// Initialize Kubernetes client with config-derived settings
 	client, err := k8s.NewClient(ctx, k8s.ClientConfig{
-		Context:            cfg.Kubernetes.Context,
 		CephCommandTimeout: time.Duration(cfg.Timeouts.CephCommandTimeoutSeconds) * time.Second,
 	})
 	if err != nil {

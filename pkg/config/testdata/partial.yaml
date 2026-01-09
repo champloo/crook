@@ -1,5 +1,2 @@
-kubernetes:
-  rook-operator-namespace: partial-operator
-
 ui:
   theme: minimal

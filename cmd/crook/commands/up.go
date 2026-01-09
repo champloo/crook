@@ -72,7 +72,6 @@ func runUp(ctx context.Context, nodeName string, opts *UpOptions) error {
 	// Initialize Kubernetes client
 	logger.Info("connecting to kubernetes cluster")
 	client, err := k8s.NewClient(ctx, k8s.ClientConfig{
-		Context:            cfg.Kubernetes.Context,
 		CephCommandTimeout: time.Duration(cfg.Timeouts.CephCommandTimeoutSeconds) * time.Second,
 	})
 	if err != nil {
