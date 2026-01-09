@@ -116,7 +116,6 @@ func TestParseResourceTypes(t *testing.T) {
 }
 
 func createTestData() *output.Data {
-	fiveDays := k8s.Duration(5 * 24 * time.Hour)
 	return &output.Data{
 		ClusterHealth: &output.ClusterHealth{
 			Status:       "HEALTH_OK",
@@ -137,7 +136,7 @@ func createTestData() *output.Data {
 				Schedulable:    true,
 				Cordoned:       false,
 				CephPodCount:   3,
-				Age:            fiveDays,
+				Age:            "5d",
 				KubeletVersion: "v1.28.0",
 			},
 			{
@@ -147,7 +146,7 @@ func createTestData() *output.Data {
 				Schedulable:    false,
 				Cordoned:       true,
 				CephPodCount:   2,
-				Age:            fiveDays,
+				Age:            "5d",
 				KubeletVersion: "v1.28.0",
 			},
 		},
@@ -158,7 +157,7 @@ func createTestData() *output.Data {
 				ReadyReplicas:   1,
 				DesiredReplicas: 1,
 				NodeName:        "worker-1",
-				Age:             fiveDays,
+				Age:             "5d",
 				Status:          "Ready",
 				Type:            "osd",
 				OsdID:           "0",
@@ -186,7 +185,7 @@ func createTestData() *output.Data {
 				TotalContainers: 1,
 				Restarts:        0,
 				NodeName:        "worker-1",
-				Age:             fiveDays,
+				Age:             "5d",
 				Type:            "osd",
 				IP:              "10.0.0.1",
 				OwnerDeployment: "rook-ceph-osd-0",

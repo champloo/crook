@@ -2,7 +2,6 @@ package views_test
 
 import (
 	"testing"
-	"time"
 
 	"github.com/andri/crook/pkg/k8s"
 
@@ -206,12 +205,12 @@ func TestDeploymentsPodsView_View(t *testing.T) {
 	v.SetSize(100, 20)
 
 	deployments := []k8s.DeploymentInfo{
-		{Name: "test-deployment", Namespace: "ns", Status: "Ready", Age: k8s.Duration(time.Hour)},
+		{Name: "test-deployment", Namespace: "ns", Status: "Ready", Age: "60m"},
 	}
 	v.SetDeployments(deployments)
 
 	pods := []k8s.PodInfo{
-		{Name: "test-pod", Namespace: "ns", Status: "Running", Age: k8s.Duration(time.Hour)},
+		{Name: "test-pod", Namespace: "ns", Status: "Running", Age: "60m"},
 	}
 	v.SetPods(pods)
 

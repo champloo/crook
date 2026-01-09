@@ -9,6 +9,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/duration"
 )
 
 // DefaultRookCephPrefixes returns the deployment name prefixes for Rook-Ceph components.
@@ -208,8 +209,8 @@ type DeploymentInfo struct {
 	// NodeName is the node where the deployment's pod runs
 	NodeName string `json:"node_name,omitempty"`
 
-	// Age is the time since the deployment was created
-	Age Duration `json:"age"`
+	// Age is the human-readable time since the deployment was created
+	Age string `json:"age"`
 
 	// Status is the deployment status (Ready/Scaling/Unavailable)
 	Status string `json:"status"`
@@ -286,7 +287,7 @@ func (c *Client) ListCephDeployments(ctx context.Context, namespace string) ([]D
 			ReadyReplicas:   dep.Status.ReadyReplicas,
 			DesiredReplicas: getDeploymentDesiredReplicas(&dep),
 			NodeName:        nodeName,
-			Age:             Duration(now.Sub(dep.CreationTimestamp.Time)),
+			Age:             duration.HumanDuration(now.Sub(dep.CreationTimestamp.Time)),
 			Status:          getDeploymentStatusString(&dep),
 			Type:            extractDeploymentType(dep.Name),
 			OsdID:           extractOsdID(&dep),

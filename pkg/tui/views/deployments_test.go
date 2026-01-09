@@ -3,7 +3,6 @@ package views
 import (
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/andri/crook/pkg/k8s"
 
@@ -127,7 +126,7 @@ func TestDeploymentsView_View(t *testing.T) {
 			DesiredReplicas: 1,
 			NodeName:        "worker-1",
 			Status:          "Ready",
-			Age:             k8s.Duration(24 * time.Hour),
+			Age:             "1d",
 		},
 		{
 			Name:            "rook-ceph-mon-a",
@@ -137,7 +136,7 @@ func TestDeploymentsView_View(t *testing.T) {
 			DesiredReplicas: 1,
 			NodeName:        "worker-2",
 			Status:          "Ready",
-			Age:             k8s.Duration(48 * time.Hour),
+			Age:             "2d",
 		},
 		{
 			Name:            "rook-ceph-crashcollector",
@@ -146,7 +145,7 @@ func TestDeploymentsView_View(t *testing.T) {
 			ReadyReplicas:   0,
 			DesiredReplicas: 0,
 			Status:          "Scaled Down",
-			Age:             k8s.Duration(72 * time.Hour),
+			Age:             "3d",
 		},
 	}
 	v.SetDeployments(deployments)

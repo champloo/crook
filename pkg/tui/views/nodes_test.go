@@ -3,7 +3,6 @@ package views
 import (
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/andri/crook/pkg/k8s"
 
@@ -133,7 +132,7 @@ func TestNodesView_View(t *testing.T) {
 			Roles:        []string{"worker"},
 			Cordoned:     false,
 			CephPodCount: 3,
-			Age:          k8s.Duration(24 * time.Hour),
+			Age:          "1d",
 		},
 		{
 			Name:         "control-plane-1",
@@ -141,7 +140,7 @@ func TestNodesView_View(t *testing.T) {
 			Roles:        []string{"control-plane"},
 			Cordoned:     true,
 			CephPodCount: 1,
-			Age:          k8s.Duration(48 * time.Hour),
+			Age:          "2d",
 		},
 	}
 	v.SetNodes(nodes)

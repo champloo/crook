@@ -3,7 +3,6 @@ package components_test
 import (
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/andri/crook/pkg/k8s"
 
@@ -32,7 +31,7 @@ func TestDetailPanel_ShowNode(t *testing.T) {
 		Schedulable:    true,
 		Cordoned:       false,
 		CephPodCount:   3,
-		Age:            k8s.Duration(5 * 24 * time.Hour),
+		Age:            "5d",
 		KubeletVersion: "v1.28.0",
 	}
 
@@ -71,7 +70,7 @@ func TestDetailPanel_ShowDeployment(t *testing.T) {
 		ReadyReplicas:   1,
 		DesiredReplicas: 1,
 		NodeName:        "worker-1",
-		Age:             k8s.Duration(5 * 24 * time.Hour),
+		Age:             "5d",
 		Status:          "Ready",
 		Type:            "osd",
 		OsdID:           "0",
@@ -136,7 +135,7 @@ func TestDetailPanel_ShowPod(t *testing.T) {
 		TotalContainers: 1,
 		Restarts:        0,
 		NodeName:        "worker-1",
-		Age:             k8s.Duration(5 * 24 * time.Hour),
+		Age:             "5d",
 		Type:            "osd",
 		IP:              "10.0.0.1",
 		OwnerDeployment: "rook-ceph-osd-0",

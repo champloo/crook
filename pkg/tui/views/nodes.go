@@ -282,7 +282,7 @@ func (v *NodesView) renderRow(node k8s.NodeInfo, selected bool) string {
 		v.renderCephPodCount(node.CephPodCount, selected, layout.cephPods),
 	)
 	if layout.showAge {
-		cols = append(cols, styles.StyleSubtle.Render(format.PadRight(node.Age.String(), layout.age)))
+		cols = append(cols, styles.StyleSubtle.Render(format.PadRight(node.Age, layout.age)))
 	}
 
 	return strings.Join(cols, " ")

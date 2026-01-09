@@ -234,7 +234,7 @@ func (d *DetailPanel) renderNodeContent() {
 	}
 
 	d.addField("Ceph Pods", fmt.Sprintf("%d", node.CephPodCount))
-	d.addField("Age", node.Age.String())
+	d.addField("Age", node.Age)
 
 	d.content = append(d.content, "")
 	d.addRelatedResources()
@@ -272,7 +272,7 @@ func (d *DetailPanel) renderDeploymentContent() {
 		d.addField("Node", dep.NodeName)
 	}
 
-	d.addField("Age", dep.Age.String())
+	d.addField("Age", dep.Age)
 
 	d.content = append(d.content, "")
 	d.addRelatedResources()
@@ -371,7 +371,7 @@ func (d *DetailPanel) renderPodContent() {
 		d.addField("Deployment", pod.OwnerDeployment)
 	}
 
-	d.addField("Age", pod.Age.String())
+	d.addField("Age", pod.Age)
 
 	d.content = append(d.content, "")
 	d.addRelatedResources()

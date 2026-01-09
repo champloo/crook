@@ -9,6 +9,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/duration"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/remotecommand"
 
@@ -216,8 +217,8 @@ type PodInfo struct {
 	// NodeName is the node where the pod runs
 	NodeName string `json:"node_name"`
 
-	// Age is the time since the pod was created
-	Age Duration `json:"age"`
+	// Age is the human-readable time since the pod was created
+	Age string `json:"age"`
 
 	// Type is the pod type (osd/mon/exporter/crashcollector)
 	Type string `json:"type"`
@@ -274,7 +275,7 @@ func (c *Client) ListCephPods(ctx context.Context, namespace string, nodeFilter 
 			TotalContainers: totalContainers,
 			Restarts:        restarts,
 			NodeName:        pod.Spec.NodeName,
-			Age:             Duration(now.Sub(pod.CreationTimestamp.Time)),
+			Age:             duration.HumanDuration(now.Sub(pod.CreationTimestamp.Time)),
 			Type:            extractPodType(pod.Name),
 			IP:              pod.Status.PodIP,
 			OwnerDeployment: ownerDeployment,

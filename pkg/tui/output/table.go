@@ -206,7 +206,7 @@ func (tw *TableWriter) writeNodesTable(nodes []k8s.NodeInfo) {
 			{value: rolesStr},
 			{value: scheduleStr, color: scheduleColor},
 			{value: fmt.Sprintf("%d", node.CephPodCount)},
-			{value: node.Age.String()},
+			{value: node.Age},
 		}
 		tw.writeTableRow(cols, row)
 	}
@@ -256,7 +256,7 @@ func (tw *TableWriter) writeDeploymentsTable(deployments []k8s.DeploymentInfo) {
 			{value: dep.Namespace},
 			{value: readyStr, color: readyColor},
 			{value: nodeName},
-			{value: dep.Age.String()},
+			{value: dep.Age},
 			{value: dep.Status, color: statusColor},
 		}
 		tw.writeTableRow(cols, row)
@@ -367,7 +367,7 @@ func (tw *TableWriter) writePodsTable(pods []k8s.PodInfo) {
 			{value: pod.Status, color: statusColor},
 			{value: readyStr, color: readyColor},
 			{value: fmt.Sprintf("%d", pod.Restarts), color: restartColor},
-			{value: pod.Age.String()},
+			{value: pod.Age},
 		}
 		tw.writeTableRow(cols, row)
 	}

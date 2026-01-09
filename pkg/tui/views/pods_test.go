@@ -3,7 +3,6 @@ package views
 import (
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/andri/crook/pkg/k8s"
 )
@@ -78,7 +77,7 @@ func TestPodsView_View_WithPods(t *testing.T) {
 			TotalContainers: 2,
 			Restarts:        0,
 			NodeName:        "worker-01",
-			Age:             k8s.Duration(24 * time.Hour),
+			Age:             "1d",
 		},
 	}
 

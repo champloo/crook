@@ -9,6 +9,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/duration"
 )
 
 // NodeStatus holds the status information for a node
@@ -140,8 +141,8 @@ type NodeInfo struct {
 	// CephPodCount is the number of Ceph pods on this node
 	CephPodCount int `json:"ceph_pod_count"`
 
-	// Age is the time since the node was created
-	Age Duration `json:"age"`
+	// Age is the human-readable time since the node was created
+	Age string `json:"age"`
 
 	// KubeletVersion is the kubelet version
 	KubeletVersion string `json:"kubelet_version"`
@@ -185,7 +186,7 @@ func (c *Client) ListNodesWithCephPods(ctx context.Context, namespace string) ([
 			Schedulable:    !node.Spec.Unschedulable,
 			Cordoned:       node.Spec.Unschedulable,
 			CephPodCount:   nodePodCounts[node.Name],
-			Age:            Duration(now.Sub(node.CreationTimestamp.Time)),
+			Age:            duration.HumanDuration(now.Sub(node.CreationTimestamp.Time)),
 			KubeletVersion: node.Status.NodeInfo.KubeletVersion,
 		}
 		result = append(result, info)
