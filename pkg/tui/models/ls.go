@@ -697,12 +697,6 @@ func (m *LsModel) handleCursorKey(key string) bool {
 	case "k", "up":
 		m.updateActiveViewCursor(-1)
 		return true
-	case "g":
-		m.setActiveViewCursor(0)
-		return true
-	case "G":
-		m.setActiveViewCursor(m.getMaxCursor())
-		return true
 	default:
 		return false
 	}
@@ -713,8 +707,6 @@ func (m *LsModel) handleActionKey(key string) (tea.Cmd, bool) {
 	case "r":
 		tab := m.activeTab
 		return func() tea.Msg { return LsRefreshMsg{Tab: tab} }, true
-	case "enter":
-		return nil, true
 	case "d":
 		if m.activePane != LsPaneNodes {
 			return nil, true
@@ -822,19 +814,6 @@ func (m *LsModel) updateDataCount(msg LsDataUpdateMsg) {
 	}
 }
 
-// getMaxCursor returns the maximum cursor position for the current pane
-func (m *LsModel) getMaxCursor() int {
-	switch m.activePane {
-	case LsPaneNodes:
-		return max(0, m.nodeCount-1)
-	case LsPaneDeployments:
-		return max(0, m.deploymentsPodsView.Count()-1)
-	case LsPaneOSDs:
-		return max(0, m.osdCount-1)
-	}
-	return 0
-}
-
 // updateActiveViewCursor moves the cursor in the active view by delta
 func (m *LsModel) updateActiveViewCursor(delta int) {
 	switch m.activePane {
@@ -853,18 +832,6 @@ func (m *LsModel) updateActiveViewCursor(delta int) {
 		if newCursor >= 0 && newCursor < m.osdsView.Count() {
 			m.osdsView.SetCursor(newCursor)
 		}
-	}
-}
-
-// setActiveViewCursor sets the cursor position in the active view
-func (m *LsModel) setActiveViewCursor(pos int) {
-	switch m.activePane {
-	case LsPaneNodes:
-		m.nodesView.SetCursor(pos)
-	case LsPaneDeployments:
-		m.deploymentsPodsView.SetCursor(pos)
-	case LsPaneOSDs:
-		m.osdsView.SetCursor(pos)
 	}
 }
 
@@ -1060,8 +1027,6 @@ func (m *LsModel) renderHelp() string {
 │    Tab, 1-3    Switch panes             │
 │    [, ]        Toggle deployments/pods  │
 │    j/k, ↑/↓    Move cursor              │
-│    g/G         Go to top/bottom         │
-│    Enter       View details             │
 │                                         │
 │  Actions                                │
 │    u/d         Up/down selected node    │

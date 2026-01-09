@@ -799,15 +799,15 @@ func (m *DownModel) renderFooter() string {
 
 	switch m.state { //nolint:exhaustive // default handles all operation states uniformly
 	case DownStateConfirm:
-		help = "y: proceed  n: cancel  ?: help"
+		help = "y: proceed  n: cancel"
 	case DownStateNothingToDo:
 		help = "Enter/q: exit"
 	case DownStateError:
-		help = "r: retry  q: quit  ?: help"
+		help = "r: retry  q: quit"
 	case DownStateComplete:
-		help = "Enter/q: exit  ?: help"
+		help = "Enter/q: exit"
 	default:
-		help = "Ctrl+C: cancel  ?: help"
+		help = "Ctrl+C: cancel"
 	}
 
 	return styles.StyleSubtle.Render(help)

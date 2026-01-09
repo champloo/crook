@@ -76,8 +76,6 @@ type AppModel struct {
 	upModel   SubModel
 
 	// Global state
-	showHelp       bool
-	showLogs       bool
 	sizeWarning    string
 	initError      error
 	quitting       bool
@@ -208,7 +206,7 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	// Delegate to current sub-model if initialized
-	if m.initialized && !m.showHelp {
+	if m.initialized {
 		subModel := m.currentSubModel()
 		if subModel != nil {
 			newModel, cmd := subModel.Update(msg)
@@ -231,44 +229,6 @@ func (m *AppModel) handleGlobalKeys(msg tea.KeyMsg) tea.Cmd {
 		// Graceful quit
 		m.quitting = true
 		return tea.Quit
-
-	case "?":
-		// Toggle help overlay
-		m.showHelp = !m.showHelp
-		return nil
-
-	case "l":
-		// Toggle log view (only when not showing help)
-		if !m.showHelp {
-			m.showLogs = !m.showLogs
-		}
-		return nil
-
-	case "esc":
-		if m.showHelp {
-			// Close help if open
-			m.showHelp = false
-			return nil
-		}
-		if m.showLogs {
-			// Close logs if open
-			m.showLogs = false
-			return nil
-		}
-		// Otherwise let the sub-model handle it
-		return nil
-
-	case "q":
-		// Quit if not in an active operation
-		// Sub-models can prevent this by handling 'q' themselves
-		if m.showHelp || m.showLogs {
-			return nil
-		}
-		if !m.showHelp && !m.showLogs {
-			m.quitting = true
-			return tea.Quit
-		}
-		return nil
 	}
 
 	return nil
@@ -283,16 +243,6 @@ func (m *AppModel) View() string {
 	// Show initialization error if any
 	if m.initError != nil {
 		return m.renderError()
-	}
-
-	// Show help overlay if active
-	if m.showHelp {
-		return m.renderHelp()
-	}
-
-	// Show logs overlay if active
-	if m.showLogs {
-		return m.renderLogs()
 	}
 
 	// Show loading state during initialization
@@ -328,56 +278,6 @@ func (m *AppModel) renderError() string {
 			m.initError.Error()))
 
 	return errorBox
-}
-
-// renderHelp displays the help overlay with keyboard shortcuts
-func (m *AppModel) renderHelp() string {
-	helpContent := fmt.Sprintf(`%s Keyboard Shortcuts
-
-%s Navigation
-  Enter     Confirm / Proceed
-  Esc       Cancel / Go back
-  %s / %s     Navigate lists
-
-%s Actions
-  y / n     Answer yes/no prompts
-  r         Retry failed operation
-  l         Toggle log view
-
-	%s Global
-	  Ctrl+C    Quit immediately
-	  ?         Show/hide this help
-	  q         Quit (when safe)
-
-Press Esc or ? to close this help.`,
-		styles.StyleHeading.Render("Help"),
-		styles.StyleStatus.Render(""),
-		styles.IconArrow, styles.IconArrow,
-		styles.StyleStatus.Render(""),
-		styles.StyleStatus.Render(""))
-
-	helpBox := styles.StyleBoxInfo.
-		Width(min(60, m.width-4)).
-		Render(helpContent)
-
-	return helpBox
-}
-
-// renderLogs displays the log view overlay
-func (m *AppModel) renderLogs() string {
-	logsContent := fmt.Sprintf(`%s Log View
-
-%s
-
-Press Esc or 'l' to close this view.`,
-		styles.StyleHeading.Render("Logs"),
-		styles.StyleSubtle.Render("No logs available yet. Logs will appear here during operations."))
-
-	logsBox := styles.StyleBoxInfo.
-		Width(min(70, m.width-4)).
-		Render(logsContent)
-
-	return logsBox
 }
 
 // renderLoading displays a loading indicator during initialization

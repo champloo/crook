@@ -125,111 +125,6 @@ func TestAppModel_Update_GlobalKeys_Quit(t *testing.T) {
 	}
 }
 
-func TestAppModel_Update_GlobalKeys_Q(t *testing.T) {
-	model := NewAppModel(AppConfig{
-		Route:   RouteDown,
-		Context: context.Background(),
-	})
-
-	// When help is open, q should not close help or quit.
-	model.showHelp = true
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}
-	updatedModel, cmd := model.Update(msg)
-	m, _ := updatedModel.(*AppModel)
-
-	if !m.showHelp {
-		t.Error("q should not close help overlay")
-	}
-	if cmd != nil {
-		t.Error("q should not quit while help is open")
-	}
-
-	// When no overlays are open, q should quit.
-	m.showHelp = false
-	updatedModel, cmd = m.Update(msg)
-	m, _ = updatedModel.(*AppModel)
-	if !m.quitting {
-		t.Error("q should set quitting to true when no overlays are open")
-	}
-	if cmd == nil {
-		t.Error("q should return a quit command when no overlays are open")
-	}
-}
-
-func TestAppModel_Update_GlobalKeys_Logs(t *testing.T) {
-	model := NewAppModel(AppConfig{
-		Route:   RouteDown,
-		Context: context.Background(),
-	})
-
-	// Test 'l' to toggle logs
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}}
-	updatedModel, _ := model.Update(msg)
-	m, _ := updatedModel.(*AppModel)
-
-	if !m.showLogs {
-		t.Error("'l' should toggle showLogs to true")
-	}
-
-	// Toggle off
-	updatedModel, _ = m.Update(msg)
-	m, _ = updatedModel.(*AppModel)
-
-	if m.showLogs {
-		t.Error("'l' again should toggle showLogs to false")
-	}
-}
-
-func TestAppModel_Update_GlobalKeys_LogsNotWhileHelp(t *testing.T) {
-	model := NewAppModel(AppConfig{
-		Route:   RouteDown,
-		Context: context.Background(),
-	})
-	model.showHelp = true
-
-	// 'l' should not toggle logs when help is showing
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}}
-	updatedModel, _ := model.Update(msg)
-	m, _ := updatedModel.(*AppModel)
-
-	if m.showLogs {
-		t.Error("'l' should not toggle logs when help is showing")
-	}
-}
-
-func TestAppModel_Update_EscapeClosesLogs(t *testing.T) {
-	model := NewAppModel(AppConfig{
-		Route:   RouteDown,
-		Context: context.Background(),
-	})
-	model.showLogs = true
-
-	// Test esc to close logs
-	msg := tea.KeyMsg{Type: tea.KeyEsc}
-	updatedModel, _ := model.Update(msg)
-	m, _ := updatedModel.(*AppModel)
-
-	if m.showLogs {
-		t.Error("esc should close logs overlay")
-	}
-}
-
-func TestAppModel_View_Logs(t *testing.T) {
-	model := NewAppModel(AppConfig{
-		Route:   RouteDown,
-		Context: context.Background(),
-	})
-	model.showLogs = true
-	model.width = 80
-	model.height = 24
-
-	view := model.View()
-
-	if !contains(view, "Log View") {
-		t.Errorf("Logs view should contain 'Log View', got %q", view)
-	}
-}
-
 func TestAppModel_View_SizeWarning(t *testing.T) {
 	model := NewAppModel(AppConfig{
 		Route:   RouteDown,
@@ -247,49 +142,6 @@ func TestAppModel_View_SizeWarning(t *testing.T) {
 
 	if !contains(view, "narrow") {
 		t.Errorf("View should show size warning, got %q", view)
-	}
-}
-
-func TestAppModel_Update_GlobalKeys_Help(t *testing.T) {
-	model := NewAppModel(AppConfig{
-		Route:   RouteDown,
-		Context: context.Background(),
-	})
-
-	// Test ? to toggle help
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}}
-	updatedModel, _ := model.Update(msg)
-	m, _ := updatedModel.(*AppModel)
-
-	if !m.showHelp {
-		t.Error("? should toggle showHelp to true")
-	}
-
-	// Toggle off
-	updatedModel, _ = m.Update(msg)
-	m, _ = updatedModel.(*AppModel)
-
-	if m.showHelp {
-		t.Error("? again should toggle showHelp to false")
-	}
-}
-
-func TestAppModel_Update_GlobalKeys_Escape(t *testing.T) {
-	model := NewAppModel(AppConfig{
-		Route:   RouteDown,
-		Context: context.Background(),
-	})
-
-	// Enable help first
-	model.showHelp = true
-
-	// Test esc to close help
-	msg := tea.KeyMsg{Type: tea.KeyEsc}
-	updatedModel, _ := model.Update(msg)
-	m, _ := updatedModel.(*AppModel)
-
-	if m.showHelp {
-		t.Error("esc should close help overlay")
 	}
 }
 
@@ -341,26 +193,6 @@ func TestAppModel_View_Loading(t *testing.T) {
 
 	if !contains(view, "Initializing") {
 		t.Errorf("View() should contain 'Initializing', got %q", view)
-	}
-}
-
-func TestAppModel_View_Help(t *testing.T) {
-	model := NewAppModel(AppConfig{
-		Route:   RouteDown,
-		Context: context.Background(),
-	})
-	model.showHelp = true
-	model.width = 80
-	model.height = 24
-
-	view := model.View()
-
-	if !contains(view, "Keyboard Shortcuts") {
-		t.Errorf("Help view should contain 'Keyboard Shortcuts', got %q", view)
-	}
-
-	if !contains(view, "Ctrl+C") {
-		t.Errorf("Help view should contain 'Ctrl+C', got %q", view)
 	}
 }
 

@@ -461,19 +461,6 @@ func TestLsModel_handleKeyPress_Navigation(t *testing.T) {
 	if model.nodesView.GetCursor() != 0 {
 		t.Errorf("cursor should stay at 0, got %d", model.nodesView.GetCursor())
 	}
-
-	// Test g (go to top)
-	model.nodesView.SetCursor(5)
-	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("g")})
-	if model.nodesView.GetCursor() != 0 {
-		t.Errorf("cursor after g = %d, want 0", model.nodesView.GetCursor())
-	}
-
-	// Test G (go to bottom)
-	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("G")})
-	if model.nodesView.GetCursor() != 9 {
-		t.Errorf("cursor after G = %d, want 9", model.nodesView.GetCursor())
-	}
 }
 
 func TestLsModel_handleKeyPress_Refresh(t *testing.T) {
@@ -707,52 +694,6 @@ func TestLsModel_reselectNodeAfterUpdate(t *testing.T) {
 	}
 	if model.pendingReselectNode != "" {
 		t.Error("expected pendingReselectNode to clear after reselect")
-	}
-}
-
-func TestLsModel_getMaxCursor(t *testing.T) {
-	model := NewLsModel(LsModelConfig{
-		Context: context.Background(),
-	})
-
-	// Set up test data in views
-	testNodes := make([]k8s.NodeInfo, 5)
-	for i := 0; i < 5; i++ {
-		testNodes[i] = k8s.NodeInfo{Name: fmt.Sprintf("node-%d", i)}
-	}
-	model.nodesView.SetNodes(testNodes)
-	model.nodeCount = 5
-
-	testDeployments := make([]k8s.DeploymentInfo, 10)
-	for i := 0; i < 10; i++ {
-		testDeployments[i] = k8s.DeploymentInfo{Name: fmt.Sprintf("dep-%d", i)}
-	}
-	model.deploymentsPodsView.SetDeployments(testDeployments)
-	model.deploymentCount = 10
-
-	testOSDs := make([]k8s.OSDInfo, 3)
-	for i := 0; i < 3; i++ {
-		testOSDs[i] = k8s.OSDInfo{ID: i}
-	}
-	model.osdsView.SetOSDs(testOSDs)
-	model.osdCount = 3
-
-	tests := []struct {
-		pane     LsPane
-		expected int
-	}{
-		{LsPaneNodes, 4},
-		{LsPaneDeployments, 9},
-		{LsPaneOSDs, 2},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.pane.String(), func(t *testing.T) {
-			model.activePane = tt.pane
-			if got := model.getMaxCursor(); got != tt.expected {
-				t.Errorf("getMaxCursor() = %d, want %d", got, tt.expected)
-			}
-		})
 	}
 }
 
