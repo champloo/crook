@@ -3,8 +3,6 @@ package k8s
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/andri/crook/pkg/config"
@@ -70,35 +68,17 @@ func NewClientFromClientset(clientset kubernetes.Interface) *Client {
 	}
 }
 
-// buildConfig builds a Kubernetes REST config from the given configuration
+// buildConfig builds a Kubernetes REST config using standard resolution order:
+// 1. In-cluster config (when running inside a pod)
+// 2. KUBECONFIG environment variable (supports colon-separated paths)
+// 3. Default kubeconfig location (~/.kube/config)
 func buildConfig(_ ClientConfig) (*rest.Config, error) {
-	// Try in-cluster config first
-	if config, err := rest.InClusterConfig(); err == nil {
-		return config, nil
-	}
-
-	// Resolve kubeconfig path from environment or default location
-	kubeconfigPath := os.Getenv("KUBECONFIG")
-	if kubeconfigPath == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get user home directory: %w", err)
-		}
-		kubeconfigPath = filepath.Join(home, ".kube", "config")
-	}
-
-	// Check if kubeconfig file exists
-	if _, err := os.Stat(kubeconfigPath); err != nil {
-		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("kubeconfig file not found: %s", kubeconfigPath)
-		}
-		return nil, fmt.Errorf("failed to stat kubeconfig file: %w", err)
-	}
-
-	// Build config from kubeconfig file
-	loadingRules := &clientcmd.ClientConfigLoadingRules{
-		ExplicitPath: kubeconfigPath,
-	}
+	// Use client-go's standard loading rules which handle:
+	// - In-cluster config detection
+	// - KUBECONFIG env var (including colon-separated paths)
+	// - Default ~/.kube/config location
+	// - Proper path expansion
+	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 
 	clientConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 		loadingRules,
@@ -107,7 +87,7 @@ func buildConfig(_ ClientConfig) (*rest.Config, error) {
 
 	config, err := clientConfig.ClientConfig()
 	if err != nil {
-		return nil, fmt.Errorf("failed to load kubeconfig from %s: %w", kubeconfigPath, err)
+		return nil, fmt.Errorf("failed to load kubeconfig: %w", err)
 	}
 
 	return config, nil
