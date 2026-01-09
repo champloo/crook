@@ -34,9 +34,6 @@ type RootOptions struct {
 	// ConfigFile is the path to the configuration file
 	ConfigFile string
 
-	// Kubeconfig is the path to the kubeconfig file
-	Kubeconfig string
-
 	// Namespace sets both rook-operator-namespace and rook-cluster-namespace
 	Namespace string
 
@@ -105,8 +102,6 @@ func addGlobalFlags(cmd *cobra.Command) {
 
 	flags.StringVar(&GlobalOptions.ConfigFile, "config", "",
 		"config file (default: ./crook.yaml, ~/.config/crook/config.yaml, /etc/crook/config.yaml)")
-	flags.StringVar(&GlobalOptions.Kubeconfig, "kubeconfig", "",
-		"path to kubeconfig file (default: $KUBECONFIG or ~/.kube/config)")
 	flags.StringVar(&GlobalOptions.Namespace, "namespace", "",
 		"rook-ceph namespace (sets both operator and cluster namespace)")
 	flags.StringVar(&GlobalOptions.LogLevel, "log-level", "",
@@ -166,7 +161,6 @@ func buildFlagSet(cmd *cobra.Command) *pflag.FlagSet {
 	}
 
 	// Add relevant flags for config binding
-	addIfExists("kubeconfig")
 	addIfExists("namespace")
 	addIfExists("log-level")
 	addIfExists("log-file")

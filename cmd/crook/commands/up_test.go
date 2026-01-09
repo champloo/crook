@@ -60,7 +60,7 @@ func TestUpCmdHasRequiredFlags(t *testing.T) {
 		}
 	}
 
-	expectedFlags := []string{"no-tui", "yes", "timeout"}
+	expectedFlags := []string{"timeout"}
 
 	for _, flagName := range expectedFlags {
 		found := false
@@ -108,27 +108,6 @@ func TestUpCmdDefaultTimeout(t *testing.T) {
 			expectedDefault := (15 * time.Minute).String()
 			if timeoutFlag.DefValue != expectedDefault {
 				t.Errorf("expected default timeout to be %s, got %s", expectedDefault, timeoutFlag.DefValue)
-			}
-			return
-		}
-	}
-
-	t.Fatal("up subcommand not found")
-}
-
-func TestUpCmdYesShortFlag(t *testing.T) {
-	cmd := commands.NewRootCmd()
-
-	// Find the up subcommand
-	for _, subCmd := range cmd.Commands() {
-		if strings.HasPrefix(subCmd.Use, "up") {
-			yesFlag := subCmd.Flags().ShorthandLookup("y")
-			if yesFlag == nil {
-				t.Fatal("expected -y shorthand for --yes flag")
-			}
-
-			if yesFlag.Name != "yes" {
-				t.Errorf("expected -y to be shorthand for 'yes', got %s", yesFlag.Name)
 			}
 			return
 		}

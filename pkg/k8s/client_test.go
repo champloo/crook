@@ -15,13 +15,6 @@ func TestBuildConfig(t *testing.T) {
 		expectError bool
 	}{
 		{
-			name: "missing kubeconfig file",
-			cfg: ClientConfig{
-				Kubeconfig: "/nonexistent/path/kubeconfig",
-			},
-			expectError: true,
-		},
-		{
 			name: "empty config with no kubeconfig env",
 			cfg:  ClientConfig{},
 			setupEnv: func() func() {
@@ -70,9 +63,6 @@ func TestNewClientFromClientset(t *testing.T) {
 func TestClientConfig_Defaults(t *testing.T) {
 	cfg := ClientConfig{}
 
-	if cfg.Kubeconfig != "" {
-		t.Errorf("expected empty kubeconfig, got %s", cfg.Kubeconfig)
-	}
 	if cfg.Context != "" {
 		t.Errorf("expected empty context, got %s", cfg.Context)
 	}
@@ -97,9 +87,7 @@ func TestNewClient_WithValidKubeconfig(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	cfg := ClientConfig{
-		Kubeconfig: kubeconfigPath,
-	}
+	cfg := ClientConfig{}
 
 	client, err := NewClient(ctx, cfg)
 	if err != nil {

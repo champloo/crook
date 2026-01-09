@@ -8,7 +8,6 @@ A Kubernetes node maintenance automation tool for Rook-Ceph clusters. Safely man
 - **Ceph Health Protection** - Manages OSDs, monitors, and noout flags to prevent rebalancing
 - **No External State** - Uses Kubernetes nodeSelector as source of truth for deployment discovery
 - **Interactive TUI** - Real-time feedback with tabbed views for nodes, deployments, OSDs, and pods
-- **Non-Interactive Mode** - Scriptable for automation and CI/CD pipelines
 - **Pre-flight Validation** - Health checks before operations begin
 
 ## Installation
@@ -84,21 +83,13 @@ crook provides a rich terminal user interface with tabbed views showing real-tim
 **Taking a node down for maintenance:**
 
 ```bash
-# Interactive TUI mode
 crook down worker-1
-
-# Non-interactive with auto-confirm (for scripts)
-crook down worker-1 --yes --no-tui
 ```
 
 **Restoring a node after maintenance:**
 
 ```bash
-# Interactive TUI mode
 crook up worker-1
-
-# Non-interactive with auto-confirm
-crook up worker-1 --yes --no-tui
 ```
 
 **Listing cluster resources:**
@@ -133,8 +124,6 @@ Prepare a node for maintenance by safely scaling down Rook-Ceph workloads.
 **Flags:**
 | Flag | Description |
 |------|-------------|
-| `--no-tui` | Disable interactive TUI |
-| `-y, --yes` | Auto-confirm prompts (implies --no-tui) |
 | `--timeout` | Operation timeout (default: 10m) |
 
 ### `crook up <node>`
@@ -151,8 +140,6 @@ Restore a node after maintenance by scaling up Rook-Ceph workloads.
 **Flags:**
 | Flag | Description |
 |------|-------------|
-| `--no-tui` | Disable interactive TUI |
-| `-y, --yes` | Auto-confirm prompts (implies --no-tui) |
 | `--timeout` | Operation timeout (default: 15m) |
 
 ### `crook ls [node]`
@@ -190,7 +177,6 @@ Or specify a custom location: `--config /path/to/config.yaml`
 kubernetes:
   rook-operator-namespace: rook-ceph
   rook-cluster-namespace: rook-ceph
-  kubeconfig: ~/.kube/config
   # context: my-cluster-context
 
 # Terminal UI configuration
@@ -223,7 +209,6 @@ See `crook.yaml.example` for a fully documented example configuration.
 All configuration options can be set via environment variables with the `CROOK_` prefix:
 
 ```bash
-export CROOK_KUBERNETES_KUBECONFIG=/path/to/kubeconfig
 export CROOK_KUBERNETES_ROOK_OPERATOR_NAMESPACE=rook-ceph
 export CROOK_LOGGING_LEVEL=debug
 ```
@@ -267,28 +252,6 @@ The down phase safely prepares a node for maintenance with confirmation dialogs 
     </tr>
   </table>
 </div>
-
-### Scripted Automation
-
-```bash
-#!/bin/bash
-set -e
-
-NODE="worker-1"
-
-# Take node down
-crook down "$NODE" --yes --no-tui --timeout 15m
-
-# Perform maintenance
-ssh "$NODE" 'sudo reboot'
-sleep 60
-until ssh "$NODE" 'echo ready'; do sleep 10; done
-
-# Restore node
-crook up "$NODE" --yes --no-tui --timeout 20m
-
-echo "Maintenance complete for $NODE"
-```
 
 ### JSON Output for Automation
 

@@ -25,12 +25,6 @@ type Client struct {
 
 // ClientConfig holds configuration for creating a Kubernetes client
 type ClientConfig struct {
-	// Kubeconfig path. If empty, uses standard resolution:
-	// 1. KUBECONFIG environment variable
-	// 2. ~/.kube/config
-	// 3. In-cluster config
-	Kubeconfig string
-
 	// Context name to use from kubeconfig. If empty, uses current context.
 	Context string
 
@@ -81,18 +75,13 @@ func NewClientFromClientset(clientset kubernetes.Interface) *Client {
 
 // buildConfig builds a Kubernetes REST config from the given configuration
 func buildConfig(cfg ClientConfig) (*rest.Config, error) {
-	// Try in-cluster config first if no kubeconfig specified
-	if cfg.Kubeconfig == "" {
-		if config, err := rest.InClusterConfig(); err == nil {
-			return config, nil
-		}
+	// Try in-cluster config first
+	if config, err := rest.InClusterConfig(); err == nil {
+		return config, nil
 	}
 
-	// Resolve kubeconfig path
-	kubeconfigPath := cfg.Kubeconfig
-	if kubeconfigPath == "" {
-		kubeconfigPath = os.Getenv("KUBECONFIG")
-	}
+	// Resolve kubeconfig path from environment or default location
+	kubeconfigPath := os.Getenv("KUBECONFIG")
 	if kubeconfigPath == "" {
 		home, err := os.UserHomeDir()
 		if err != nil {

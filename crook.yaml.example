@@ -23,13 +23,6 @@ kubernetes:
   # Default: rook-ceph
   rook-cluster-namespace: rook-ceph
 
-  # Path to kubeconfig file
-  # If not specified, uses standard kubeconfig resolution:
-  #   - KUBECONFIG environment variable
-  #   - ~/.kube/config
-  # Default: (empty, use standard resolution)
-  kubeconfig: ~/.kube/config
-
   # Kubernetes context to use (from kubeconfig)
   # If not specified, uses current context
   # Default: (empty, use current context)

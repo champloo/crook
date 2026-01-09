@@ -83,7 +83,6 @@ func LoadConfig(opts LoadOptions) (LoadResult, error) {
 // BindFlags binds supported CLI flags to viper keys.
 func BindFlags(v *viper.Viper, flags *pflag.FlagSet) error {
 	bindings := map[string]string{
-		"kubeconfig":              "kubernetes.kubeconfig",
 		"namespace":               "namespace",
 		"rook-operator-namespace": "kubernetes.rook-operator-namespace",
 		"rook-cluster-namespace":  "kubernetes.rook-cluster-namespace",
@@ -108,7 +107,6 @@ func setDefaults(v *viper.Viper) {
 
 	v.SetDefault("kubernetes.rook-operator-namespace", defaults.Kubernetes.RookOperatorNamespace)
 	v.SetDefault("kubernetes.rook-cluster-namespace", defaults.Kubernetes.RookClusterNamespace)
-	v.SetDefault("kubernetes.kubeconfig", defaults.Kubernetes.Kubeconfig)
 	v.SetDefault("kubernetes.context", defaults.Kubernetes.Context)
 
 	v.SetDefault("ui.theme", defaults.UI.Theme)
@@ -204,7 +202,6 @@ func knownConfigKeys() map[string]bool {
 		// kubernetes section
 		"kubernetes.rook-operator-namespace": true,
 		"kubernetes.rook-cluster-namespace":  true,
-		"kubernetes.kubeconfig":              true,
 		"kubernetes.context":                 true,
 
 		// ui section

@@ -35,7 +35,6 @@ type Config struct {
 type KubernetesConfig struct {
 	RookOperatorNamespace string `mapstructure:"rook-operator-namespace" yaml:"rook-operator-namespace" json:"rook-operator-namespace" validate:"required"`
 	RookClusterNamespace  string `mapstructure:"rook-cluster-namespace" yaml:"rook-cluster-namespace" json:"rook-cluster-namespace" validate:"required"`
-	Kubeconfig            string `mapstructure:"kubeconfig" yaml:"kubeconfig" json:"kubeconfig"`
 	Context               string `mapstructure:"context" yaml:"context" json:"context"`
 }
 
@@ -72,7 +71,6 @@ func DefaultConfig() Config {
 		Kubernetes: KubernetesConfig{
 			RookOperatorNamespace: DefaultRookNamespace,
 			RookClusterNamespace:  DefaultRookNamespace,
-			Kubeconfig:            "",
 			Context:               "",
 		},
 		UI: UIConfig{

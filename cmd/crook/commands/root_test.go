@@ -28,7 +28,7 @@ func TestRootCmdHasGlobalFlags(t *testing.T) {
 	cmd := commands.NewRootCmd()
 	flags := cmd.PersistentFlags()
 
-	expectedFlags := []string{"config", "kubeconfig", "namespace", "log-level", "log-file"}
+	expectedFlags := []string{"config", "namespace", "log-level", "log-file"}
 
 	for _, flagName := range expectedFlags {
 		if flags.Lookup(flagName) == nil {

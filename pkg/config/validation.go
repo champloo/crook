@@ -2,8 +2,6 @@ package config
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/util/validation"
@@ -33,10 +31,6 @@ func ValidateConfig(cfg Config) ValidationResult {
 		result.Errors = append(result.Errors, err)
 	}
 	if err := validateNamespace(cfg.Kubernetes.RookClusterNamespace); err != nil {
-		result.Errors = append(result.Errors, err)
-	}
-
-	if err := validateKubeconfigPath(cfg.Kubernetes.Kubeconfig); err != nil {
 		result.Errors = append(result.Errors, err)
 	}
 
@@ -70,47 +64,4 @@ func validateNamespace(namespace string) error {
 		return fmt.Errorf("invalid namespace '%s': must be non-empty and match Kubernetes naming rules", namespace)
 	}
 	return nil
-}
-
-func validateKubeconfigPath(path string) error {
-	if strings.TrimSpace(path) == "" {
-		return nil
-	}
-	resolved, err := expandPath(path)
-	if err != nil {
-		return fmt.Errorf("kubeconfig file not found: %s", path)
-	}
-	info, err := os.Stat(resolved)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return fmt.Errorf("kubeconfig file not found: %s", resolved)
-		}
-		return fmt.Errorf("kubeconfig file not found: %s", resolved)
-	}
-	if info.IsDir() {
-		return fmt.Errorf("kubeconfig file not found: %s", resolved)
-	}
-	return nil
-}
-
-func expandPath(path string) (string, error) {
-	expanded := os.ExpandEnv(strings.TrimSpace(path))
-	if expanded == "" {
-		return "", nil
-	}
-	if expanded == "~" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return "", err
-		}
-		return home, nil
-	}
-	if strings.HasPrefix(expanded, "~/") {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return "", err
-		}
-		return filepath.Join(home, expanded[2:]), nil
-	}
-	return expanded, nil
 }
