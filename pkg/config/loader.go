@@ -110,7 +110,6 @@ func setDefaults(v *viper.Viper) {
 	// They're handled via CLI flags and applied directly to the Config struct.
 	// This prevents detectUnknownKeys from seeing them as config file entries.
 
-	v.SetDefault("ui.theme", defaults.UI.Theme)
 	v.SetDefault("ui.progress-refresh-ms", defaults.UI.ProgressRefreshMS)
 	v.SetDefault("ui.ls-refresh-nodes-ms", defaults.UI.LsRefreshNodesMS)
 	v.SetDefault("ui.ls-refresh-deployments-ms", defaults.UI.LsRefreshDeploymentsMS)
@@ -224,7 +223,6 @@ func knownConfigKeys() map[string]bool {
 		"logging":  true,
 
 		// ui section
-		"ui.theme":                     true,
 		"ui.progress-refresh-ms":       true,
 		"ui.ls-refresh-nodes-ms":       true,
 		"ui.ls-refresh-deployments-ms": true,

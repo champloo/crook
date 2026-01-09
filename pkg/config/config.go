@@ -9,7 +9,6 @@ import (
 
 const (
 	DefaultRookNamespace                = "rook-ceph"
-	DefaultTheme                        = "default"
 	DefaultProgressRefreshMS            = 100
 	DefaultLsRefreshNodesMS             = 2000
 	DefaultLsRefreshDeploymentsMS       = 2000
@@ -40,8 +39,7 @@ type KubernetesConfig struct {
 
 // UIConfig holds terminal UI settings.
 type UIConfig struct {
-	Theme             string `mapstructure:"theme" yaml:"theme" json:"theme" validate:"required"`
-	ProgressRefreshMS int    `mapstructure:"progress-refresh-ms" yaml:"progress-refresh-ms" json:"progress-refresh-ms"`
+	ProgressRefreshMS int `mapstructure:"progress-refresh-ms" yaml:"progress-refresh-ms" json:"progress-refresh-ms"`
 
 	// Ls refresh intervals (independent per resource type)
 	LsRefreshNodesMS       int `mapstructure:"ls-refresh-nodes-ms" yaml:"ls-refresh-nodes-ms" json:"ls-refresh-nodes-ms"`
@@ -73,7 +71,6 @@ func DefaultConfig() Config {
 			RookClusterNamespace:  DefaultRookNamespace,
 		},
 		UI: UIConfig{
-			Theme:                  DefaultTheme,
 			ProgressRefreshMS:      DefaultProgressRefreshMS,
 			LsRefreshNodesMS:       DefaultLsRefreshNodesMS,
 			LsRefreshDeploymentsMS: DefaultLsRefreshDeploymentsMS,

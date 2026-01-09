@@ -1,5 +1,4 @@
 ui:
-  theme: neon
   progress-refresh-ms: 150
   ls-refresh-nodes-ms: 2500
   ls-refresh-header-ms: 4500

@@ -94,8 +94,8 @@ func TestLoadConfigFromFileFixture(t *testing.T) {
 	if cfg.Kubernetes.RookClusterNamespace != config.DefaultRookNamespace {
 		t.Fatalf("expected default cluster namespace, got %q", cfg.Kubernetes.RookClusterNamespace)
 	}
-	if cfg.UI.Theme != "neon" {
-		t.Fatalf("expected ui theme from file, got %q", cfg.UI.Theme)
+	if cfg.UI.ProgressRefreshMS != 150 {
+		t.Fatalf("expected progress refresh from file, got %d", cfg.UI.ProgressRefreshMS)
 	}
 	if cfg.Timeouts.APICallTimeoutSeconds != 10 {
 		t.Fatalf("expected api timeout from file, got %d", cfg.Timeouts.APICallTimeoutSeconds)
@@ -122,11 +122,13 @@ func TestLoadConfigPartialUsesDefaults(t *testing.T) {
 	if cfg.Kubernetes.RookClusterNamespace != config.DefaultRookNamespace {
 		t.Fatalf("expected default cluster namespace, got %q", cfg.Kubernetes.RookClusterNamespace)
 	}
-	if cfg.UI.ProgressRefreshMS != config.DefaultProgressRefreshMS {
-		t.Fatalf("expected default progress refresh, got %d", cfg.UI.ProgressRefreshMS)
+	// partial.yaml sets progress-refresh-ms to 200
+	if cfg.UI.ProgressRefreshMS != 200 {
+		t.Fatalf("expected progress refresh from file, got %d", cfg.UI.ProgressRefreshMS)
 	}
-	if !strings.EqualFold(cfg.UI.Theme, "minimal") {
-		t.Fatalf("expected ui theme from file, got %q", cfg.UI.Theme)
+	// Other UI settings should use defaults
+	if cfg.UI.LsRefreshNodesMS != config.DefaultLsRefreshNodesMS {
+		t.Fatalf("expected default ls refresh nodes, got %d", cfg.UI.LsRefreshNodesMS)
 	}
 }
 
@@ -266,7 +268,7 @@ func TestLoadConfigUnknownNestedKey(t *testing.T) {
 	configPath := filepath.Join(tempDir, "config.yaml")
 	// ui.invalid-key is not a valid config key
 	configContents := []byte(`ui:
-  theme: default
+  progress-refresh-ms: 100
   invalid-key: some-value
 `)
 	if err := os.WriteFile(configPath, configContents, 0o600); err != nil {

@@ -1,2 +1,2 @@
 ui:
-  theme: minimal
+  progress-refresh-ms: 200
