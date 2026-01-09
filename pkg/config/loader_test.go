@@ -233,11 +233,11 @@ ui:
 	}
 }
 
-func TestLoadConfigKubernetesInConfigFileParsed(t *testing.T) {
+func TestLoadConfigKubernetesInConfigFileIgnored(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.yaml")
-	// kubernetes section in config file IS parsed by Viper (uses mapstructure tags)
-	// CLI flags/env vars take precedence, but file values work too
+	// kubernetes section in config file is ignored (mapstructure:"-" on Kubernetes field)
+	// Use "namespace:" key instead
 	configContents := []byte(`kubernetes:
   rook-operator-namespace: from-file
   rook-cluster-namespace: from-file
@@ -253,10 +253,11 @@ logging:
 		t.Fatalf("load config should succeed: %v", err)
 	}
 
-	// kubernetes values from file are parsed (Viper uses mapstructure, not yaml tags)
-	if result.Config.Kubernetes.RookOperatorNamespace != "from-file" {
-		t.Errorf("expected namespace from file, got %q", result.Config.Kubernetes.RookOperatorNamespace)
+	// kubernetes section is ignored - uses defaults
+	if result.Config.Kubernetes.RookOperatorNamespace != config.DefaultRookNamespace {
+		t.Errorf("expected default namespace, got %q", result.Config.Kubernetes.RookOperatorNamespace)
 	}
+	// Other values should still be parsed
 	if result.Config.Logging.Level != "debug" {
 		t.Errorf("expected logging.level=debug, got %q", result.Config.Logging.Level)
 	}

@@ -24,17 +24,20 @@ const (
 
 // Config holds the full configuration schema for crook.
 type Config struct {
-	Kubernetes KubernetesConfig `mapstructure:"kubernetes" yaml:"-" json:"-"`
+	// Kubernetes is excluded from config file parsing (mapstructure:"-").
+	// Use --namespace flag, CROOK_NAMESPACE env var, or "namespace:" in config file.
+	Kubernetes KubernetesConfig `mapstructure:"-" yaml:"-" json:"-"`
 	UI         UIConfig         `mapstructure:"ui" yaml:"ui" json:"ui"`
 	Timeouts   TimeoutConfig    `mapstructure:"timeouts" yaml:"timeouts" json:"timeouts"`
 	Logging    LoggingConfig    `mapstructure:"logging" yaml:"logging" json:"logging"`
 }
 
 // KubernetesConfig captures cluster-related settings.
-// These values are configured via CLI flags only, not config files.
+// These values are set via applyNamespaceOverride from the "namespace" key,
+// not directly from config file parsing.
 type KubernetesConfig struct {
-	RookOperatorNamespace string `mapstructure:"rook-operator-namespace" yaml:"-" json:"-" validate:"required"`
-	RookClusterNamespace  string `mapstructure:"rook-cluster-namespace" yaml:"-" json:"-" validate:"required"`
+	RookOperatorNamespace string `validate:"required"`
+	RookClusterNamespace  string `validate:"required"`
 }
 
 // UIConfig holds terminal UI settings.
