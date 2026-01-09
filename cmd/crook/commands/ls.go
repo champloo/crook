@@ -114,15 +114,8 @@ func validateLsOptions(opts *LsOptions) error {
 
 // runLs executes the ls command
 func runLs(opts *LsOptions) error {
-	// Initialize context
-	ctx := context.Background()
-
-	// Load configuration
-	result, err := config.LoadConfig(config.LoadOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to load configuration: %w", err)
-	}
-	cfg := result.Config
+	ctx := GlobalOptions.Context
+	cfg := GlobalOptions.Config
 
 	// Initialize Kubernetes client with config-derived settings
 	client, err := k8s.NewClient(ctx, k8s.ClientConfig{
