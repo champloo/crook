@@ -182,6 +182,9 @@ Or specify a custom location: `--config /path/to/config.yaml`
 ### Configuration Options
 
 ```yaml
+# Kubernetes namespace (optional, can also use --namespace flag)
+# namespace: rook-ceph
+
 # Terminal UI configuration
 ui:
   progress-refresh-ms: 100
@@ -203,8 +206,6 @@ logging:
   # file: ~/.local/state/crook/crook.log
   format: text  # text, json
 ```
-
-Note: Kubernetes namespace is configured via CLI flag (`--namespace`) or environment variable (`CROOK_NAMESPACE`), not in the config file.
 
 See `crook.yaml.example` for a fully documented example configuration.
 

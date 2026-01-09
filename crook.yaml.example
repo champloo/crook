@@ -12,10 +12,11 @@
 #   2. Environment variables (CROOK_* prefix)
 #   3. Config file
 #   4. Built-in defaults
-#
-# Note: Kubernetes namespace is configured via CLI only:
-#   --namespace rook-ceph    (sets both operator and cluster namespace)
-#   CROOK_NAMESPACE=rook-ceph (environment variable)
+
+# Kubernetes namespace (applies to both operator and cluster)
+# Can also be set via: --namespace flag or CROOK_NAMESPACE env var
+# Default: rook-ceph
+# namespace: rook-ceph
 
 # Terminal UI configuration
 ui:

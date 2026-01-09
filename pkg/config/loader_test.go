@@ -3,7 +3,6 @@ package config_test
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/andri/crook/pkg/config"
@@ -90,7 +89,7 @@ func TestLoadConfigFromFileFixture(t *testing.T) {
 	}
 
 	cfg := result.Config
-	// Kubernetes values should use defaults (not allowed in config files)
+	// Kubernetes values use defaults (yaml:"-" tag excludes from YAML parsing)
 	if cfg.Kubernetes.RookOperatorNamespace != config.DefaultRookNamespace {
 		t.Fatalf("expected default operator namespace, got %q", cfg.Kubernetes.RookOperatorNamespace)
 	}
@@ -118,7 +117,7 @@ func TestLoadConfigPartialUsesDefaults(t *testing.T) {
 	}
 
 	cfg := result.Config
-	// Kubernetes values should use defaults (not allowed in config files)
+	// Kubernetes values use defaults (yaml:"-" tag excludes from YAML parsing)
 	if cfg.Kubernetes.RookOperatorNamespace != config.DefaultRookNamespace {
 		t.Fatalf("expected default operator namespace, got %q", cfg.Kubernetes.RookOperatorNamespace)
 	}
@@ -207,141 +206,59 @@ func TestLoadConfigInvalidYAML(t *testing.T) {
 	}
 }
 
-func TestLoadConfigUnknownTopLevelKey(t *testing.T) {
+func TestLoadConfigUnknownKeysIgnored(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.yaml")
-	// unknown-section is not a valid config key
+	// Unknown keys should be silently ignored (idiomatic Viper behavior)
 	configContents := []byte(`logging:
   level: info
 unknown-section:
   foo: bar
+ui:
+  unknown-key: value
 `)
 	if err := os.WriteFile(configPath, configContents, 0o600); err != nil {
 		t.Fatalf("write config file: %v", err)
 	}
 
-	// Unknown keys should cause validation errors
+	// Should succeed - unknown keys are ignored
 	result, err := config.LoadConfig(config.LoadOptions{ConfigFile: configPath})
-	if err == nil {
-		t.Fatalf("expected error for unknown config key")
-	}
-
-	// Check that an error was reported for the unknown key
-	found := false
-	for _, errMsg := range result.Validation.Errors {
-		if strings.Contains(errMsg.Error(), "unknown-section") {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Errorf("expected error for unknown-section, got errors: %v", result.Validation.Errors)
-	}
-}
-
-func TestLoadConfigKubernetesInConfigFileIsError(t *testing.T) {
-	tempDir := t.TempDir()
-	configPath := filepath.Join(tempDir, "config.yaml")
-	// kubernetes section is no longer allowed in config files
-	configContents := []byte(`kubernetes:
-  rook-operator-namespace: test
-`)
-	if err := os.WriteFile(configPath, configContents, 0o600); err != nil {
-		t.Fatalf("write config file: %v", err)
-	}
-
-	// kubernetes section should cause validation error
-	result, err := config.LoadConfig(config.LoadOptions{ConfigFile: configPath})
-	if err == nil {
-		t.Fatalf("expected error for kubernetes section in config file")
-	}
-
-	// Check that an error was reported for the kubernetes section
-	found := false
-	for _, errMsg := range result.Validation.Errors {
-		if strings.Contains(errMsg.Error(), "kubernetes") {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Errorf("expected error for kubernetes section, got errors: %v", result.Validation.Errors)
-	}
-}
-
-func TestLoadConfigUnknownNestedKey(t *testing.T) {
-	tempDir := t.TempDir()
-	configPath := filepath.Join(tempDir, "config.yaml")
-	// ui.invalid-key is not a valid config key
-	configContents := []byte(`ui:
-  progress-refresh-ms: 100
-  invalid-key: some-value
-`)
-	if err := os.WriteFile(configPath, configContents, 0o600); err != nil {
-		t.Fatalf("write config file: %v", err)
-	}
-
-	// Unknown keys should cause validation errors
-	result, err := config.LoadConfig(config.LoadOptions{ConfigFile: configPath})
-	if err == nil {
-		t.Fatalf("expected error for unknown config key")
-	}
-
-	// Check that an error was reported for the unknown nested key
-	found := false
-	for _, errMsg := range result.Validation.Errors {
-		if strings.Contains(errMsg.Error(), "ui.invalid-key") {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Errorf("expected error for ui.invalid-key, got errors: %v", result.Validation.Errors)
-	}
-}
-
-func TestLoadConfigTypoInKnownKey(t *testing.T) {
-	tempDir := t.TempDir()
-	configPath := filepath.Join(tempDir, "config.yaml")
-	// progres-refresh-ms is a typo of progress-refresh-ms
-	configContents := []byte(`ui:
-  progres-refresh-ms: 200
-`)
-	if err := os.WriteFile(configPath, configContents, 0o600); err != nil {
-		t.Fatalf("write config file: %v", err)
-	}
-
-	// Typos in keys should cause validation errors
-	result, err := config.LoadConfig(config.LoadOptions{ConfigFile: configPath})
-	if err == nil {
-		t.Fatalf("expected error for typo in config key")
-	}
-
-	// Check that an error was reported for the typo
-	found := false
-	for _, errMsg := range result.Validation.Errors {
-		if strings.Contains(errMsg.Error(), "progres-refresh-ms") {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Errorf("expected error for typo key, got errors: %v", result.Validation.Errors)
-	}
-}
-
-func TestLoadConfigValidKeysDoNotWarn(t *testing.T) {
-	// Test that a config file with all valid keys doesn't report unknown keys
-	result, err := config.LoadConfig(config.LoadOptions{ConfigFile: testdataPath(t, "full.yaml")})
 	if err != nil {
-		t.Fatalf("load config with valid keys should succeed: %v", err)
+		t.Fatalf("load config should succeed with unknown keys: %v", err)
 	}
 
-	// Check no unknown key warnings
-	for _, warning := range result.Validation.Warnings {
-		if strings.Contains(warning, "unknown config key") {
-			t.Errorf("unexpected unknown key warning for valid config: %v", warning)
-		}
+	// Known keys should still be parsed correctly
+	if result.Config.Logging.Level != "info" {
+		t.Errorf("expected logging.level=info, got %q", result.Config.Logging.Level)
+	}
+}
+
+func TestLoadConfigKubernetesInConfigFileParsed(t *testing.T) {
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "config.yaml")
+	// kubernetes section in config file IS parsed by Viper (uses mapstructure tags)
+	// CLI flags/env vars take precedence, but file values work too
+	configContents := []byte(`kubernetes:
+  rook-operator-namespace: from-file
+  rook-cluster-namespace: from-file
+logging:
+  level: debug
+`)
+	if err := os.WriteFile(configPath, configContents, 0o600); err != nil {
+		t.Fatalf("write config file: %v", err)
+	}
+
+	result, err := config.LoadConfig(config.LoadOptions{ConfigFile: configPath})
+	if err != nil {
+		t.Fatalf("load config should succeed: %v", err)
+	}
+
+	// kubernetes values from file are parsed (Viper uses mapstructure, not yaml tags)
+	if result.Config.Kubernetes.RookOperatorNamespace != "from-file" {
+		t.Errorf("expected namespace from file, got %q", result.Config.Kubernetes.RookOperatorNamespace)
+	}
+	if result.Config.Logging.Level != "debug" {
+		t.Errorf("expected logging.level=debug, got %q", result.Config.Logging.Level)
 	}
 }
 

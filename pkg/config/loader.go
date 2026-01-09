@@ -57,15 +57,6 @@ func LoadConfig(opts LoadOptions) (LoadResult, error) {
 
 	validation := ValidateConfig(cfg)
 
-	// Check for unknown keys (only if config file was loaded)
-	// Unknown keys are errors to catch typos that would silently use defaults
-	if configPath != "" {
-		unknownKeys := detectUnknownKeys(v)
-		for _, key := range unknownKeys {
-			validation.Errors = append(validation.Errors, fmt.Errorf("unknown config key: %s", key))
-		}
-	}
-
 	if validation.HasErrors() {
 		return LoadResult{
 			Config:         cfg,
@@ -103,10 +94,6 @@ func BindFlags(v *viper.Viper, flags *pflag.FlagSet) error {
 
 func setDefaults(v *viper.Viper) {
 	defaults := DefaultConfig()
-
-	// Note: kubernetes.* settings are NOT set here as viper defaults.
-	// They're handled via CLI flags and applied directly to the Config struct.
-	// This prevents detectUnknownKeys from seeing them as config file entries.
 
 	v.SetDefault("ui.progress-refresh-ms", defaults.UI.ProgressRefreshMS)
 	v.SetDefault("ui.ls-refresh-nodes-ms", defaults.UI.LsRefreshNodesMS)
@@ -202,71 +189,4 @@ func applyNamespaceOverride(v *viper.Viper, cfg *Config) {
 	}
 	cfg.Kubernetes.RookOperatorNamespace = namespace
 	cfg.Kubernetes.RookClusterNamespace = namespace
-}
-
-// knownConfigKeys returns the set of all valid configuration keys for config FILES.
-// Note: kubernetes.* keys are handled via CLI flags only, not config files.
-func knownConfigKeys() map[string]bool {
-	return map[string]bool{
-		// Top-level sections (kubernetes not allowed in config files)
-		"ui":       true,
-		"timeouts": true,
-		"logging":  true,
-
-		// ui section
-		"ui.progress-refresh-ms":       true,
-		"ui.ls-refresh-nodes-ms":       true,
-		"ui.ls-refresh-deployments-ms": true,
-		"ui.ls-refresh-pods-ms":        true,
-		"ui.ls-refresh-osds-ms":        true,
-		"ui.ls-refresh-header-ms":      true,
-
-		// timeouts section
-		"timeouts.api-call-timeout-seconds":        true,
-		"timeouts.wait-deployment-timeout-seconds": true,
-		"timeouts.ceph-command-timeout-seconds":    true,
-
-		// logging section
-		"logging.level":  true,
-		"logging.file":   true,
-		"logging.format": true,
-
-		// Special keys (CLI-only via flag binding)
-		"namespace": true,
-	}
-}
-
-// detectUnknownKeys returns a list of configuration keys that are not in the known schema
-func detectUnknownKeys(v *viper.Viper) []string {
-	known := knownConfigKeys()
-	allSettings := v.AllSettings()
-
-	var unknown []string
-	collectUnknownKeys(allSettings, "", known, &unknown)
-	return unknown
-}
-
-// collectUnknownKeys recursively collects unknown keys from nested maps
-func collectUnknownKeys(settings map[string]interface{}, prefix string, known map[string]bool, unknown *[]string) {
-	for key, value := range settings {
-		fullKey := key
-		if prefix != "" {
-			fullKey = prefix + "." + key
-		}
-
-		// Check if this key is known
-		if !known[fullKey] {
-			// Skip nested keys under unknown parent (parent already reported)
-			if prefix != "" && !known[prefix] {
-				continue
-			}
-			// Report unknown key (top-level or under known parent)
-			*unknown = append(*unknown, fullKey)
-		}
-
-		// Recurse into nested maps
-		if nestedMap, ok := value.(map[string]interface{}); ok {
-			collectUnknownKeys(nestedMap, fullKey, known, unknown)
-		}
-	}
 }
