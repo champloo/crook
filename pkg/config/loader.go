@@ -52,8 +52,7 @@ func LoadConfig(opts LoadOptions) (LoadResult, error) {
 	if unmarshalErr := v.Unmarshal(&cfg); unmarshalErr != nil {
 		return LoadResult{}, fmt.Errorf("unmarshal config: %w", unmarshalErr)
 	}
-	applyKubernetesDefaults(&cfg)
-	applyNamespaceOverride(v, &cfg)
+	applyNamespaceDefault(v, &cfg)
 
 	validation := ValidateConfig(cfg)
 
@@ -163,30 +162,16 @@ func defaultConfigFiles() []string {
 	return files
 }
 
-// applyKubernetesDefaults applies default values for kubernetes settings.
-// Kubernetes namespace is configured via --namespace flag only.
-func applyKubernetesDefaults(cfg *Config) {
+// applyNamespaceDefault applies default namespace if not set via config/env/flag.
+func applyNamespaceDefault(v *viper.Viper, cfg *Config) {
 	if cfg == nil {
 		return
 	}
-	defaults := DefaultConfig()
-
-	if cfg.Kubernetes.RookOperatorNamespace == "" {
-		cfg.Kubernetes.RookOperatorNamespace = defaults.Kubernetes.RookOperatorNamespace
-	}
-	if cfg.Kubernetes.RookClusterNamespace == "" {
-		cfg.Kubernetes.RookClusterNamespace = defaults.Kubernetes.RookClusterNamespace
-	}
-}
-
-func applyNamespaceOverride(v *viper.Viper, cfg *Config) {
-	if cfg == nil {
-		return
-	}
+	// Check if namespace was set via any source (config file, env, or flag)
 	namespace := strings.TrimSpace(v.GetString("namespace"))
-	if namespace == "" {
-		return
+	if namespace != "" {
+		cfg.Namespace = namespace
+	} else if cfg.Namespace == "" {
+		cfg.Namespace = DefaultRookNamespace
 	}
-	cfg.Kubernetes.RookOperatorNamespace = namespace
-	cfg.Kubernetes.RookClusterNamespace = namespace
 }

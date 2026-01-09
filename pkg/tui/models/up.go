@@ -237,7 +237,7 @@ func (m *UpModel) discoverDeploymentsCmd() tea.Cmd {
 		// Use nodeSelector-based discovery to find scaled-down deployments
 		deployments, err := m.config.Client.ListScaledDownDeploymentsForNode(
 			m.config.Context,
-			m.config.Config.Kubernetes.RookClusterNamespace,
+			m.config.Config.Namespace,
 			m.config.NodeName,
 		)
 		if err != nil {

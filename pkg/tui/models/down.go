@@ -236,7 +236,7 @@ func (m *DownModel) discoverDeploymentsCmd() tea.Cmd {
 		// Use nodeSelector-based discovery instead of pod-based
 		deployments, err := m.config.Client.ListNodePinnedDeployments(
 			m.config.Context,
-			m.config.Config.Kubernetes.RookClusterNamespace,
+			m.config.Config.Namespace,
 			m.config.NodeName,
 		)
 		if err != nil {

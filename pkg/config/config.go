@@ -24,20 +24,12 @@ const (
 
 // Config holds the full configuration schema for crook.
 type Config struct {
-	// Kubernetes is excluded from config file parsing (mapstructure:"-").
-	// Use --namespace flag, CROOK_NAMESPACE env var, or "namespace:" in config file.
-	Kubernetes KubernetesConfig `mapstructure:"-" yaml:"-" json:"-"`
-	UI         UIConfig         `mapstructure:"ui" yaml:"ui" json:"ui"`
-	Timeouts   TimeoutConfig    `mapstructure:"timeouts" yaml:"timeouts" json:"timeouts"`
-	Logging    LoggingConfig    `mapstructure:"logging" yaml:"logging" json:"logging"`
-}
-
-// KubernetesConfig captures cluster-related settings.
-// These values are set via applyNamespaceOverride from the "namespace" key,
-// not directly from config file parsing.
-type KubernetesConfig struct {
-	RookOperatorNamespace string `validate:"required"`
-	RookClusterNamespace  string `validate:"required"`
+	// Namespace is the rook-ceph namespace (used for both operator and cluster).
+	// Set via --namespace flag, CROOK_NAMESPACE env var, or "namespace:" in config file.
+	Namespace string        `mapstructure:"namespace" yaml:"namespace" json:"namespace"`
+	UI        UIConfig      `mapstructure:"ui" yaml:"ui" json:"ui"`
+	Timeouts  TimeoutConfig `mapstructure:"timeouts" yaml:"timeouts" json:"timeouts"`
+	Logging   LoggingConfig `mapstructure:"logging" yaml:"logging" json:"logging"`
 }
 
 // UIConfig holds terminal UI settings.
@@ -69,10 +61,7 @@ type LoggingConfig struct {
 // DefaultConfig returns a config with all default values applied.
 func DefaultConfig() Config {
 	return Config{
-		Kubernetes: KubernetesConfig{
-			RookOperatorNamespace: DefaultRookNamespace,
-			RookClusterNamespace:  DefaultRookNamespace,
-		},
+		Namespace: DefaultRookNamespace,
 		UI: UIConfig{
 			ProgressRefreshMS:      DefaultProgressRefreshMS,
 			LsRefreshNodesMS:       DefaultLsRefreshNodesMS,

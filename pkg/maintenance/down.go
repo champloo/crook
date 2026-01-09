@@ -57,7 +57,7 @@ func ExecuteDownPhase(
 	// Step 3: Set Ceph noout flag
 	updateProgress(opts.ProgressCallback, "noout", "Setting Ceph noout flag", "")
 
-	if nooutErr := client.SetNoOut(ctx, cfg.Kubernetes.RookClusterNamespace); nooutErr != nil {
+	if nooutErr := client.SetNoOut(ctx, cfg.Namespace); nooutErr != nil {
 		return fmt.Errorf("failed to set noout flag: %w", nooutErr)
 	}
 
@@ -65,7 +65,7 @@ func ExecuteDownPhase(
 	updateProgress(opts.ProgressCallback, "operator", "Scaling down rook-ceph-operator to 0", "")
 
 	operatorName := "rook-ceph-operator"
-	operatorNamespace := cfg.Kubernetes.RookOperatorNamespace
+	operatorNamespace := cfg.Namespace
 
 	if scaleErr := client.ScaleDeployment(ctx, operatorNamespace, operatorName, 0); scaleErr != nil {
 		return fmt.Errorf("failed to scale operator to 0: %w", scaleErr)
@@ -78,7 +78,7 @@ func ExecuteDownPhase(
 	// Step 5: Discover node-pinned deployments via nodeSelector
 	updateProgress(opts.ProgressCallback, "discover", fmt.Sprintf("Discovering node-pinned deployments on %s", nodeName), "")
 
-	deployments, err := client.ListNodePinnedDeployments(ctx, cfg.Kubernetes.RookClusterNamespace, nodeName)
+	deployments, err := client.ListNodePinnedDeployments(ctx, cfg.Namespace, nodeName)
 	if err != nil {
 		return fmt.Errorf("failed to discover node-pinned deployments: %w", err)
 	}

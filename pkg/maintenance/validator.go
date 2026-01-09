@@ -44,21 +44,21 @@ func ValidateDownPhase(ctx context.Context, client *k8s.Client, cfg config.Confi
 	}
 
 	// Check 3: Operator namespace exists
-	if err := validateNamespaceExists(ctx, client, cfg.Kubernetes.RookOperatorNamespace); err != nil {
-		results.addResult("Operator namespace", false, err, fmt.Sprintf("Namespace %s not found", cfg.Kubernetes.RookOperatorNamespace))
+	if err := validateNamespaceExists(ctx, client, cfg.Namespace); err != nil {
+		results.addResult("Operator namespace", false, err, fmt.Sprintf("Namespace %s not found", cfg.Namespace))
 	} else {
-		results.addResult("Operator namespace", true, nil, fmt.Sprintf("Namespace %s exists", cfg.Kubernetes.RookOperatorNamespace))
+		results.addResult("Operator namespace", true, nil, fmt.Sprintf("Namespace %s exists", cfg.Namespace))
 	}
 
 	// Check 4: Cluster namespace exists
-	if err := validateNamespaceExists(ctx, client, cfg.Kubernetes.RookClusterNamespace); err != nil {
-		results.addResult("Cluster namespace", false, err, fmt.Sprintf("Namespace %s not found", cfg.Kubernetes.RookClusterNamespace))
+	if err := validateNamespaceExists(ctx, client, cfg.Namespace); err != nil {
+		results.addResult("Cluster namespace", false, err, fmt.Sprintf("Namespace %s not found", cfg.Namespace))
 	} else {
-		results.addResult("Cluster namespace", true, nil, fmt.Sprintf("Namespace %s exists", cfg.Kubernetes.RookClusterNamespace))
+		results.addResult("Cluster namespace", true, nil, fmt.Sprintf("Namespace %s exists", cfg.Namespace))
 	}
 
 	// Check 5: rook-ceph-tools deployment exists and is ready
-	if err := validateRookToolsDeployment(ctx, client, cfg.Kubernetes.RookClusterNamespace); err != nil {
+	if err := validateRookToolsDeployment(ctx, client, cfg.Namespace); err != nil {
 		results.addResult("rook-ceph-tools deployment", false, err, "rook-ceph-tools deployment not ready")
 	} else {
 		results.addResult("rook-ceph-tools deployment", true, nil, "rook-ceph-tools deployment is ready")
@@ -91,17 +91,17 @@ func ValidateUpPhase(ctx context.Context, client *k8s.Client, cfg config.Config,
 	}
 
 	// Check 3: Operator namespace exists
-	if err := validateNamespaceExists(ctx, client, cfg.Kubernetes.RookOperatorNamespace); err != nil {
-		results.addResult("Operator namespace", false, err, fmt.Sprintf("Namespace %s not found", cfg.Kubernetes.RookOperatorNamespace))
+	if err := validateNamespaceExists(ctx, client, cfg.Namespace); err != nil {
+		results.addResult("Operator namespace", false, err, fmt.Sprintf("Namespace %s not found", cfg.Namespace))
 	} else {
-		results.addResult("Operator namespace", true, nil, fmt.Sprintf("Namespace %s exists", cfg.Kubernetes.RookOperatorNamespace))
+		results.addResult("Operator namespace", true, nil, fmt.Sprintf("Namespace %s exists", cfg.Namespace))
 	}
 
 	// Check 4: Cluster namespace exists
-	if err := validateNamespaceExists(ctx, client, cfg.Kubernetes.RookClusterNamespace); err != nil {
-		results.addResult("Cluster namespace", false, err, fmt.Sprintf("Namespace %s not found", cfg.Kubernetes.RookClusterNamespace))
+	if err := validateNamespaceExists(ctx, client, cfg.Namespace); err != nil {
+		results.addResult("Cluster namespace", false, err, fmt.Sprintf("Namespace %s not found", cfg.Namespace))
 	} else {
-		results.addResult("Cluster namespace", true, nil, fmt.Sprintf("Namespace %s exists", cfg.Kubernetes.RookClusterNamespace))
+		results.addResult("Cluster namespace", true, nil, fmt.Sprintf("Namespace %s exists", cfg.Namespace))
 	}
 
 	return results, nil
@@ -159,18 +159,18 @@ func validateRBACPermissions(ctx context.Context, client *k8s.Client, cfg config
 		{Resource: "nodes", Verb: "patch"},
 		{Resource: "nodes", Verb: "get"},
 		// Namespaced: deployments in cluster namespace (for node-pinned deployments)
-		{Group: "apps", Resource: "deployments", Verb: "get", Namespace: cfg.Kubernetes.RookClusterNamespace},
-		{Group: "apps", Resource: "deployments", Verb: "list", Namespace: cfg.Kubernetes.RookClusterNamespace},
+		{Group: "apps", Resource: "deployments", Verb: "get", Namespace: cfg.Namespace},
+		{Group: "apps", Resource: "deployments", Verb: "list", Namespace: cfg.Namespace},
 		// Scale subresource for scaling deployments (least-privilege)
-		{Group: "apps", Resource: "deployments", Subresource: "scale", Verb: "get", Namespace: cfg.Kubernetes.RookClusterNamespace},
-		{Group: "apps", Resource: "deployments", Subresource: "scale", Verb: "update", Namespace: cfg.Kubernetes.RookClusterNamespace},
+		{Group: "apps", Resource: "deployments", Subresource: "scale", Verb: "get", Namespace: cfg.Namespace},
+		{Group: "apps", Resource: "deployments", Subresource: "scale", Verb: "update", Namespace: cfg.Namespace},
 		// Namespaced: deployments in operator namespace (for rook-ceph-operator)
-		{Group: "apps", Resource: "deployments", Verb: "get", Namespace: cfg.Kubernetes.RookOperatorNamespace},
-		{Group: "apps", Resource: "deployments", Subresource: "scale", Verb: "get", Namespace: cfg.Kubernetes.RookOperatorNamespace},
-		{Group: "apps", Resource: "deployments", Subresource: "scale", Verb: "update", Namespace: cfg.Kubernetes.RookOperatorNamespace},
+		{Group: "apps", Resource: "deployments", Verb: "get", Namespace: cfg.Namespace},
+		{Group: "apps", Resource: "deployments", Subresource: "scale", Verb: "get", Namespace: cfg.Namespace},
+		{Group: "apps", Resource: "deployments", Subresource: "scale", Verb: "update", Namespace: cfg.Namespace},
 		// Namespaced: pods (for exec to rook-ceph-tools)
-		{Resource: "pods", Verb: "list", Namespace: cfg.Kubernetes.RookClusterNamespace},
-		{Resource: "pods", Subresource: "exec", Verb: "create", Namespace: cfg.Kubernetes.RookClusterNamespace},
+		{Resource: "pods", Verb: "list", Namespace: cfg.Namespace},
+		{Resource: "pods", Subresource: "exec", Verb: "create", Namespace: cfg.Namespace},
 	}
 
 	for _, perm := range permissions {

@@ -62,7 +62,7 @@ func ExecuteUpPhase(
 	} else {
 		// Discover deployments (CLI non-TUI mode)
 		sendUpProgress(opts.ProgressCallback, "discover", fmt.Sprintf("Discovering scaled-down deployments on %s", nodeName), "")
-		discovered, discoverErr := client.ListScaledDownDeploymentsForNode(ctx, cfg.Kubernetes.RookClusterNamespace, nodeName)
+		discovered, discoverErr := client.ListScaledDownDeploymentsForNode(ctx, cfg.Namespace, nodeName)
 		if discoverErr != nil {
 			return fmt.Errorf("failed to discover scaled-down deployments: %w", discoverErr)
 		}
@@ -140,7 +140,7 @@ func restoreDeployments(ctx context.Context, client *k8s.Client, cfg config.Conf
 
 		// Wait for MON quorum before proceeding to OSDs
 		sendUpProgress(opts.ProgressCallback, "quorum", "Waiting for Ceph monitor quorum", "")
-		if err := WaitForMonitorQuorum(ctx, client, cfg.Kubernetes.RookClusterNamespace, opts.WaitOptions); err != nil {
+		if err := WaitForMonitorQuorum(ctx, client, cfg.Namespace, opts.WaitOptions); err != nil {
 			return fmt.Errorf("failed waiting for monitor quorum: %w", err)
 		}
 		sendUpProgress(opts.ProgressCallback, "quorum", "Ceph monitor quorum established", "")
@@ -184,7 +184,7 @@ func scaleOperator(ctx context.Context, client *k8s.Client, cfg config.Config, o
 	sendUpProgress(opts.ProgressCallback, "operator", "Scaling up rook-ceph-operator to 1", "")
 
 	operatorName := "rook-ceph-operator"
-	operatorNamespace := cfg.Kubernetes.RookOperatorNamespace
+	operatorNamespace := cfg.Namespace
 
 	if err := client.ScaleDeployment(ctx, operatorNamespace, operatorName, 1); err != nil {
 		return fmt.Errorf("failed to scale operator to 1: %w", err)
@@ -201,7 +201,7 @@ func scaleOperator(ctx context.Context, client *k8s.Client, cfg config.Config, o
 func finalizeUpPhase(ctx context.Context, client *k8s.Client, cfg config.Config, opts UpPhaseOptions) error {
 	sendUpProgress(opts.ProgressCallback, "unset-noout", "Unsetting Ceph noout flag", "")
 
-	if err := client.UnsetNoOut(ctx, cfg.Kubernetes.RookClusterNamespace); err != nil {
+	if err := client.UnsetNoOut(ctx, cfg.Namespace); err != nil {
 		return fmt.Errorf("failed to unset noout flag: %w", err)
 	}
 

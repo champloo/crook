@@ -190,7 +190,7 @@ func FetchData(ctx context.Context, opts FetchOptions) (*Data, error) {
 		FetchedAt: time.Now(),
 	}
 
-	namespace := opts.Config.Kubernetes.RookClusterNamespace
+	namespace := opts.Config.Namespace
 
 	// Always fetch cluster health for header (non-fatal - Ceph may be degraded)
 	health, err := fetchClusterHealth(ctx, opts.Client, namespace)

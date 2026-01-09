@@ -22,8 +22,8 @@ func TestLoadConfigDefaults(t *testing.T) {
 	}
 
 	cfg := result.Config
-	if cfg.Kubernetes.RookOperatorNamespace != config.DefaultRookNamespace {
-		t.Fatalf("expected rook operator namespace default %q, got %q", config.DefaultRookNamespace, cfg.Kubernetes.RookOperatorNamespace)
+	if cfg.Namespace != config.DefaultRookNamespace {
+		t.Fatalf("expected rook operator namespace default %q, got %q", config.DefaultRookNamespace, cfg.Namespace)
 	}
 	if cfg.Timeouts.APICallTimeoutSeconds != config.DefaultAPICallTimeoutSeconds {
 		t.Fatalf("expected api timeout default %d, got %d", config.DefaultAPICallTimeoutSeconds, cfg.Timeouts.APICallTimeoutSeconds)
@@ -46,11 +46,11 @@ func TestLoadConfigFlagOverridesDefault(t *testing.T) {
 	}
 
 	cfg := result.Config
-	if cfg.Kubernetes.RookOperatorNamespace != "flag-ns" {
-		t.Fatalf("expected flag override for operator namespace, got %q", cfg.Kubernetes.RookOperatorNamespace)
+	if cfg.Namespace != "flag-ns" {
+		t.Fatalf("expected flag override for operator namespace, got %q", cfg.Namespace)
 	}
-	if cfg.Kubernetes.RookClusterNamespace != "flag-ns" {
-		t.Fatalf("expected flag override for cluster namespace, got %q", cfg.Kubernetes.RookClusterNamespace)
+	if cfg.Namespace != "flag-ns" {
+		t.Fatalf("expected flag override for cluster namespace, got %q", cfg.Namespace)
 	}
 }
 
@@ -67,11 +67,11 @@ func TestLoadConfigNamespaceOverride(t *testing.T) {
 	}
 
 	cfg := result.Config
-	if cfg.Kubernetes.RookOperatorNamespace != "shared" {
-		t.Fatalf("expected namespace override for operator, got %q", cfg.Kubernetes.RookOperatorNamespace)
+	if cfg.Namespace != "shared" {
+		t.Fatalf("expected namespace override for operator, got %q", cfg.Namespace)
 	}
-	if cfg.Kubernetes.RookClusterNamespace != "shared" {
-		t.Fatalf("expected namespace override for cluster, got %q", cfg.Kubernetes.RookClusterNamespace)
+	if cfg.Namespace != "shared" {
+		t.Fatalf("expected namespace override for cluster, got %q", cfg.Namespace)
 	}
 }
 
@@ -90,11 +90,11 @@ func TestLoadConfigFromFileFixture(t *testing.T) {
 
 	cfg := result.Config
 	// Kubernetes values use defaults (yaml:"-" tag excludes from YAML parsing)
-	if cfg.Kubernetes.RookOperatorNamespace != config.DefaultRookNamespace {
-		t.Fatalf("expected default operator namespace, got %q", cfg.Kubernetes.RookOperatorNamespace)
+	if cfg.Namespace != config.DefaultRookNamespace {
+		t.Fatalf("expected default operator namespace, got %q", cfg.Namespace)
 	}
-	if cfg.Kubernetes.RookClusterNamespace != config.DefaultRookNamespace {
-		t.Fatalf("expected default cluster namespace, got %q", cfg.Kubernetes.RookClusterNamespace)
+	if cfg.Namespace != config.DefaultRookNamespace {
+		t.Fatalf("expected default cluster namespace, got %q", cfg.Namespace)
 	}
 	if cfg.UI.ProgressRefreshMS != 150 {
 		t.Fatalf("expected progress refresh from file, got %d", cfg.UI.ProgressRefreshMS)
@@ -118,11 +118,11 @@ func TestLoadConfigPartialUsesDefaults(t *testing.T) {
 
 	cfg := result.Config
 	// Kubernetes values use defaults (yaml:"-" tag excludes from YAML parsing)
-	if cfg.Kubernetes.RookOperatorNamespace != config.DefaultRookNamespace {
-		t.Fatalf("expected default operator namespace, got %q", cfg.Kubernetes.RookOperatorNamespace)
+	if cfg.Namespace != config.DefaultRookNamespace {
+		t.Fatalf("expected default operator namespace, got %q", cfg.Namespace)
 	}
-	if cfg.Kubernetes.RookClusterNamespace != config.DefaultRookNamespace {
-		t.Fatalf("expected default cluster namespace, got %q", cfg.Kubernetes.RookClusterNamespace)
+	if cfg.Namespace != config.DefaultRookNamespace {
+		t.Fatalf("expected default cluster namespace, got %q", cfg.Namespace)
 	}
 	// partial.yaml sets progress-refresh-ms to 200
 	if cfg.UI.ProgressRefreshMS != 200 {
@@ -144,11 +144,11 @@ func TestLoadConfigEnvOverridesDefault(t *testing.T) {
 	}
 
 	cfg := result.Config
-	if cfg.Kubernetes.RookOperatorNamespace != "env-ns" {
-		t.Fatalf("expected env override for operator namespace, got %q", cfg.Kubernetes.RookOperatorNamespace)
+	if cfg.Namespace != "env-ns" {
+		t.Fatalf("expected env override for operator namespace, got %q", cfg.Namespace)
 	}
-	if cfg.Kubernetes.RookClusterNamespace != "env-ns" {
-		t.Fatalf("expected env override for cluster namespace, got %q", cfg.Kubernetes.RookClusterNamespace)
+	if cfg.Namespace != "env-ns" {
+		t.Fatalf("expected env override for cluster namespace, got %q", cfg.Namespace)
 	}
 	if cfg.UI.ProgressRefreshMS != 220 {
 		t.Fatalf("expected env override for progress refresh, got %d", cfg.UI.ProgressRefreshMS)
@@ -254,8 +254,8 @@ logging:
 	}
 
 	// kubernetes section is ignored - uses defaults
-	if result.Config.Kubernetes.RookOperatorNamespace != config.DefaultRookNamespace {
-		t.Errorf("expected default namespace, got %q", result.Config.Kubernetes.RookOperatorNamespace)
+	if result.Config.Namespace != config.DefaultRookNamespace {
+		t.Errorf("expected default namespace, got %q", result.Config.Namespace)
 	}
 	// Other values should still be parsed
 	if result.Config.Logging.Level != "debug" {

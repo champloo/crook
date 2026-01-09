@@ -15,8 +15,8 @@ func TestValidateConfigValidDefaults(t *testing.T) {
 
 func TestValidateConfigMultipleErrors(t *testing.T) {
 	cfg := DefaultConfig()
-	cfg.Kubernetes.RookOperatorNamespace = ""
-	cfg.Kubernetes.RookClusterNamespace = "invalid_namespace!"
+	cfg.Namespace = ""
+	cfg.Namespace = "invalid_namespace!"
 	cfg.Timeouts.APICallTimeoutSeconds = 0
 	cfg.Timeouts.CephCommandTimeoutSeconds = -1
 	cfg.UI.ProgressRefreshMS = 50

@@ -311,7 +311,7 @@ func (m *LsModel) startMonitorCmd() tea.Cmd {
 		cfg := &monitoring.LsMonitorConfig{
 			Context:                    m.config.Context,
 			Client:                     m.config.Client,
-			Namespace:                  m.config.Config.Kubernetes.RookClusterNamespace,
+			Namespace:                  m.config.Config.Namespace,
 			NodeFilter:                 m.config.NodeFilter,
 			NodesRefreshInterval:       getInterval(m.config.Config.UI.LsRefreshNodesMS, config.DefaultLsRefreshNodesMS),
 			DeploymentsRefreshInterval: getInterval(m.config.Config.UI.LsRefreshDeploymentsMS, config.DefaultLsRefreshDeploymentsMS),

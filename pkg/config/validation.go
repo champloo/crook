@@ -27,10 +27,7 @@ func (r ValidationResult) HasWarnings() bool {
 func ValidateConfig(cfg Config) ValidationResult {
 	var result ValidationResult
 
-	if err := validateNamespace(cfg.Kubernetes.RookOperatorNamespace); err != nil {
-		result.Errors = append(result.Errors, err)
-	}
-	if err := validateNamespace(cfg.Kubernetes.RookClusterNamespace); err != nil {
+	if err := validateNamespace(cfg.Namespace); err != nil {
 		result.Errors = append(result.Errors, err)
 	}
 
