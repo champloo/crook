@@ -96,6 +96,10 @@ just install            # Install to GOPATH/bin
   - Error messages: lowercase, no punctuation at end
   - Prefer early returns over deeply nested conditionals
 
+- **DRY & Reuse:**
+  - Avoid code duplication, if code already exists elsewhere lean towards extracting it out into a function and reuse. Keep it DRY where it makes sense.
+  - Avoid reinventing the wheel by writing code that exists elsewhere particularly if that code already exists in the standard library or libraries that we have included as dependencies. If something seems like it should be a commonly solved problem reach for libraries first.
+
 - **Linter Configuration:**
   - **Critical for robustness and safety** (enforces project conventions):
     - `errcheck` - Ensures all errors are checked (critical for Kubernetes operations)
