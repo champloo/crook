@@ -3,15 +3,17 @@ package k8s
 import (
 	"encoding/json"
 	"time"
+
+	"k8s.io/apimachinery/pkg/util/duration"
 )
 
 // Duration wraps time.Duration to provide human-readable JSON serialization.
-// JSON output format: "5d", "2h", "30m", "45s"
+// Uses Kubernetes-style formatting: "5d", "36h", "5m", "30s"
 type Duration time.Duration
 
 // MarshalJSON implements json.Marshaler for human-readable duration output
 func (d Duration) MarshalJSON() ([]byte, error) {
-	return json.Marshal(formatDuration(time.Duration(d)))
+	return json.Marshal(duration.HumanDuration(time.Duration(d)))
 }
 
 // UnmarshalJSON implements json.Unmarshaler
@@ -43,63 +45,12 @@ func (d Duration) Duration() time.Duration {
 	return time.Duration(d)
 }
 
-// String returns a human-readable representation of the duration
+// String returns a human-readable representation of the duration (Kubernetes style)
 func (d Duration) String() string {
-	return formatDuration(time.Duration(d))
+	return duration.HumanDuration(time.Duration(d))
 }
 
-// formatDuration formats a duration as a human-readable age string
-func formatDuration(d time.Duration) string {
-	if d < time.Minute {
-		return formatInt(int(d.Seconds())) + "s"
-	}
-	if d < time.Hour {
-		return formatInt(int(d.Minutes())) + "m"
-	}
-	if d < 24*time.Hour {
-		return formatInt(int(d.Hours())) + "h"
-	}
-	days := int(d.Hours() / 24)
-	if days < 30 {
-		return formatInt(days) + "d"
-	}
-	if days < 365 {
-		return formatInt(days/30) + "mo"
-	}
-	return formatInt(days/365) + "y"
-}
-
-// formatInt converts an int to a string
-func formatInt(n int) string {
-	if n == 0 {
-		return "0"
-	}
-
-	negative := false
-	if n < 0 {
-		negative = true
-		n = -n
-	}
-
-	// Build digits in reverse
-	digits := make([]byte, 0, 20)
-	for n > 0 {
-		digits = append(digits, byte('0'+n%10))
-		n /= 10
-	}
-
-	// Reverse
-	for i, j := 0, len(digits)-1; i < j; i, j = i+1, j-1 {
-		digits[i], digits[j] = digits[j], digits[i]
-	}
-
-	if negative {
-		return "-" + string(digits)
-	}
-	return string(digits)
-}
-
-// parseDurationString parses our custom duration format (e.g., "5d", "2h")
+// parseDurationString parses duration format (e.g., "5d", "2h")
 func parseDurationString(s string) time.Duration {
 	if len(s) < 2 {
 		return 0
