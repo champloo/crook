@@ -63,8 +63,8 @@ func TestNewClientFromClientset(t *testing.T) {
 func TestClientConfig_Defaults(t *testing.T) {
 	cfg := ClientConfig{}
 
-	if cfg.Context != "" {
-		t.Errorf("expected empty context, got %s", cfg.Context)
+	if cfg.CephCommandTimeout != 0 {
+		t.Errorf("expected zero CephCommandTimeout, got %v", cfg.CephCommandTimeout)
 	}
 }
 

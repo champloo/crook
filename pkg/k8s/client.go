@@ -25,9 +25,6 @@ type Client struct {
 
 // ClientConfig holds configuration for creating a Kubernetes client
 type ClientConfig struct {
-	// Context name to use from kubeconfig. If empty, uses current context.
-	Context string
-
 	// CephCommandTimeout is the timeout for Ceph CLI commands.
 	// If zero, uses DefaultCephTimeout.
 	CephCommandTimeout time.Duration
@@ -74,7 +71,7 @@ func NewClientFromClientset(clientset kubernetes.Interface) *Client {
 }
 
 // buildConfig builds a Kubernetes REST config from the given configuration
-func buildConfig(cfg ClientConfig) (*rest.Config, error) {
+func buildConfig(_ ClientConfig) (*rest.Config, error) {
 	// Try in-cluster config first
 	if config, err := rest.InClusterConfig(); err == nil {
 		return config, nil
@@ -103,14 +100,9 @@ func buildConfig(cfg ClientConfig) (*rest.Config, error) {
 		ExplicitPath: kubeconfigPath,
 	}
 
-	configOverrides := &clientcmd.ConfigOverrides{}
-	if cfg.Context != "" {
-		configOverrides.CurrentContext = cfg.Context
-	}
-
 	clientConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 		loadingRules,
-		configOverrides,
+		&clientcmd.ConfigOverrides{},
 	)
 
 	config, err := clientConfig.ClientConfig()
