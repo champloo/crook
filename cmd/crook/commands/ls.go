@@ -71,8 +71,8 @@ select alternative output formats for scripting or CI/CD integration.`,
 			}
 			return validateLsOptions(opts)
 		},
-		RunE: func(_ *cobra.Command, _ []string) error {
-			return runLs(opts)
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runLs(cmd.Context(), opts)
 		},
 	}
 
@@ -113,8 +113,7 @@ func validateLsOptions(opts *LsOptions) error {
 }
 
 // runLs executes the ls command
-func runLs(opts *LsOptions) error {
-	ctx := GlobalOptions.Context
+func runLs(ctx context.Context, opts *LsOptions) error {
 	cfg := GlobalOptions.Config
 
 	// Initialize Kubernetes client with config-derived settings

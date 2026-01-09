@@ -117,6 +117,9 @@ func initializeGlobals(cmd *cobra.Command) error {
 	GlobalOptions.Context = ctx
 	GlobalOptions.CancelFunc = cancel
 
+	// Set cobra's context so cmd.Context() returns our signal-aware context
+	cmd.SetContext(ctx)
+
 	// Load configuration with flag bindings
 	loadOpts := config.LoadOptions{
 		ConfigFile: GlobalOptions.ConfigFile,
