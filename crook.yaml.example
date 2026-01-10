@@ -20,18 +20,13 @@
 
 # Terminal UI configuration
 ui:
-  # Progress bar refresh rate in milliseconds
-  # Lower values = smoother animation but more CPU usage
-  # Default: 100
-  progress-refresh-ms: 100
+  # Refresh interval for Kubernetes API resources (nodes, deployments, pods)
+  # Default: 2000
+  k8s-refresh-ms: 2000
 
-  # crook ls refresh intervals (milliseconds)
-  # Default: nodes/pods/deployments 2000ms, osds/header 5000ms
-  ls-refresh-nodes-ms: 2000
-  ls-refresh-deployments-ms: 2000
-  ls-refresh-pods-ms: 2000
-  ls-refresh-osds-ms: 5000
-  ls-refresh-header-ms: 5000
+  # Refresh interval for Ceph CLI operations (OSDs, header)
+  # Default: 5000
+  ceph-refresh-ms: 5000
 
 # Operation timeouts
 timeouts:

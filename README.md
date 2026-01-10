@@ -120,16 +120,16 @@ crook up worker-1
 
 ```bash
 # Interactive TUI with tabbed views
+crook
+
+# Table output for scripting (default)
 crook ls
-
-# Filter by node
-crook ls worker-1
-
-# Table output for scripting
-crook ls --output table
 
 # JSON output for automation
 crook ls --output json
+
+# Filter by node
+crook ls worker-1
 ```
 
 ## Commands
@@ -168,12 +168,13 @@ Restore a node after maintenance by scaling up Rook-Ceph workloads.
 
 ### `crook ls [node]`
 
-List Rook-Ceph resources in an interactive TUI or formatted output.
+List Rook-Ceph resources in formatted output.
+Run `crook` without arguments to launch the interactive TUI.
 
 **Flags:**
 | Flag | Description |
 |------|-------------|
-| `-o, --output` | Output format: tui, table, json, yaml (default: tui) |
+| `-o, --output` | Output format: table, json (default: table) |
 | `--show` | Resource types to display: nodes,deployments,osds,pods |
 
 ## Configuration
@@ -211,12 +212,11 @@ Or specify a custom location: `--config /path/to/config.yaml`
 
 # Terminal UI configuration
 ui:
-  progress-refresh-ms: 100
-  ls-refresh-nodes-ms: 2000
-  ls-refresh-deployments-ms: 2000
-  ls-refresh-pods-ms: 2000
-  ls-refresh-osds-ms: 5000
-  ls-refresh-header-ms: 5000
+  # Refresh interval for Kubernetes API resources (nodes, deployments, pods)
+  k8s-refresh-ms: 2000
+
+  # Refresh interval for Ceph CLI operations (OSDs, header)
+  ceph-refresh-ms: 5000
 
 # Operation timeouts
 timeouts:
