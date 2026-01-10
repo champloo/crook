@@ -210,7 +210,11 @@ func TestDownModel_Update_DeploymentsDiscovered_AllAlreadyScaledDown(t *testing.
 		{Namespace: "rook-ceph", Name: "osd-1", CurrentReplicas: 0, Status: "pending"},
 		{Namespace: "rook-ceph", Name: "mon-a", CurrentReplicas: 0, Status: "pending"},
 	}
-	msg := DeploymentsDiscoveredMsg{DownPlan: downPlan, Deployments: deployments}
+	msg := DeploymentsDiscoveredMsg{
+		DownPlan:              downPlan,
+		Deployments:           deployments,
+		AlreadyInDesiredState: true, // Simulates full state check passing
+	}
 
 	updatedModel, _ := model.Update(msg)
 	m, ok := updatedModel.(*DownModel)
@@ -230,8 +234,12 @@ func TestDownModel_Update_DeploymentsDiscovered_EmptyPlan(t *testing.T) {
 		Context:  context.Background(),
 	})
 
-	// Empty down plan (no deployments to scale down)
-	msg := DeploymentsDiscoveredMsg{DownPlan: []DownPlanItem{}, Deployments: []appsv1.Deployment{}}
+	// Empty down plan (no deployments to scale down) and already in desired state
+	msg := DeploymentsDiscoveredMsg{
+		DownPlan:              []DownPlanItem{},
+		Deployments:           []appsv1.Deployment{},
+		AlreadyInDesiredState: true, // Simulates full state check passing
+	}
 
 	updatedModel, _ := model.Update(msg)
 	m, ok := updatedModel.(*DownModel)
@@ -735,57 +743,5 @@ func TestDownModel_SetSize(t *testing.T) {
 
 	if model.height != 50 {
 		t.Errorf("height = %d, want 50", model.height)
-	}
-}
-
-func TestDownModel_allDeploymentsAlreadyScaledDown(t *testing.T) {
-	tests := []struct {
-		name     string
-		downPlan []DownPlanItem
-		expected bool
-	}{
-		{
-			name:     "empty plan returns true",
-			downPlan: []DownPlanItem{},
-			expected: true,
-		},
-		{
-			name: "all at zero returns true",
-			downPlan: []DownPlanItem{
-				{Name: "dep1", CurrentReplicas: 0},
-				{Name: "dep2", CurrentReplicas: 0},
-			},
-			expected: true,
-		},
-		{
-			name: "one at non-zero returns false",
-			downPlan: []DownPlanItem{
-				{Name: "dep1", CurrentReplicas: 0},
-				{Name: "dep2", CurrentReplicas: 1},
-			},
-			expected: false,
-		},
-		{
-			name: "all at non-zero returns false",
-			downPlan: []DownPlanItem{
-				{Name: "dep1", CurrentReplicas: 1},
-				{Name: "dep2", CurrentReplicas: 2},
-			},
-			expected: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			model := NewDownModel(DownModelConfig{
-				NodeName: "test-node",
-				Context:  context.Background(),
-			})
-			model.downPlan = tt.downPlan
-
-			if got := model.allDeploymentsAlreadyScaledDown(); got != tt.expected {
-				t.Errorf("allDeploymentsAlreadyScaledDown() = %v, want %v", got, tt.expected)
-			}
-		})
 	}
 }

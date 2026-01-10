@@ -628,8 +628,11 @@ func TestUpModel_Update_DeploymentsDiscovered_EmptyPlan(t *testing.T) {
 		Context:  context.Background(),
 	})
 
-	// Empty restore plan (no deployments to restore)
-	msg := DeploymentsDiscoveredForUpMsg{RestorePlan: []RestorePlanItem{}}
+	// Empty restore plan (no deployments to restore) and already in desired state
+	msg := DeploymentsDiscoveredForUpMsg{
+		RestorePlan:           []RestorePlanItem{},
+		AlreadyInDesiredState: true, // Simulates full state check passing
+	}
 
 	updatedModel, _ := model.Update(msg)
 	m, ok := updatedModel.(*UpModel)
@@ -709,46 +712,5 @@ func TestUpModel_View_NothingToDo(t *testing.T) {
 
 	if !contains(view, "No scaling action needed") {
 		t.Errorf("View should contain 'No scaling action needed', got %q", view)
-	}
-}
-
-func TestUpModel_allDeploymentsAlreadyScaledUp(t *testing.T) {
-	tests := []struct {
-		name        string
-		restorePlan []RestorePlanItem
-		expected    bool
-	}{
-		{
-			name:        "empty plan returns true",
-			restorePlan: []RestorePlanItem{},
-			expected:    true,
-		},
-		{
-			name:        "nil plan returns true",
-			restorePlan: nil,
-			expected:    true,
-		},
-		{
-			name: "has deployments returns false",
-			restorePlan: []RestorePlanItem{
-				{Name: "dep1", CurrentReplicas: 0},
-				{Name: "dep2", CurrentReplicas: 0},
-			},
-			expected: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			model := NewUpModel(UpModelConfig{
-				NodeName: "test-node",
-				Context:  context.Background(),
-			})
-			model.restorePlan = tt.restorePlan
-
-			if got := model.allDeploymentsAlreadyScaledUp(); got != tt.expected {
-				t.Errorf("allDeploymentsAlreadyScaledUp() = %v, want %v", got, tt.expected)
-			}
-		})
 	}
 }

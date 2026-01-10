@@ -104,7 +104,7 @@ func runUp(ctx context.Context, nodeName string, opts *UpOptions) error {
 
 	pw := cli.NewProgressWriter(os.Stdout)
 
-	if len(deployments) == 0 && isUpDesiredState(ctx, client, cfg, nodeName) {
+	if maintenance.IsInUpState(ctx, client, cfg, nodeName, deployments) {
 		pw.PrintSuccess(fmt.Sprintf("Node %s is already operational (uncordoned, noout unset, operator running)", nodeName))
 		return nil
 	}

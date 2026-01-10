@@ -12,7 +12,6 @@ import (
 	"github.com/andri/crook/pkg/k8s"
 	"github.com/andri/crook/pkg/maintenance"
 	"github.com/spf13/cobra"
-	appsv1 "k8s.io/api/apps/v1"
 )
 
 // DownOptions holds options specific to the down command
@@ -106,7 +105,7 @@ func runDown(ctx context.Context, nodeName string, opts *DownOptions) error {
 
 	pw := cli.NewProgressWriter(os.Stdout)
 
-	if allDeploymentsScaledDown(deployments) && isDownDesiredState(ctx, client, cfg, nodeName) {
+	if maintenance.IsInDownState(ctx, client, cfg, nodeName, deployments) {
 		pw.PrintSuccess(fmt.Sprintf("Node %s is already prepared for maintenance (cordoned, noout set, operator down)", nodeName))
 		return nil
 	}
@@ -144,21 +143,4 @@ func runDown(ctx context.Context, nodeName string, opts *DownOptions) error {
 
 	pw.PrintSuccess(fmt.Sprintf("Node %s is now ready for maintenance", nodeName))
 	return nil
-}
-
-// allDeploymentsScaledDown returns true if there are no deployments or all have 0 replicas.
-func allDeploymentsScaledDown(deployments []appsv1.Deployment) bool {
-	if len(deployments) == 0 {
-		return true
-	}
-	for _, d := range deployments {
-		replicas := int32(1) // default if nil
-		if d.Spec.Replicas != nil {
-			replicas = *d.Spec.Replicas
-		}
-		if replicas > 0 {
-			return false
-		}
-	}
-	return true
 }

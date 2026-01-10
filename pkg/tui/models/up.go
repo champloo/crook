@@ -230,6 +230,9 @@ type DeploymentsDiscoveredForUpMsg struct {
 	// Deployments contains the actual Deployment objects for execution.
 	// This avoids plan drift between confirmation and execution.
 	Deployments []appsv1.Deployment
+	// AlreadyInDesiredState indicates the node is fully in up state
+	// (uncordoned, noout unset, operator running, no scaled-down deployments).
+	AlreadyInDesiredState bool
 }
 
 // UpProgressChannelClosedMsg signals that the progress channel was closed
@@ -272,9 +275,19 @@ func (m *UpModel) discoverDeploymentsCmd() tea.Cmd {
 			restorePlan = append(restorePlan, item)
 		}
 
+		// Check if already in desired up state (complete check including node/operator/noout)
+		alreadyInState := maintenance.IsInUpState(
+			m.config.Context,
+			m.config.Client,
+			m.config.Config,
+			m.config.NodeName,
+			orderedDeployments,
+		)
+
 		return DeploymentsDiscoveredForUpMsg{
-			RestorePlan: restorePlan,
-			Deployments: orderedDeployments, // Include ordered deployments for execution
+			RestorePlan:           restorePlan,
+			Deployments:           orderedDeployments, // Include ordered deployments for execution
+			AlreadyInDesiredState: alreadyInState,
 		}
 	}
 }
@@ -399,8 +412,8 @@ func (m *UpModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.restorePlan = msg.RestorePlan
 		m.discoveredDeployments = msg.Deployments // Store for execution
 
-		// Check if all deployments are already at target replicas (nothing to do)
-		if m.allDeploymentsAlreadyScaledUp() {
+		// Check if already in desired up state (node uncordoned, noout unset, operator running, no scaled-down deployments)
+		if msg.AlreadyInDesiredState {
 			m.state = UpStateNothingToDo
 		} else {
 			m.state = UpStateConfirm
@@ -633,13 +646,6 @@ func (m *UpModel) buildDeploymentListDetails() string {
 		lines = append(lines, fmt.Sprintf("%s %s", styledIcon, item.Name))
 	}
 	return strings.Join(lines, "\n    ")
-}
-
-// allDeploymentsAlreadyScaledUp returns true if there are no deployments to restore
-// (either no deployments at 0 replicas were found, or the restore plan is empty).
-func (m *UpModel) allDeploymentsAlreadyScaledUp() bool {
-	// If there are no deployments to restore, there's nothing to do
-	return len(m.restorePlan) == 0
 }
 
 // View implements tea.Model

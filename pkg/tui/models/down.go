@@ -229,6 +229,9 @@ type DeploymentsDiscoveredMsg struct {
 	// Deployments contains the actual Deployment objects for execution.
 	// This avoids plan drift between confirmation and execution.
 	Deployments []appsv1.Deployment
+	// AlreadyInDesiredState indicates the node is fully in down state
+	// (cordoned, noout set, operator down, all deployments scaled down).
+	AlreadyInDesiredState bool
 }
 
 // DownProgressChannelClosedMsg signals that the progress channel was closed
@@ -275,9 +278,19 @@ func (m *DownModel) discoverDeploymentsCmd() tea.Cmd {
 			downPlan = append(downPlan, item)
 		}
 
+		// Check if already in desired down state (complete check including node/operator/noout)
+		alreadyInState := maintenance.IsInDownState(
+			m.config.Context,
+			m.config.Client,
+			m.config.Config,
+			m.config.NodeName,
+			orderedDeployments,
+		)
+
 		return DeploymentsDiscoveredMsg{
-			DownPlan:    downPlan,
-			Deployments: orderedDeployments, // Include ordered deployments for execution
+			DownPlan:              downPlan,
+			Deployments:           orderedDeployments, // Include ordered deployments for execution
+			AlreadyInDesiredState: alreadyInState,
 		}
 	}
 }
@@ -399,8 +412,8 @@ func (m *DownModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.discoveredDeployments = msg.Deployments // Store for execution
 		m.deploymentCount = len(msg.DownPlan)
 
-		// Check if all deployments are already at 0 replicas
-		if m.allDeploymentsAlreadyScaledDown() {
+		// Check if already in desired down state (node cordoned, noout set, operator down, deployments scaled)
+		if msg.AlreadyInDesiredState {
 			m.state = DownStateNothingToDo
 		} else {
 			m.state = DownStateConfirm
@@ -537,23 +550,6 @@ func (m *DownModel) initStatusList() {
 	m.statusList.AddStatus("Scale operator", components.StatusTypePending)
 	m.statusList.AddStatus("Discover deployments", components.StatusTypePending)
 	m.statusList.AddStatus("Scale deployments", components.StatusTypePending)
-}
-
-// allDeploymentsAlreadyScaledDown returns true if all deployments in the down plan
-// are already at 0 replicas (nothing to do).
-func (m *DownModel) allDeploymentsAlreadyScaledDown() bool {
-	// If there are no deployments to scale down, there's nothing to do
-	if len(m.downPlan) == 0 {
-		return true
-	}
-
-	// Check if all deployments are already at 0 replicas
-	for _, item := range m.downPlan {
-		if item.CurrentReplicas > 0 {
-			return false
-		}
-	}
-	return true
 }
 
 // updateStateFromProgress updates the model state based on progress messages
