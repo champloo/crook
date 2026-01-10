@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -77,12 +79,16 @@ type LsMonitor struct {
 	wg       sync.WaitGroup
 	mu       sync.RWMutex
 	latest   *LsMonitorUpdate
+	errors   map[string]error
 }
 
 // NewLsMonitor creates a new ls monitoring instance
-func NewLsMonitor(config *LsMonitorConfig) *LsMonitor {
+func NewLsMonitor(config *LsMonitorConfig) (*LsMonitor, error) {
+	if err := validateLsMonitorConfig(config); err != nil {
+		return nil, err
+	}
 	parentCtx := context.Background()
-	if config != nil && config.Context != nil {
+	if config.Context != nil {
 		parentCtx = config.Context
 	}
 	ctx, cancel := context.WithCancel(parentCtx)
@@ -95,7 +101,27 @@ func NewLsMonitor(config *LsMonitorConfig) *LsMonitor {
 		latest: &LsMonitorUpdate{
 			UpdateTime: time.Now(),
 		},
+		errors: make(map[string]error),
+	}, nil
+}
+
+func validateLsMonitorConfig(config *LsMonitorConfig) error {
+	if config == nil {
+		return fmt.Errorf("ls monitor config is nil")
 	}
+	if config.Client == nil {
+		return fmt.Errorf("ls monitor client is nil")
+	}
+	if strings.TrimSpace(config.Namespace) == "" {
+		return fmt.Errorf("ls monitor namespace is empty")
+	}
+	if config.K8sRefreshInterval <= 0 {
+		return fmt.Errorf("ls monitor k8s refresh interval must be > 0")
+	}
+	if config.CephRefreshInterval <= 0 {
+		return fmt.Errorf("ls monitor ceph refresh interval must be > 0")
+	}
+	return nil
 }
 
 // Start begins background monitoring of all ls resources
@@ -128,16 +154,47 @@ func (m *LsMonitor) GetLatest() *LsMonitorUpdate {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	// Return a copy
-	return &LsMonitorUpdate{
-		Nodes:       m.latest.Nodes,
-		Deployments: m.latest.Deployments,
-		Pods:        m.latest.Pods,
-		OSDs:        m.latest.OSDs,
-		Header:      m.latest.Header,
-		UpdateTime:  m.latest.UpdateTime,
-		Error:       m.latest.Error,
+	// Return a copy to avoid callers mutating internal state.
+	return cloneUpdate(m.latest)
+}
+
+func cloneUpdate(update *LsMonitorUpdate) *LsMonitorUpdate {
+	if update == nil {
+		return nil
 	}
+	return &LsMonitorUpdate{
+		Nodes:       cloneNodes(update.Nodes),
+		Deployments: append([]k8s.DeploymentInfo(nil), update.Deployments...),
+		Pods:        append([]k8s.PodInfo(nil), update.Pods...),
+		OSDs:        append([]k8s.OSDInfo(nil), update.OSDs...),
+		Header:      cloneHeader(update.Header),
+		UpdateTime:  update.UpdateTime,
+		Error:       update.Error,
+	}
+}
+
+func cloneNodes(nodes []k8s.NodeInfo) []k8s.NodeInfo {
+	if nodes == nil {
+		return nil
+	}
+	cloned := make([]k8s.NodeInfo, len(nodes))
+	copy(cloned, nodes)
+	for i := range cloned {
+		if nodes[i].Roles != nil {
+			roles := make([]string, len(nodes[i].Roles))
+			copy(roles, nodes[i].Roles)
+			cloned[i].Roles = roles
+		}
+	}
+	return cloned
+}
+
+func cloneHeader(header *components.ClusterHeaderData) *components.ClusterHeaderData {
+	if header == nil {
+		return nil
+	}
+	cloned := *header
+	return &cloned
 }
 
 // runPoller runs a polling loop with the given interval and fetch function.
@@ -149,7 +206,7 @@ func runPoller[T any](
 	interval time.Duration,
 	source string,
 	fetch func() (T, error),
-	onError func(error),
+	onError func(string, error),
 ) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
@@ -171,7 +228,7 @@ func runPoller[T any](
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 				return
 			}
-			onError(fmt.Errorf("%s: %w", source, err))
+			onError(source, fmt.Errorf("%s: %w", source, err))
 		} else {
 			send(data)
 		}
@@ -409,7 +466,7 @@ func (m *LsMonitor) updateNodes(nodes []k8s.NodeInfo) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.latest.Nodes = nodes
-	m.latest.Error = nil // Clear error on successful update
+	m.clearErrorLocked("nodes")
 	m.latest.UpdateTime = time.Now()
 }
 
@@ -418,7 +475,7 @@ func (m *LsMonitor) updateDeployments(deployments []k8s.DeploymentInfo) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.latest.Deployments = deployments
-	m.latest.Error = nil // Clear error on successful update
+	m.clearErrorLocked("deployments")
 	m.latest.UpdateTime = time.Now()
 }
 
@@ -427,7 +484,7 @@ func (m *LsMonitor) updatePods(pods []k8s.PodInfo) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.latest.Pods = pods
-	m.latest.Error = nil // Clear error on successful update
+	m.clearErrorLocked("pods")
 	m.latest.UpdateTime = time.Now()
 }
 
@@ -436,7 +493,7 @@ func (m *LsMonitor) updateOSDs(osds []k8s.OSDInfo) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.latest.OSDs = osds
-	m.latest.Error = nil // Clear error on successful update
+	m.clearErrorLocked("osds")
 	m.latest.UpdateTime = time.Now()
 }
 
@@ -445,37 +502,63 @@ func (m *LsMonitor) updateHeader(header *components.ClusterHeaderData) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.latest.Header = header
-	m.latest.Error = nil // Clear error on successful update
+	m.clearErrorLocked("header")
 	m.latest.UpdateTime = time.Now()
 }
 
+func (m *LsMonitor) clearErrorLocked(source string) {
+	if m.errors == nil {
+		return
+	}
+	delete(m.errors, source)
+	m.latest.Error = combineErrors(m.errors)
+}
+
 // updateError updates the error in the latest cache
-func (m *LsMonitor) updateError(err error) {
+func (m *LsMonitor) updateError(source string, err error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.latest.Error = err
+	if m.errors == nil {
+		m.errors = make(map[string]error)
+	}
+	m.errors[source] = err
+	m.latest.Error = combineErrors(m.errors)
 	m.latest.UpdateTime = time.Now()
+}
+
+func combineErrors(errs map[string]error) error {
+	if len(errs) == 0 {
+		return nil
+	}
+	keys := make([]string, 0, len(errs))
+	for key := range errs {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	list := make([]error, 0, len(keys))
+	for _, key := range keys {
+		if errs[key] != nil {
+			list = append(list, errs[key])
+		}
+	}
+	if len(list) == 0 {
+		return nil
+	}
+	return errors.Join(list...)
 }
 
 // handleError updates the error state and sends an update directly.
 // This simplifies error handling by avoiding an intermediate channel.
-func (m *LsMonitor) handleError(err error) {
-	m.updateError(err)
+func (m *LsMonitor) handleError(source string, err error) {
+	m.updateError(source, err)
 	m.sendUpdate()
 }
 
 // sendUpdate sends the current state to the updates channel
 func (m *LsMonitor) sendUpdate() {
 	m.mu.RLock()
-	update := &LsMonitorUpdate{
-		Nodes:       m.latest.Nodes,
-		Deployments: m.latest.Deployments,
-		Pods:        m.latest.Pods,
-		OSDs:        m.latest.OSDs,
-		Header:      m.latest.Header,
-		UpdateTime:  m.latest.UpdateTime,
-		Error:       m.latest.Error,
-	}
+	update := cloneUpdate(m.latest)
 	m.mu.RUnlock()
 
 	// Non-blocking send

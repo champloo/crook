@@ -2,6 +2,7 @@ package monitoring
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -12,6 +13,15 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
+
+func newTestMonitor(t *testing.T, cfg *LsMonitorConfig) *LsMonitor {
+	t.Helper()
+	monitor, err := NewLsMonitor(cfg)
+	if err != nil {
+		t.Fatalf("NewLsMonitor returned error: %v", err)
+	}
+	return monitor
+}
 
 func TestDefaultLsMonitorConfig(t *testing.T) {
 	//nolint:staticcheck // SA1019: using deprecated NewSimpleClientset
@@ -40,7 +50,7 @@ func TestNewLsMonitor(t *testing.T) {
 	client := &k8s.Client{Clientset: clientset}
 	cfg := DefaultLsMonitorConfig(client, "rook-ceph")
 
-	monitor := NewLsMonitor(cfg)
+	monitor := newTestMonitor(t, cfg)
 
 	if monitor == nil {
 		t.Fatal("expected monitor to be created")
@@ -62,6 +72,47 @@ func TestNewLsMonitor(t *testing.T) {
 	}
 }
 
+func TestNewLsMonitor_InvalidConfig(t *testing.T) {
+	testCases := []struct {
+		name   string
+		config *LsMonitorConfig
+	}{
+		{name: "nil config", config: nil},
+		{name: "nil client", config: &LsMonitorConfig{
+			Namespace:           "rook-ceph",
+			K8sRefreshInterval:  time.Second,
+			CephRefreshInterval: time.Second,
+		}},
+		{name: "empty namespace", config: &LsMonitorConfig{
+			Client:              &k8s.Client{Clientset: fake.NewSimpleClientset()},
+			Namespace:           " ",
+			K8sRefreshInterval:  time.Second,
+			CephRefreshInterval: time.Second,
+		}},
+		{name: "invalid k8s interval", config: &LsMonitorConfig{
+			Client:              &k8s.Client{Clientset: fake.NewSimpleClientset()},
+			Namespace:           "rook-ceph",
+			K8sRefreshInterval:  0,
+			CephRefreshInterval: time.Second,
+		}},
+		{name: "invalid ceph interval", config: &LsMonitorConfig{
+			Client:              &k8s.Client{Clientset: fake.NewSimpleClientset()},
+			Namespace:           "rook-ceph",
+			K8sRefreshInterval:  time.Second,
+			CephRefreshInterval: -1 * time.Second,
+		}},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			monitor, err := NewLsMonitor(tc.config)
+			if err == nil {
+				t.Fatalf("expected error, got monitor: %#v", monitor)
+			}
+		})
+	}
+}
+
 func TestNewLsMonitor_UsesParentContext(t *testing.T) {
 	//nolint:staticcheck // SA1019: using deprecated NewSimpleClientset
 	clientset := fake.NewSimpleClientset()
@@ -71,7 +122,7 @@ func TestNewLsMonitor_UsesParentContext(t *testing.T) {
 	cfg := DefaultLsMonitorConfig(client, "rook-ceph")
 	cfg.Context = parentCtx
 
-	monitor := NewLsMonitor(cfg)
+	monitor := newTestMonitor(t, cfg)
 
 	cancel()
 
@@ -89,7 +140,7 @@ func TestLsMonitorGetLatest(t *testing.T) {
 	client := &k8s.Client{Clientset: clientset}
 	cfg := DefaultLsMonitorConfig(client, "rook-ceph")
 
-	monitor := NewLsMonitor(cfg)
+	monitor := newTestMonitor(t, cfg)
 
 	latest := monitor.GetLatest()
 	if latest == nil {
@@ -100,13 +151,36 @@ func TestLsMonitorGetLatest(t *testing.T) {
 	}
 }
 
+func TestLsMonitorGetLatest_ReturnsCopy(t *testing.T) {
+	//nolint:staticcheck // SA1019: using deprecated NewSimpleClientset
+	clientset := fake.NewSimpleClientset()
+	client := &k8s.Client{Clientset: clientset}
+	cfg := DefaultLsMonitorConfig(client, "rook-ceph")
+
+	monitor := newTestMonitor(t, cfg)
+	monitor.updateNodes([]k8s.NodeInfo{
+		{Name: "node-1", Roles: []string{"worker"}},
+	})
+
+	latest := monitor.GetLatest()
+	latest.Nodes[0].Name = "mutated"
+	latest.Nodes[0].Roles[0] = "mutated-role"
+
+	if monitor.latest.Nodes[0].Name == "mutated" {
+		t.Fatal("expected GetLatest to return a copy of nodes")
+	}
+	if monitor.latest.Nodes[0].Roles[0] == "mutated-role" {
+		t.Fatal("expected GetLatest to return a deep copy of node roles")
+	}
+}
+
 func TestLsMonitorGetLatest_ThreadSafe(t *testing.T) {
 	//nolint:staticcheck // SA1019: using deprecated NewSimpleClientset
 	clientset := fake.NewSimpleClientset()
 	client := &k8s.Client{Clientset: clientset}
 	cfg := DefaultLsMonitorConfig(client, "rook-ceph")
 
-	monitor := NewLsMonitor(cfg)
+	monitor := newTestMonitor(t, cfg)
 
 	// Run concurrent reads
 	done := make(chan bool)
@@ -125,6 +199,28 @@ func TestLsMonitorGetLatest_ThreadSafe(t *testing.T) {
 	// Wait for all goroutines
 	for i := 0; i < 10; i++ {
 		<-done
+	}
+}
+
+func TestLsMonitorErrorClearsPerSource(t *testing.T) {
+	//nolint:staticcheck // SA1019: using deprecated NewSimpleClientset
+	clientset := fake.NewSimpleClientset()
+	client := &k8s.Client{Clientset: clientset}
+	cfg := DefaultLsMonitorConfig(client, "rook-ceph")
+
+	monitor := newTestMonitor(t, cfg)
+
+	monitor.handleError("nodes", errors.New("nodes error"))
+	monitor.updateDeployments([]k8s.DeploymentInfo{{Name: "dep", Namespace: "rook-ceph"}})
+
+	if monitor.GetLatest().Error == nil {
+		t.Fatal("expected node error to persist after deployments update")
+	}
+
+	monitor.updateNodes([]k8s.NodeInfo{{Name: "node-1"}})
+
+	if monitor.GetLatest().Error != nil {
+		t.Fatal("expected error to clear after nodes update")
 	}
 }
 
@@ -171,7 +267,7 @@ func TestLsMonitorStartStop(t *testing.T) {
 		CephRefreshInterval: 50 * time.Millisecond,
 	}
 
-	monitor := NewLsMonitor(cfg)
+	monitor := newTestMonitor(t, cfg)
 	updates := monitor.Start()
 
 	// Should receive updates
@@ -226,7 +322,7 @@ func TestLsMonitorPollers(t *testing.T) {
 		CephRefreshInterval: 50 * time.Millisecond,
 	}
 
-	monitor := NewLsMonitor(cfg)
+	monitor := newTestMonitor(t, cfg)
 
 	// Test individual poller starters
 	t.Run("startNodesPoller", func(t *testing.T) {
@@ -280,7 +376,7 @@ func TestLsMonitorAggregator(t *testing.T) {
 		CephRefreshInterval: 50 * time.Millisecond,
 	}
 
-	monitor := NewLsMonitor(cfg)
+	monitor := newTestMonitor(t, cfg)
 
 	// Create test channels
 	nodesCh := make(chan []k8s.NodeInfo, 1)
@@ -347,7 +443,7 @@ func TestLsMonitorAggregatorAllChannels(t *testing.T) {
 		CephRefreshInterval: 50 * time.Millisecond,
 	}
 
-	monitor := NewLsMonitor(cfg)
+	monitor := newTestMonitor(t, cfg)
 
 	// Create test channels
 	nodesCh := make(chan []k8s.NodeInfo, 1)
@@ -440,7 +536,7 @@ func TestLsMonitorAggregatorChannelFull(t *testing.T) {
 		CephRefreshInterval: 50 * time.Millisecond,
 	}
 
-	monitor := NewLsMonitor(cfg)
+	monitor := newTestMonitor(t, cfg)
 	// Override with a non-buffered channel to test the default case
 	monitor.updates = make(chan *LsMonitorUpdate)
 
@@ -505,7 +601,7 @@ func TestLsMonitorNodeFilter(t *testing.T) {
 		CephRefreshInterval: 50 * time.Millisecond,
 	}
 
-	monitor := NewLsMonitor(cfg)
+	monitor := newTestMonitor(t, cfg)
 
 	if monitor.config.NodeFilter != "target-node" {
 		t.Errorf("expected NodeFilter=target-node, got %s", monitor.config.NodeFilter)

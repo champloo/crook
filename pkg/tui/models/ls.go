@@ -231,6 +231,11 @@ type LsMonitorStartedMsg struct {
 	Monitor *monitoring.LsMonitor
 }
 
+// LsMonitorStartFailedMsg is sent when the monitor fails to start
+type LsMonitorStartFailedMsg struct {
+	Err error
+}
+
 // LsRefreshTickMsg triggers checking for monitor updates
 type LsRefreshTickMsg struct{}
 
@@ -332,7 +337,10 @@ func (m *LsModel) startMonitorCmd() tea.Cmd {
 			K8sRefreshInterval:  getInterval(m.config.Config.UI.K8sRefreshMS, config.DefaultK8sRefreshMS),
 			CephRefreshInterval: getInterval(m.config.Config.UI.CephRefreshMS, config.DefaultCephRefreshMS),
 		}
-		monitor := monitoring.NewLsMonitor(cfg)
+		monitor, err := monitoring.NewLsMonitor(cfg)
+		if err != nil {
+			return LsMonitorStartFailedMsg{Err: err}
+		}
 		monitor.Start()
 		return LsMonitorStartedMsg{Monitor: monitor}
 	}
@@ -414,6 +422,9 @@ func (m *LsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.updateFromMonitor(latest)
 			}
 		}
+
+	case LsMonitorStartFailedMsg:
+		m.lastError = msg.Err
 
 	case LsMonitorStartedMsg:
 		m.monitor = msg.Monitor
