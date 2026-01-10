@@ -12,7 +12,6 @@ import (
 	"github.com/andri/crook/pkg/k8s"
 	"github.com/andri/crook/pkg/maintenance"
 	"github.com/spf13/cobra"
-	appsv1 "k8s.io/api/apps/v1"
 )
 
 // DownOptions holds options specific to the down command
@@ -82,7 +81,7 @@ func runDown(ctx context.Context, nodeName string, opts *DownOptions) error {
 
 	// Initialize Kubernetes client
 	logger.Info("connecting to kubernetes cluster")
-	client, err := k8s.NewClient(ctx, k8s.ClientConfig{
+	client, err := newK8sClient(ctx, k8s.ClientConfig{
 		CephCommandTimeout: time.Duration(cfg.Timeouts.CephCommandTimeoutSeconds) * time.Second,
 	})
 	if err != nil {
@@ -105,12 +104,6 @@ func runDown(ctx context.Context, nodeName string, opts *DownOptions) error {
 	}
 
 	pw := cli.NewProgressWriter(os.Stdout)
-
-	// Check if all deployments are already scaled down
-	if allDeploymentsScaledDown(deployments) {
-		pw.PrintSuccess(fmt.Sprintf("Node %s is already prepared for maintenance - all deployments are scaled down", nodeName))
-		return nil
-	}
 
 	// Build deployment names for display
 	var deploymentNames []string
@@ -135,7 +128,7 @@ func runDown(ctx context.Context, nodeName string, opts *DownOptions) error {
 	}
 
 	// Execute the down phase with progress callback
-	executeErr := maintenance.ExecuteDownPhase(ctx, client, cfg, nodeName, maintenance.DownPhaseOptions{
+	executeErr := executeDownPhase(ctx, client, cfg, nodeName, maintenance.DownPhaseOptions{
 		ProgressCallback: pw.OnDownProgress,
 	})
 	if executeErr != nil {
@@ -145,21 +138,4 @@ func runDown(ctx context.Context, nodeName string, opts *DownOptions) error {
 
 	pw.PrintSuccess(fmt.Sprintf("Node %s is now ready for maintenance", nodeName))
 	return nil
-}
-
-// allDeploymentsScaledDown returns true if there are no deployments or all have 0 replicas.
-func allDeploymentsScaledDown(deployments []appsv1.Deployment) bool {
-	if len(deployments) == 0 {
-		return true
-	}
-	for _, d := range deployments {
-		replicas := int32(1) // default if nil
-		if d.Spec.Replicas != nil {
-			replicas = *d.Spec.Replicas
-		}
-		if replicas > 0 {
-			return false
-		}
-	}
-	return true
 }

@@ -80,7 +80,7 @@ func runUp(ctx context.Context, nodeName string, opts *UpOptions) error {
 
 	// Initialize Kubernetes client
 	logger.Info("connecting to kubernetes cluster")
-	client, err := k8s.NewClient(ctx, k8s.ClientConfig{
+	client, err := newK8sClient(ctx, k8s.ClientConfig{
 		CephCommandTimeout: time.Duration(cfg.Timeouts.CephCommandTimeoutSeconds) * time.Second,
 	})
 	if err != nil {
@@ -103,12 +103,6 @@ func runUp(ctx context.Context, nodeName string, opts *UpOptions) error {
 	}
 
 	pw := cli.NewProgressWriter(os.Stdout)
-
-	// Check if there are no scaled-down deployments to restore
-	if len(deployments) == 0 {
-		pw.PrintSuccess(fmt.Sprintf("Node %s is already operational - no scaled-down deployments to restore", nodeName))
-		return nil
-	}
 
 	// Build deployment names for display
 	var deploymentNames []string
@@ -134,7 +128,7 @@ func runUp(ctx context.Context, nodeName string, opts *UpOptions) error {
 
 	// Execute the up phase with progress callback
 	// Pass discovered deployments to ensure consistency between confirmation and execution
-	executeErr := maintenance.ExecuteUpPhase(ctx, client, cfg, nodeName, maintenance.UpPhaseOptions{
+	executeErr := executeUpPhase(ctx, client, cfg, nodeName, maintenance.UpPhaseOptions{
 		ProgressCallback: pw.OnUpProgress,
 		Deployments:      deployments,
 	})
