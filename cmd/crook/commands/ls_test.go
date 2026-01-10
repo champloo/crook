@@ -135,10 +135,10 @@ func TestLsCmdValidatesOutputFlag(t *testing.T) {
 	}{
 		{"valid table", "table", false, ""},
 		{"valid json", "json", false, ""},
-		{"invalid tui", "tui", true, "must be one of"},
-		{"invalid yaml", "yaml", true, "must be one of"},
-		{"invalid format", "csv", true, "must be one of"},
-		{"invalid empty after set", "invalid", true, "must be one of"},
+		{"invalid tui", "tui", true, "unknown output format"},
+		{"invalid yaml", "yaml", true, "unknown output format"},
+		{"invalid format", "csv", true, "unknown output format"},
+		{"invalid empty after set", "invalid", true, "unknown output format"},
 	}
 
 	for _, tt := range tests {
@@ -161,7 +161,7 @@ func TestLsCmdValidatesOutputFlag(t *testing.T) {
 				}
 			} else {
 				// Not implemented error is expected, but not validation error
-				if err != nil && strings.Contains(err.Error(), "must be one of") {
+				if err != nil && strings.Contains(err.Error(), "unknown output format") {
 					t.Errorf("unexpected validation error for valid output %q: %v", tt.output, err)
 				}
 			}
@@ -180,8 +180,8 @@ func TestLsCmdValidatesShowFlag(t *testing.T) {
 		{"valid osds", "osds", false, ""},
 		{"valid multiple", "nodes,deployments,osds", false, ""},
 		{"valid all", "nodes,deployments,osds,pods", false, ""},
-		{"invalid type", "services", true, "is invalid"},
-		{"invalid mixed", "nodes,invalid", true, "is invalid"},
+		{"invalid type", "services", true, "invalid --show values"},
+		{"invalid mixed", "nodes,invalid", true, "invalid --show values"},
 		{"empty string", "", false, ""}, // Empty is allowed (show all)
 	}
 
@@ -206,7 +206,7 @@ func TestLsCmdValidatesShowFlag(t *testing.T) {
 				}
 			} else {
 				// Not implemented error is expected, but not validation error
-				if err != nil && strings.Contains(err.Error(), "is invalid") {
+				if err != nil && strings.Contains(err.Error(), "invalid --show values") {
 					t.Errorf("unexpected validation error for valid show %q: %v", tt.show, err)
 				}
 			}

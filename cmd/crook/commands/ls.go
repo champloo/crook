@@ -5,12 +5,10 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"slices"
-	"strings"
 	"time"
 
 	"github.com/andri/crook/pkg/k8s"
-	"github.com/andri/crook/pkg/tui/output"
+	"github.com/andri/crook/pkg/output"
 	"github.com/spf13/cobra"
 )
 
@@ -25,12 +23,6 @@ type LsOptions struct {
 	// NodeFilter is the optional node name to filter by (positional arg)
 	NodeFilter string
 }
-
-// validOutputFormats are the allowed values for --output
-var validOutputFormats = []string{"table", "json"}
-
-// validShowValues are the allowed values for --show (comma-separated)
-var validShowValues = []string{"nodes", "deployments", "osds", "pods"}
 
 // newLsCmd creates the ls subcommand
 func newLsCmd() *cobra.Command {
@@ -81,24 +73,12 @@ Use 'crook' without arguments to launch the interactive TUI instead.`,
 
 // validateLsOptions validates the ls command options
 func validateLsOptions(opts *LsOptions) error {
-	// Validate --output
-	if !slices.Contains(validOutputFormats, opts.Output) {
-		return fmt.Errorf("--output must be one of: %s, got %q",
-			strings.Join(validOutputFormats, ", "), opts.Output)
+	if _, err := output.ParseFormat(opts.Output); err != nil {
+		return err
 	}
-
-	// Validate --show values
 	if opts.Show != "" {
-		showValues := strings.Split(opts.Show, ",")
-		for _, v := range showValues {
-			v = strings.TrimSpace(v)
-			if v == "" {
-				continue
-			}
-			if !slices.Contains(validShowValues, v) {
-				return fmt.Errorf("--show value %q is invalid; must be subset of: %s",
-					v, strings.Join(validShowValues, ", "))
-			}
+		if _, err := output.ParseResourceTypes(opts.Show); err != nil {
+			return err
 		}
 	}
 
@@ -135,7 +115,10 @@ func runLs(ctx context.Context, opts *LsOptions) error {
 	}
 
 	// Parse resource types to display
-	resourceTypes := output.ParseResourceTypes(opts.Show)
+	resourceTypes, err := output.ParseResourceTypes(opts.Show)
+	if err != nil {
+		return err
+	}
 
 	// Fetch and render
 	data, fetchErr := output.FetchData(ctx, output.FetchOptions{

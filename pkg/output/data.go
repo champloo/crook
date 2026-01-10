@@ -2,6 +2,8 @@ package output
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/andri/crook/pkg/config"
@@ -28,13 +30,13 @@ func AllResourceTypes() []ResourceType {
 }
 
 // ParseResourceTypes parses a comma-separated list of resource types
-func ParseResourceTypes(show string) []ResourceType {
-	if show == "" {
-		return AllResourceTypes()
+func ParseResourceTypes(show string) ([]ResourceType, error) {
+	if strings.TrimSpace(show) == "" {
+		return AllResourceTypes(), nil
 	}
 
 	types := make([]ResourceType, 0)
-	// Split and validate (validation already done in CLI)
+	invalid := make([]string, 0)
 	for _, s := range splitTrim(show, ",") {
 		switch s {
 		case "nodes":
@@ -45,13 +47,29 @@ func ParseResourceTypes(show string) []ResourceType {
 			types = append(types, ResourceOSDs)
 		case "pods":
 			types = append(types, ResourcePods)
+		default:
+			if s != "" {
+				invalid = append(invalid, s)
+			}
 		}
 	}
 
-	if len(types) == 0 {
-		return AllResourceTypes()
+	if len(invalid) > 0 {
+		return nil, fmt.Errorf("invalid --show values: %s (valid: %s)", strings.Join(invalid, ", "), strings.Join(resourceTypeStrings(), ", "))
 	}
-	return types
+	if len(types) == 0 {
+		return AllResourceTypes(), nil
+	}
+	return types, nil
+}
+
+func resourceTypeStrings() []string {
+	types := AllResourceTypes()
+	values := make([]string, len(types))
+	for i, t := range types {
+		values[i] = string(t)
+	}
+	return values
 }
 
 // splitTrim splits a string and trims whitespace from each part
@@ -84,39 +102,39 @@ func splitTrim(s, sep string) []string {
 // ClusterHealth represents the Ceph cluster health status
 type ClusterHealth struct {
 	// Status is the overall health (HEALTH_OK, HEALTH_WARN, HEALTH_ERR)
-	Status string `json:"status" yaml:"status"`
+	Status string `json:"status"`
 	// OSDs is the total number of OSDs
-	OSDs int `json:"osds" yaml:"osds"`
+	OSDs int `json:"osds"`
 	// OSDsUp is the number of up OSDs
-	OSDsUp int `json:"osds_up" yaml:"osds_up"`
+	OSDsUp int `json:"osds_up"`
 	// OSDsIn is the number of in OSDs
-	OSDsIn int `json:"osds_in" yaml:"osds_in"`
+	OSDsIn int `json:"osds_in"`
 	// MonsTotal is the total number of monitors
-	MonsTotal int `json:"mons_total" yaml:"mons_total"`
+	MonsTotal int `json:"mons_total"`
 	// MonsInQuorum is the number of monitors in quorum
-	MonsInQuorum int `json:"mons_in_quorum" yaml:"mons_in_quorum"`
+	MonsInQuorum int `json:"mons_in_quorum"`
 	// NooutSet indicates if the noout flag is set
-	NooutSet bool `json:"noout_set" yaml:"noout_set"`
+	NooutSet bool `json:"noout_set"`
 	// UsedBytes is the used storage in bytes
-	UsedBytes int64 `json:"used_bytes" yaml:"used_bytes"`
+	UsedBytes int64 `json:"used_bytes"`
 	// TotalBytes is the total storage in bytes
-	TotalBytes int64 `json:"total_bytes" yaml:"total_bytes"`
+	TotalBytes int64 `json:"total_bytes"`
 }
 
 // Data holds all data for output formatting
 type Data struct {
 	// ClusterHealth contains Ceph cluster health information
-	ClusterHealth *ClusterHealth `json:"cluster_health,omitempty" yaml:"cluster_health,omitempty"`
+	ClusterHealth *ClusterHealth `json:"cluster_health,omitempty"`
 	// Nodes contains node information
-	Nodes []k8s.NodeInfo `json:"nodes,omitempty" yaml:"nodes,omitempty"`
+	Nodes []k8s.NodeInfo `json:"nodes,omitempty"`
 	// Deployments contains deployment information
-	Deployments []k8s.DeploymentInfo `json:"deployments,omitempty" yaml:"deployments,omitempty"`
+	Deployments []k8s.DeploymentInfo `json:"deployments,omitempty"`
 	// OSDs contains OSD information
-	OSDs []k8s.OSDInfo `json:"osds,omitempty" yaml:"osds,omitempty"`
+	OSDs []k8s.OSDInfo `json:"osds,omitempty"`
 	// Pods contains pod information
-	Pods []k8s.PodInfo `json:"pods,omitempty" yaml:"pods,omitempty"`
+	Pods []k8s.PodInfo `json:"pods,omitempty"`
 	// FetchedAt is when the data was fetched
-	FetchedAt time.Time `json:"fetched_at" yaml:"fetched_at"`
+	FetchedAt time.Time `json:"fetched_at"`
 }
 
 // FetchOptions configures data fetching

@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/andri/crook/pkg/k8s"
-	"github.com/andri/crook/pkg/tui/output"
+	"github.com/andri/crook/pkg/output"
 )
 
 func TestParseFormat(t *testing.T) {
@@ -47,9 +47,10 @@ func TestParseFormat(t *testing.T) {
 
 func TestParseResourceTypes(t *testing.T) {
 	tests := []struct {
-		name  string
-		input string
-		want  []output.ResourceType
+		name    string
+		input   string
+		want    []output.ResourceType
+		wantErr bool
 	}{
 		{
 			name:  "empty returns all",
@@ -76,11 +77,25 @@ func TestParseResourceTypes(t *testing.T) {
 			input: "nodes,deployments,osds,pods",
 			want:  output.AllResourceTypes(),
 		},
+		{
+			name:    "invalid values",
+			input:   "nodes,widgets",
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := output.ParseResourceTypes(tt.input)
+			got, err := output.ParseResourceTypes(tt.input)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("ParseResourceTypes(%q) expected error, got nil", tt.input)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("ParseResourceTypes(%q) unexpected error: %v", tt.input, err)
+			}
 			if len(got) != len(tt.want) {
 				t.Errorf("ParseResourceTypes(%q) returned %d types, want %d", tt.input, len(got), len(tt.want))
 				return
