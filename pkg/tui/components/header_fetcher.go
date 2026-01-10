@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/andri/crook/pkg/k8s"
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 // HeaderFetcherConfig holds configuration for the header fetcher

@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/andri/crook/pkg/tui/styles"
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 type mockModalContent struct {

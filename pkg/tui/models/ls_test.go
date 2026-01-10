@@ -10,7 +10,7 @@ import (
 	"github.com/andri/crook/pkg/config"
 	"github.com/andri/crook/pkg/monitoring"
 	"github.com/andri/crook/pkg/tui/components"
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 type stubSizedModel struct {

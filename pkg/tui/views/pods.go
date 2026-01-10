@@ -7,8 +7,8 @@ import (
 	"github.com/andri/crook/pkg/k8s"
 	"github.com/andri/crook/pkg/tui/format"
 	"github.com/andri/crook/pkg/tui/styles"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 // PodsView displays Rook-Ceph pods with ownership information
@@ -81,7 +81,11 @@ func (v *PodsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // View implements tea.Model
-func (v *PodsView) View() string {
+func (v *PodsView) View() tea.View {
+	return tea.NewView(v.Render())
+}
+
+func (v *PodsView) Render() string {
 	if len(v.pods) == 0 {
 		return styles.StyleSubtle.Render("No pods found")
 	}

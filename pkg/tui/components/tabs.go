@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"github.com/andri/crook/pkg/tui/styles"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 // Tab represents a single tab in the tab bar
@@ -91,7 +91,12 @@ func (t *TabBar) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // View implements tea.Model
-func (t *TabBar) View() string {
+func (t *TabBar) View() tea.View {
+	return tea.NewView(t.Render())
+}
+
+// Render returns the string representation for composition
+func (t *TabBar) Render() string {
 	if len(t.Tabs) == 0 {
 		return ""
 	}

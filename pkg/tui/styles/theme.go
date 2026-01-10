@@ -2,28 +2,29 @@
 package styles
 
 import (
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
+	"charm.land/lipgloss/v2/compat"
 )
 
 // Color palette for the TUI interface
 // These colors are defined to work with both 256-color and 16-color terminals
 var (
 	// Primary colors
-	ColorPrimary   = lipgloss.AdaptiveColor{Light: "#5A56E0", Dark: "#7C7AE6"}
-	ColorPrimaryFg = lipgloss.AdaptiveColor{Light: "#FFFFFF", Dark: "#FFFFFF"}
+	ColorPrimary   = compat.AdaptiveColor{Light: lipgloss.Color("#5A56E0"), Dark: lipgloss.Color("#7C7AE6")}
+	ColorPrimaryFg = compat.AdaptiveColor{Light: lipgloss.Color("#FFFFFF"), Dark: lipgloss.Color("#FFFFFF")}
 
 	// Status colors (semantic)
-	ColorSuccess   = lipgloss.AdaptiveColor{Light: "#00AF87", Dark: "#00D787"} // Green
-	ColorSuccessFg = lipgloss.AdaptiveColor{Light: "#FFFFFF", Dark: "#000000"}
+	ColorSuccess   = compat.AdaptiveColor{Light: lipgloss.Color("#00AF87"), Dark: lipgloss.Color("#00D787")} // Green
+	ColorSuccessFg = compat.AdaptiveColor{Light: lipgloss.Color("#FFFFFF"), Dark: lipgloss.Color("#000000")}
 
-	ColorWarning   = lipgloss.AdaptiveColor{Light: "#D7AF00", Dark: "#FFD700"} // Yellow
-	ColorWarningFg = lipgloss.AdaptiveColor{Light: "#000000", Dark: "#000000"}
+	ColorWarning   = compat.AdaptiveColor{Light: lipgloss.Color("#D7AF00"), Dark: lipgloss.Color("#FFD700")} // Yellow
+	ColorWarningFg = compat.AdaptiveColor{Light: lipgloss.Color("#000000"), Dark: lipgloss.Color("#000000")}
 
-	ColorError   = lipgloss.AdaptiveColor{Light: "#D70000", Dark: "#FF5F5F"} // Red
-	ColorErrorFg = lipgloss.AdaptiveColor{Light: "#FFFFFF", Dark: "#000000"}
+	ColorError   = compat.AdaptiveColor{Light: lipgloss.Color("#D70000"), Dark: lipgloss.Color("#FF5F5F")} // Red
+	ColorErrorFg = compat.AdaptiveColor{Light: lipgloss.Color("#FFFFFF"), Dark: lipgloss.Color("#000000")}
 
-	ColorInfo   = lipgloss.AdaptiveColor{Light: "#0087D7", Dark: "#5FAFFF"} // Blue
-	ColorInfoFg = lipgloss.AdaptiveColor{Light: "#FFFFFF", Dark: "#000000"}
+	ColorInfo   = compat.AdaptiveColor{Light: lipgloss.Color("#0087D7"), Dark: lipgloss.Color("#5FAFFF")} // Blue
+	ColorInfoFg = compat.AdaptiveColor{Light: lipgloss.Color("#FFFFFF"), Dark: lipgloss.Color("#000000")}
 
 	// Progress indicator colors
 	ColorInProgress = ColorInfo    // Blue for in-progress
@@ -31,12 +32,12 @@ var (
 	ColorFailed     = ColorError   // Red for error
 
 	// UI element colors
-	ColorBorder        = lipgloss.AdaptiveColor{Light: "#B2B2B2", Dark: "#585858"}
-	ColorSubtle        = lipgloss.AdaptiveColor{Light: "#6C6C6C", Dark: "#8A8A8A"}
-	ColorHighlight     = lipgloss.AdaptiveColor{Light: "#000000", Dark: "#FFFFFF"}
-	ColorBackground    = lipgloss.AdaptiveColor{Light: "#FFFFFF", Dark: "#000000"}
-	ColorSubtleBg      = lipgloss.AdaptiveColor{Light: "#E8E8E8", Dark: "#303030"} // Subtle background for group headers
-	ColorSubtleBgLight = lipgloss.AdaptiveColor{Light: "#F0F0F0", Dark: "#252525"} // Even lighter variant
+	ColorBorder        = compat.AdaptiveColor{Light: lipgloss.Color("#B2B2B2"), Dark: lipgloss.Color("#585858")}
+	ColorSubtle        = compat.AdaptiveColor{Light: lipgloss.Color("#6C6C6C"), Dark: lipgloss.Color("#8A8A8A")}
+	ColorHighlight     = compat.AdaptiveColor{Light: lipgloss.Color("#000000"), Dark: lipgloss.Color("#FFFFFF")}
+	ColorBackground    = compat.AdaptiveColor{Light: lipgloss.Color("#FFFFFF"), Dark: lipgloss.Color("#000000")}
+	ColorSubtleBg      = compat.AdaptiveColor{Light: lipgloss.Color("#E8E8E8"), Dark: lipgloss.Color("#303030")} // Subtle background for group headers
+	ColorSubtleBgLight = compat.AdaptiveColor{Light: lipgloss.Color("#F0F0F0"), Dark: lipgloss.Color("#252525")} // Even lighter variant
 )
 
 // Text styles for various UI elements

@@ -7,7 +7,7 @@ import (
 	"github.com/andri/crook/pkg/k8s"
 
 	"github.com/andri/crook/pkg/tui/components"
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 func TestDetailPanel_NewDetailPanel(t *testing.T) {

@@ -8,8 +8,8 @@ import (
 
 	"github.com/andri/crook/pkg/tui/format"
 	"github.com/andri/crook/pkg/tui/styles"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 // ClusterHeaderData holds all the data displayed in the cluster header
@@ -89,7 +89,12 @@ func (h *ClusterHeader) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // View implements tea.Model
-func (h *ClusterHeader) View() string {
+func (h *ClusterHeader) View() tea.View {
+	return tea.NewView(h.Render())
+}
+
+// Render returns the string representation for composition
+func (h *ClusterHeader) Render() string {
 	if h.loading {
 		return h.renderLoading()
 	}

@@ -12,7 +12,7 @@ import (
 	"github.com/andri/crook/pkg/maintenance"
 	"github.com/andri/crook/pkg/tui/components"
 	"github.com/andri/crook/pkg/tui/styles"
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	appsv1 "k8s.io/api/apps/v1"
 )
 
@@ -623,7 +623,12 @@ func (m *DownModel) buildDeploymentListDetails() string {
 }
 
 // View implements tea.Model
-func (m *DownModel) View() string {
+func (m *DownModel) View() tea.View {
+	return tea.NewView(m.Render())
+}
+
+// Render returns the string representation for composition
+func (m *DownModel) Render() string {
 	var b strings.Builder
 
 	// Header with current state
@@ -699,7 +704,7 @@ func (m *DownModel) renderConfirmation() string {
 			table.AddStyledRow(statusStyle, deployName, currentStr, targetStr, item.Status)
 		}
 		table.SetMaxRows(10)
-		b.WriteString(table.View())
+		b.WriteString(table.Render())
 	} else {
 		b.WriteString(styles.StyleWarning.Render("No deployments found on this node."))
 		b.WriteString("\n")
@@ -716,7 +721,7 @@ func (m *DownModel) renderConfirmation() string {
 	b.WriteString(fmt.Sprintf("  4. Scale down %d deployment(s) to 0 replicas\n", m.deploymentCount))
 
 	b.WriteString("\n")
-	b.WriteString(m.confirmPrompt.View())
+	b.WriteString(m.confirmPrompt.Render())
 
 	return b.String()
 }
@@ -747,7 +752,7 @@ func (m *DownModel) renderProgress() string {
 	b.WriteString("\n\n")
 
 	// Status list (includes deployment progress inline)
-	b.WriteString(m.statusList.View())
+	b.WriteString(m.statusList.Render())
 
 	return b.String()
 }
@@ -783,7 +788,7 @@ func (m *DownModel) renderComplete() string {
 	kv.Add("Node", m.config.NodeName)
 	kv.Add("Deployments Scaled", fmt.Sprintf("%d", m.deploymentCount))
 	kv.Add("Duration", m.elapsedTime.Round(time.Second).String())
-	b.WriteString(kv.View())
+	b.WriteString(kv.Render())
 
 	b.WriteString("\n\n")
 	b.WriteString(styles.StyleSubtle.Render("The node is now safe for maintenance."))

@@ -1,7 +1,7 @@
 // Package models provides Bubble Tea models for the TUI interface.
 package models
 
-import tea "github.com/charmbracelet/bubbletea"
+import tea "charm.land/bubbletea/v2"
 
 // FlowExitBehavior defines how a flow signals exit to its caller.
 type FlowExitBehavior int

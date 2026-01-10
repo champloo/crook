@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/andri/crook/pkg/tui/styles"
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 // ConfirmResult represents the result of a confirmation prompt
@@ -108,7 +108,12 @@ func (c *ConfirmPrompt) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // View implements tea.Model
-func (c *ConfirmPrompt) View() string {
+func (c *ConfirmPrompt) View() tea.View {
+	return tea.NewView(c.Render())
+}
+
+// Render returns the string representation for composition
+func (c *ConfirmPrompt) Render() string {
 	var result string
 
 	// Build the question with optional hint
@@ -227,18 +232,18 @@ func (d *ConfirmDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // View implements tea.Model
-func (d *ConfirmDialog) View() string {
+func (d *ConfirmDialog) View() tea.View {
 	content := ""
 
 	if d.title != "" {
 		content = styles.StyleHeading.Render(d.title) + "\n\n"
 	}
 
-	content += d.prompt.View()
+	content += d.prompt.Render()
 
 	box := styles.StyleBox.Width(d.width)
 
-	return box.Render(content)
+	return tea.NewView(box.Render(content))
 }
 
 // SetWidth sets the dialog width

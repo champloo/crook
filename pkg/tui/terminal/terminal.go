@@ -4,9 +4,6 @@ package terminal
 import (
 	"os"
 	"strings"
-
-	"github.com/charmbracelet/lipgloss"
-	"github.com/muesli/termenv"
 )
 
 // Capability represents terminal capabilities
@@ -176,13 +173,9 @@ func SizeWarning(width, height int) string {
 	return strings.Join(warnings, "; ")
 }
 
-// ConfigureLipgloss configures lipgloss based on terminal capabilities
-func ConfigureLipgloss(cap Capability) {
-	if cap.HasNoColors {
-		lipgloss.SetColorProfile(termenv.Ascii)
-	} else if cap.Has256Colors {
-		lipgloss.SetColorProfile(termenv.ANSI256)
-	} else if cap.Has16Colors {
-		lipgloss.SetColorProfile(termenv.ANSI)
-	}
+// ConfigureLipgloss configures lipgloss based on terminal capabilities.
+// In lipgloss v2 with bubbletea v2, color profile is managed automatically
+// by the tea.Program, so this function is now a no-op.
+func ConfigureLipgloss(_ Capability) {
+	// Color profile is now managed automatically by bubbletea v2
 }

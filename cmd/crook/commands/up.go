@@ -9,7 +9,7 @@ import (
 	"github.com/andri/crook/internal/logger"
 	"github.com/andri/crook/pkg/k8s"
 	"github.com/andri/crook/pkg/tui/models"
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/spf13/cobra"
 )
 
@@ -97,7 +97,7 @@ func runUpTUI(ctx context.Context, client *k8s.Client, nodeName string) error {
 	app := models.NewAppModel(appCfg)
 
 	// Run the Bubble Tea program
-	p := tea.NewProgram(app, tea.WithAltScreen())
+	p := tea.NewProgram(app)
 	finalModel, err := p.Run()
 	if err != nil {
 		return fmt.Errorf("TUI error: %w", err)

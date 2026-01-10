@@ -9,7 +9,7 @@ import (
 	"github.com/andri/crook/pkg/k8s"
 	"github.com/andri/crook/pkg/tui/styles"
 	"github.com/andri/crook/pkg/tui/terminal"
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 // Route represents the current view/route in the application
@@ -39,6 +39,8 @@ type SubModel interface {
 	tea.Model
 	// SetSize updates the model's terminal dimensions
 	SetSize(width, height int)
+	// Render returns the string representation for composition
+	Render() string
 }
 
 // AppConfig holds configuration for the app model
@@ -122,11 +124,7 @@ type QuitMsg struct{}
 
 // Init implements tea.Model
 func (m *AppModel) Init() tea.Cmd {
-	return tea.Batch(
-		// Get initial terminal size
-		tea.EnterAltScreen,
-		m.initializeSubModels,
-	)
+	return m.initializeSubModels
 }
 
 // initializeSubModels creates the sub-models based on the current route.
@@ -235,7 +233,14 @@ func (m *AppModel) handleGlobalKeys(msg tea.KeyMsg) tea.Cmd {
 }
 
 // View implements tea.Model
-func (m *AppModel) View() string {
+func (m *AppModel) View() tea.View {
+	v := tea.NewView(m.Render())
+	v.AltScreen = true
+	return v
+}
+
+// Render returns the string representation for composition
+func (m *AppModel) Render() string {
 	if m.quitting {
 		return ""
 	}
@@ -261,7 +266,7 @@ func (m *AppModel) View() string {
 	// Render current sub-model
 	subModel := m.currentSubModel()
 	if subModel != nil {
-		view += subModel.View()
+		view += subModel.Render()
 	} else {
 		view += "No view available"
 	}

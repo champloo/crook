@@ -8,8 +8,8 @@ import (
 	"github.com/andri/crook/pkg/k8s"
 	"github.com/andri/crook/pkg/tui/format"
 	"github.com/andri/crook/pkg/tui/styles"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 // NodesView displays cluster nodes with Ceph workload information
@@ -87,7 +87,11 @@ func (v *NodesView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // View implements tea.Model
-func (v *NodesView) View() string {
+func (v *NodesView) View() tea.View {
+	return tea.NewView(v.Render())
+}
+
+func (v *NodesView) Render() string {
 	if len(v.nodes) == 0 {
 		return styles.StyleSubtle.Render("No nodes found")
 	}

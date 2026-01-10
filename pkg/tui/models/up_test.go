@@ -8,7 +8,7 @@ import (
 
 	"github.com/andri/crook/pkg/config"
 	"github.com/andri/crook/pkg/tui/components"
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 func TestUpPhaseState_String(t *testing.T) {

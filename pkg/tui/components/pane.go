@@ -3,11 +3,12 @@ package components
 
 import (
 	"fmt"
+	"image/color"
 	"strings"
 
 	"github.com/andri/crook/pkg/tui/format"
 	"github.com/andri/crook/pkg/tui/styles"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 )
 
 // PaneConfig holds configuration for a Pane component.
@@ -92,7 +93,7 @@ func (p *Pane) GetShortcutKey() string {
 // The styling depends on whether the pane is active or inactive.
 func (p *Pane) View(content string) string {
 	// Select border color based on active state
-	var borderColor lipgloss.AdaptiveColor
+	var borderColor color.Color
 	var titleStyle lipgloss.Style
 
 	if p.active {

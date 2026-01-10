@@ -14,8 +14,8 @@ import (
 	"github.com/andri/crook/pkg/tui/format"
 	"github.com/andri/crook/pkg/tui/styles"
 	"github.com/andri/crook/pkg/tui/views"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 // LsPane represents the available panes in the multi-pane ls view
@@ -150,6 +150,7 @@ type LsModel struct {
 type sizedModel interface {
 	tea.Model
 	SetSize(width, height int)
+	Render() string
 }
 
 func (m *LsModel) handleHelpKeyMsg(msg tea.KeyMsg) (bool, tea.Cmd) {
@@ -836,7 +837,14 @@ func (m *LsModel) updateActiveViewCursor(delta int) {
 }
 
 // View implements tea.Model
-func (m *LsModel) View() string {
+func (m *LsModel) View() tea.View {
+	v := tea.NewView(m.Render())
+	v.AltScreen = true
+	return v
+}
+
+// Render returns the string representation for composition
+func (m *LsModel) Render() string {
 	var b strings.Builder
 
 	// Help overlay takes precedence
@@ -863,7 +871,7 @@ func (m *LsModel) renderHeader() string {
 	var header strings.Builder
 
 	// Use the header component for cluster health
-	header.WriteString(m.header.View())
+	header.WriteString(m.header.Render())
 
 	return header.String()
 }
@@ -875,15 +883,15 @@ func (m *LsModel) renderAllPanes() string {
 	layout := m.computeLayout()
 	m.applyLayout(layout)
 
-	nodes := m.panes[LsPaneNodes].View(m.nodesView.View())
+	nodes := m.panes[LsPaneNodes].View(m.nodesView.Render())
 	maintenance := m.maintenancePane.View(m.maintenanceContent())
 	b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, nodes, " ", maintenance))
 	b.WriteString("\n")
 
-	b.WriteString(m.panes[LsPaneDeployments].View(m.deploymentsPodsView.View()))
+	b.WriteString(m.panes[LsPaneDeployments].View(m.deploymentsPodsView.Render()))
 	b.WriteString("\n")
 
-	b.WriteString(m.panes[LsPaneOSDs].View(m.osdsView.View()))
+	b.WriteString(m.panes[LsPaneOSDs].View(m.osdsView.Render()))
 
 	return b.String()
 }
@@ -942,7 +950,7 @@ func (m *LsModel) reselectNodeIfNeeded() {
 // getPaneContent returns the view content for a specific pane
 func (m *LsModel) maintenanceContent() string {
 	if m.maintenanceFlow != nil {
-		return m.maintenanceFlow.View()
+		return m.maintenanceFlow.Render()
 	}
 
 	var b strings.Builder

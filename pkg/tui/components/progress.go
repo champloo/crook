@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/andri/crook/pkg/tui/styles"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 // ProgressState represents the state of a progress bar
@@ -108,7 +108,12 @@ func (p *ProgressBar) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // View implements tea.Model
-func (p *ProgressBar) View() string {
+func (p *ProgressBar) View() tea.View {
+	return tea.NewView(p.Render())
+}
+
+// Render returns the string representation for composition
+func (p *ProgressBar) Render() string {
 	if p.Indeterminate {
 		return p.renderIndeterminate()
 	}
@@ -306,10 +311,15 @@ func (m *MultiProgress) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // View implements tea.Model
-func (m *MultiProgress) View() string {
+func (m *MultiProgress) View() tea.View {
+	return tea.NewView(m.Render())
+}
+
+// Render returns the string representation for composition
+func (m *MultiProgress) Render() string {
 	var views []string
 	for _, bar := range m.bars {
-		views = append(views, bar.View())
+		views = append(views, bar.Render())
 	}
 	return strings.Join(views, "\n")
 }

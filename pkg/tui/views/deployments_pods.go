@@ -2,6 +2,7 @@ package views
 
 import (
 	"github.com/andri/crook/pkg/k8s"
+	tea "charm.land/bubbletea/v2"
 )
 
 // DeploymentsPodsView is a composite view that can toggle between showing
@@ -58,11 +59,16 @@ func (v *DeploymentsPodsView) GetTitle() string {
 }
 
 // View returns the rendered content from the active sub-view.
-func (v *DeploymentsPodsView) View() string {
+func (v *DeploymentsPodsView) View() tea.View {
+	return tea.NewView(v.Render())
+}
+
+// Render returns the string representation for composition.
+func (v *DeploymentsPodsView) Render() string {
 	if v.showPods {
-		return v.podsView.View()
+		return v.podsView.Render()
 	}
-	return v.deploymentsView.View()
+	return v.deploymentsView.Render()
 }
 
 // SetSize forwards the size to both sub-views.

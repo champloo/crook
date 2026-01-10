@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/andri/crook/pkg/tui/styles"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 // ModalContent is the interface for content hosted inside a modal.
@@ -83,7 +83,7 @@ func (m *Modal) SetSize(width, height int) {
 func (m *Modal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		if msg.Type == tea.KeyEsc && !m.config.DisableEscClose {
+		if msg.String() == "esc" && !m.config.DisableEscClose {
 			return m, func() tea.Msg { return ModalCloseMsg{} }
 		}
 	case tea.WindowSizeMsg:
@@ -103,10 +103,18 @@ func (m *Modal) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // View renders the modal.
-func (m *Modal) View() string {
+func (m *Modal) View() tea.View {
+	return tea.NewView(m.Render())
+}
+
+// Render returns the string representation for composition.
+func (m *Modal) Render() string {
 	content := m.content
 	if m.model != nil {
-		content = m.model.View()
+		// Use Render() if available, otherwise get the view content
+		if renderer, ok := m.model.(interface{ Render() string }); ok {
+			content = renderer.Render()
+		}
 	}
 
 	if m.config.Title != "" {

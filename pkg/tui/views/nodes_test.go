@@ -6,7 +6,7 @@ import (
 
 	"github.com/andri/crook/pkg/k8s"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 func TestNewNodesView(t *testing.T) {

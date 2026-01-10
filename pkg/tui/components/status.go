@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/andri/crook/pkg/tui/styles"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 // StatusType represents the type of status being displayed
@@ -122,7 +122,12 @@ func (s *StatusIndicator) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // View implements tea.Model
-func (s *StatusIndicator) View() string {
+func (s *StatusIndicator) View() tea.View {
+	return tea.NewView(s.Render())
+}
+
+// Render returns the string representation for composition
+func (s *StatusIndicator) Render() string {
 	icon := s.getIcon()
 	style := s.getStyle()
 
@@ -271,10 +276,15 @@ func (l *StatusList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // View implements tea.Model
-func (l *StatusList) View() string {
+func (l *StatusList) View() tea.View {
+	return tea.NewView(l.Render())
+}
+
+// Render returns the string representation for composition
+func (l *StatusList) Render() string {
 	var lines []string
 	for _, item := range l.items {
-		lines = append(lines, item.View())
+		lines = append(lines, item.Render())
 	}
 	return joinLines(lines)
 }

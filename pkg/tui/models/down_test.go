@@ -8,7 +8,7 @@ import (
 
 	"github.com/andri/crook/pkg/config"
 	"github.com/andri/crook/pkg/tui/components"
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )

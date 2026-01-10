@@ -8,8 +8,8 @@ import (
 	"github.com/andri/crook/pkg/k8s"
 	"github.com/andri/crook/pkg/tui/format"
 	"github.com/andri/crook/pkg/tui/styles"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 // Column widths for the deployments table
@@ -90,7 +90,11 @@ func (v *DeploymentsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // View implements tea.Model
-func (v *DeploymentsView) View() string {
+func (v *DeploymentsView) View() tea.View {
+	return tea.NewView(v.Render())
+}
+
+func (v *DeploymentsView) Render() string {
 	if len(v.deployments) == 0 {
 		return styles.StyleSubtle.Render("No deployments found")
 	}

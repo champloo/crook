@@ -6,8 +6,8 @@ import (
 
 	"github.com/andri/crook/pkg/tui/format"
 	"github.com/andri/crook/pkg/tui/styles"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 // TableColumn defines a column in the table
@@ -112,7 +112,12 @@ func (t *Table) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // View implements tea.Model
-func (t *Table) View() string {
+func (t *Table) View() tea.View {
+	return tea.NewView(t.Render())
+}
+
+// Render returns the string representation for composition
+func (t *Table) Render() string {
 	if len(t.Columns) == 0 {
 		return ""
 	}
@@ -401,7 +406,12 @@ func (kv *KeyValueTable) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // View implements tea.Model
-func (kv *KeyValueTable) View() string {
+func (kv *KeyValueTable) View() tea.View {
+	return tea.NewView(kv.Render())
+}
+
+// Render returns the string representation for composition
+func (kv *KeyValueTable) Render() string {
 	if len(kv.items) == 0 {
 		return ""
 	}

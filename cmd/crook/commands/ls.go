@@ -13,7 +13,7 @@ import (
 	"github.com/andri/crook/pkg/k8s"
 	"github.com/andri/crook/pkg/tui/models"
 	"github.com/andri/crook/pkg/tui/output"
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/spf13/cobra"
 )
 
@@ -156,7 +156,7 @@ func runLs(ctx context.Context, opts *LsOptions) error {
 	})
 
 	// Run the TUI
-	p := tea.NewProgram(model, tea.WithAltScreen())
+	p := tea.NewProgram(model)
 	if _, runErr := p.Run(); runErr != nil {
 		return fmt.Errorf("TUI error: %w", runErr)
 	}

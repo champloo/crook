@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/andri/crook/pkg/config"
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 type testSubModel struct {
