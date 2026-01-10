@@ -19,7 +19,7 @@ func TestValidateConfigMultipleErrors(t *testing.T) {
 	cfg.Namespace = "invalid_namespace!"
 	cfg.Timeouts.APICallTimeoutSeconds = 0
 	cfg.Timeouts.CephCommandTimeoutSeconds = -1
-	cfg.UI.ProgressRefreshMS = 50
+	cfg.UI.K8sRefreshMS = 50
 
 	result := ValidateConfig(cfg)
 	if len(result.Errors) < 2 {

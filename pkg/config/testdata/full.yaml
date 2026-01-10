@@ -1,7 +1,6 @@
 ui:
-  progress-refresh-ms: 150
-  ls-refresh-nodes-ms: 2500
-  ls-refresh-header-ms: 4500
+  k8s-refresh-ms: 3000
+  ceph-refresh-ms: 6000
 
 timeouts:
   api-call-timeout-seconds: 10

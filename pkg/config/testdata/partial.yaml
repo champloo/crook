@@ -1,2 +1,2 @@
 ui:
-  progress-refresh-ms: 200
+  k8s-refresh-ms: 3000

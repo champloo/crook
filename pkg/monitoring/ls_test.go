@@ -26,20 +26,11 @@ func TestDefaultLsMonitorConfig(t *testing.T) {
 	if cfg.Namespace != "rook-ceph" {
 		t.Errorf("expected Namespace=rook-ceph, got %s", cfg.Namespace)
 	}
-	if cfg.NodesRefreshInterval != 2*time.Second {
-		t.Errorf("expected 2s nodes refresh, got %s", cfg.NodesRefreshInterval)
+	if cfg.K8sRefreshInterval != 2*time.Second {
+		t.Errorf("expected 2s k8s refresh, got %s", cfg.K8sRefreshInterval)
 	}
-	if cfg.DeploymentsRefreshInterval != 2*time.Second {
-		t.Errorf("expected 2s deployments refresh, got %s", cfg.DeploymentsRefreshInterval)
-	}
-	if cfg.PodsRefreshInterval != 2*time.Second {
-		t.Errorf("expected 2s pods refresh, got %s", cfg.PodsRefreshInterval)
-	}
-	if cfg.OSDsRefreshInterval != 5*time.Second {
-		t.Errorf("expected 5s osds refresh, got %s", cfg.OSDsRefreshInterval)
-	}
-	if cfg.HeaderRefreshInterval != 5*time.Second {
-		t.Errorf("expected 5s header refresh, got %s", cfg.HeaderRefreshInterval)
+	if cfg.CephRefreshInterval != 5*time.Second {
+		t.Errorf("expected 5s ceph refresh, got %s", cfg.CephRefreshInterval)
 	}
 }
 
@@ -174,13 +165,10 @@ func TestLsMonitorStartStop(t *testing.T) {
 	client := &k8s.Client{Clientset: clientset}
 
 	cfg := &LsMonitorConfig{
-		Client:                     client,
-		Namespace:                  "rook-ceph",
-		NodesRefreshInterval:       50 * time.Millisecond,
-		DeploymentsRefreshInterval: 50 * time.Millisecond,
-		PodsRefreshInterval:        50 * time.Millisecond,
-		OSDsRefreshInterval:        50 * time.Millisecond,
-		HeaderRefreshInterval:      50 * time.Millisecond,
+		Client:              client,
+		Namespace:           "rook-ceph",
+		K8sRefreshInterval:  50 * time.Millisecond,
+		CephRefreshInterval: 50 * time.Millisecond,
 	}
 
 	monitor := NewLsMonitor(cfg)
@@ -232,13 +220,10 @@ func TestLsMonitorPollers(t *testing.T) {
 	client := &k8s.Client{Clientset: clientset}
 
 	cfg := &LsMonitorConfig{
-		Client:                     client,
-		Namespace:                  "rook-ceph",
-		NodesRefreshInterval:       50 * time.Millisecond,
-		DeploymentsRefreshInterval: 50 * time.Millisecond,
-		PodsRefreshInterval:        50 * time.Millisecond,
-		OSDsRefreshInterval:        50 * time.Millisecond,
-		HeaderRefreshInterval:      50 * time.Millisecond,
+		Client:              client,
+		Namespace:           "rook-ceph",
+		K8sRefreshInterval:  50 * time.Millisecond,
+		CephRefreshInterval: 50 * time.Millisecond,
 	}
 
 	monitor := NewLsMonitor(cfg)
@@ -289,13 +274,10 @@ func TestLsMonitorAggregator(t *testing.T) {
 	client := &k8s.Client{Clientset: clientset}
 
 	cfg := &LsMonitorConfig{
-		Client:                     client,
-		Namespace:                  "rook-ceph",
-		NodesRefreshInterval:       50 * time.Millisecond,
-		DeploymentsRefreshInterval: 50 * time.Millisecond,
-		PodsRefreshInterval:        50 * time.Millisecond,
-		OSDsRefreshInterval:        50 * time.Millisecond,
-		HeaderRefreshInterval:      50 * time.Millisecond,
+		Client:              client,
+		Namespace:           "rook-ceph",
+		K8sRefreshInterval:  50 * time.Millisecond,
+		CephRefreshInterval: 50 * time.Millisecond,
 	}
 
 	monitor := NewLsMonitor(cfg)
@@ -359,13 +341,10 @@ func TestLsMonitorAggregatorAllChannels(t *testing.T) {
 	client := &k8s.Client{Clientset: clientset}
 
 	cfg := &LsMonitorConfig{
-		Client:                     client,
-		Namespace:                  "rook-ceph",
-		NodesRefreshInterval:       50 * time.Millisecond,
-		DeploymentsRefreshInterval: 50 * time.Millisecond,
-		PodsRefreshInterval:        50 * time.Millisecond,
-		OSDsRefreshInterval:        50 * time.Millisecond,
-		HeaderRefreshInterval:      50 * time.Millisecond,
+		Client:              client,
+		Namespace:           "rook-ceph",
+		K8sRefreshInterval:  50 * time.Millisecond,
+		CephRefreshInterval: 50 * time.Millisecond,
 	}
 
 	monitor := NewLsMonitor(cfg)
@@ -455,13 +434,10 @@ func TestLsMonitorAggregatorChannelFull(t *testing.T) {
 	client := &k8s.Client{Clientset: clientset}
 
 	cfg := &LsMonitorConfig{
-		Client:                     client,
-		Namespace:                  "rook-ceph",
-		NodesRefreshInterval:       50 * time.Millisecond,
-		DeploymentsRefreshInterval: 50 * time.Millisecond,
-		PodsRefreshInterval:        50 * time.Millisecond,
-		OSDsRefreshInterval:        50 * time.Millisecond,
-		HeaderRefreshInterval:      50 * time.Millisecond,
+		Client:              client,
+		Namespace:           "rook-ceph",
+		K8sRefreshInterval:  50 * time.Millisecond,
+		CephRefreshInterval: 50 * time.Millisecond,
 	}
 
 	monitor := NewLsMonitor(cfg)
@@ -522,14 +498,11 @@ func TestLsMonitorNodeFilter(t *testing.T) {
 	client := &k8s.Client{Clientset: clientset}
 
 	cfg := &LsMonitorConfig{
-		Client:                     client,
-		Namespace:                  "rook-ceph",
-		NodeFilter:                 "target-node",
-		NodesRefreshInterval:       50 * time.Millisecond,
-		DeploymentsRefreshInterval: 50 * time.Millisecond,
-		PodsRefreshInterval:        50 * time.Millisecond,
-		OSDsRefreshInterval:        50 * time.Millisecond,
-		HeaderRefreshInterval:      50 * time.Millisecond,
+		Client:              client,
+		Namespace:           "rook-ceph",
+		NodeFilter:          "target-node",
+		K8sRefreshInterval:  50 * time.Millisecond,
+		CephRefreshInterval: 50 * time.Millisecond,
 	}
 
 	monitor := NewLsMonitor(cfg)

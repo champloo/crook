@@ -9,12 +9,8 @@ import (
 
 const (
 	DefaultRookNamespace                = "rook-ceph"
-	DefaultProgressRefreshMS            = 100
-	DefaultLsRefreshNodesMS             = 2000
-	DefaultLsRefreshDeploymentsMS       = 2000
-	DefaultLsRefreshPodsMS              = 2000
-	DefaultLsRefreshOSDsMS              = 5000
-	DefaultLsRefreshHeaderMS            = 5000
+	DefaultK8sRefreshMS                 = 2000 // Kubernetes API resources (nodes, deployments, pods)
+	DefaultCephRefreshMS                = 5000 // Ceph CLI operations (OSDs, header)
 	DefaultAPICallTimeoutSeconds        = 30
 	DefaultWaitDeploymentTimeoutSeconds = 300
 	DefaultCephCommandTimeoutSeconds    = 20
@@ -34,14 +30,11 @@ type Config struct {
 
 // UIConfig holds terminal UI settings.
 type UIConfig struct {
-	ProgressRefreshMS int `mapstructure:"progress-refresh-ms" yaml:"progress-refresh-ms" json:"progress-refresh-ms"`
+	// K8sRefreshMS is the refresh interval for Kubernetes API resources (nodes, deployments, pods)
+	K8sRefreshMS int `mapstructure:"k8s-refresh-ms" yaml:"k8s-refresh-ms" json:"k8s-refresh-ms"`
 
-	// Ls refresh intervals (independent per resource type)
-	LsRefreshNodesMS       int `mapstructure:"ls-refresh-nodes-ms" yaml:"ls-refresh-nodes-ms" json:"ls-refresh-nodes-ms"`
-	LsRefreshDeploymentsMS int `mapstructure:"ls-refresh-deployments-ms" yaml:"ls-refresh-deployments-ms" json:"ls-refresh-deployments-ms"`
-	LsRefreshPodsMS        int `mapstructure:"ls-refresh-pods-ms" yaml:"ls-refresh-pods-ms" json:"ls-refresh-pods-ms"`
-	LsRefreshOSDsMS        int `mapstructure:"ls-refresh-osds-ms" yaml:"ls-refresh-osds-ms" json:"ls-refresh-osds-ms"`
-	LsRefreshHeaderMS      int `mapstructure:"ls-refresh-header-ms" yaml:"ls-refresh-header-ms" json:"ls-refresh-header-ms"`
+	// CephRefreshMS is the refresh interval for Ceph CLI operations (OSDs, header)
+	CephRefreshMS int `mapstructure:"ceph-refresh-ms" yaml:"ceph-refresh-ms" json:"ceph-refresh-ms"`
 }
 
 // TimeoutConfig captures configurable timeouts.
@@ -63,12 +56,8 @@ func DefaultConfig() Config {
 	return Config{
 		Namespace: DefaultRookNamespace,
 		UI: UIConfig{
-			ProgressRefreshMS:      DefaultProgressRefreshMS,
-			LsRefreshNodesMS:       DefaultLsRefreshNodesMS,
-			LsRefreshDeploymentsMS: DefaultLsRefreshDeploymentsMS,
-			LsRefreshPodsMS:        DefaultLsRefreshPodsMS,
-			LsRefreshOSDsMS:        DefaultLsRefreshOSDsMS,
-			LsRefreshHeaderMS:      DefaultLsRefreshHeaderMS,
+			K8sRefreshMS:  DefaultK8sRefreshMS,
+			CephRefreshMS: DefaultCephRefreshMS,
 		},
 		Timeouts: TimeoutConfig{
 			APICallTimeoutSeconds:        DefaultAPICallTimeoutSeconds,

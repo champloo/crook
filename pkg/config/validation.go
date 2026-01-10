@@ -41,12 +41,7 @@ func ValidateConfig(cfg Config) ValidationResult {
 		}
 	}
 
-	if cfg.UI.ProgressRefreshMS < 100 ||
-		cfg.UI.LsRefreshNodesMS < 100 ||
-		cfg.UI.LsRefreshDeploymentsMS < 100 ||
-		cfg.UI.LsRefreshPodsMS < 100 ||
-		cfg.UI.LsRefreshOSDsMS < 100 ||
-		cfg.UI.LsRefreshHeaderMS < 100 {
+	if cfg.UI.K8sRefreshMS < 100 || cfg.UI.CephRefreshMS < 100 {
 		result.Warnings = append(result.Warnings, "Refresh rate <100ms may cause excessive API calls")
 	}
 

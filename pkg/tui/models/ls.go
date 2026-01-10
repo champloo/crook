@@ -310,15 +310,12 @@ func (m *LsModel) startMonitorCmd() tea.Cmd {
 		}
 
 		cfg := &monitoring.LsMonitorConfig{
-			Context:                    m.config.Context,
-			Client:                     m.config.Client,
-			Namespace:                  m.config.Config.Namespace,
-			NodeFilter:                 m.config.NodeFilter,
-			NodesRefreshInterval:       getInterval(m.config.Config.UI.LsRefreshNodesMS, config.DefaultLsRefreshNodesMS),
-			DeploymentsRefreshInterval: getInterval(m.config.Config.UI.LsRefreshDeploymentsMS, config.DefaultLsRefreshDeploymentsMS),
-			PodsRefreshInterval:        getInterval(m.config.Config.UI.LsRefreshPodsMS, config.DefaultLsRefreshPodsMS),
-			OSDsRefreshInterval:        getInterval(m.config.Config.UI.LsRefreshOSDsMS, config.DefaultLsRefreshOSDsMS),
-			HeaderRefreshInterval:      getInterval(m.config.Config.UI.LsRefreshHeaderMS, config.DefaultLsRefreshHeaderMS),
+			Context:             m.config.Context,
+			Client:              m.config.Client,
+			Namespace:           m.config.Config.Namespace,
+			NodeFilter:          m.config.NodeFilter,
+			K8sRefreshInterval:  getInterval(m.config.Config.UI.K8sRefreshMS, config.DefaultK8sRefreshMS),
+			CephRefreshInterval: getInterval(m.config.Config.UI.CephRefreshMS, config.DefaultCephRefreshMS),
 		}
 		monitor := monitoring.NewLsMonitor(cfg)
 		monitor.Start()

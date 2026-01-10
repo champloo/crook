@@ -94,12 +94,8 @@ func BindFlags(v *viper.Viper, flags *pflag.FlagSet) error {
 func setDefaults(v *viper.Viper) {
 	defaults := DefaultConfig()
 
-	v.SetDefault("ui.progress-refresh-ms", defaults.UI.ProgressRefreshMS)
-	v.SetDefault("ui.ls-refresh-nodes-ms", defaults.UI.LsRefreshNodesMS)
-	v.SetDefault("ui.ls-refresh-deployments-ms", defaults.UI.LsRefreshDeploymentsMS)
-	v.SetDefault("ui.ls-refresh-pods-ms", defaults.UI.LsRefreshPodsMS)
-	v.SetDefault("ui.ls-refresh-osds-ms", defaults.UI.LsRefreshOSDsMS)
-	v.SetDefault("ui.ls-refresh-header-ms", defaults.UI.LsRefreshHeaderMS)
+	v.SetDefault("ui.k8s-refresh-ms", defaults.UI.K8sRefreshMS)
+	v.SetDefault("ui.ceph-refresh-ms", defaults.UI.CephRefreshMS)
 
 	v.SetDefault("timeouts.api-call-timeout-seconds", defaults.Timeouts.APICallTimeoutSeconds)
 	v.SetDefault("timeouts.wait-deployment-timeout-seconds", defaults.Timeouts.WaitDeploymentTimeoutSeconds)

@@ -96,8 +96,8 @@ func TestLoadConfigFromFileFixture(t *testing.T) {
 	if cfg.Namespace != config.DefaultRookNamespace {
 		t.Fatalf("expected default cluster namespace, got %q", cfg.Namespace)
 	}
-	if cfg.UI.ProgressRefreshMS != 150 {
-		t.Fatalf("expected progress refresh from file, got %d", cfg.UI.ProgressRefreshMS)
+	if cfg.UI.K8sRefreshMS != 3000 {
+		t.Fatalf("expected k8s refresh from file, got %d", cfg.UI.K8sRefreshMS)
 	}
 	if cfg.Timeouts.APICallTimeoutSeconds != 10 {
 		t.Fatalf("expected api timeout from file, got %d", cfg.Timeouts.APICallTimeoutSeconds)
@@ -124,19 +124,19 @@ func TestLoadConfigPartialUsesDefaults(t *testing.T) {
 	if cfg.Namespace != config.DefaultRookNamespace {
 		t.Fatalf("expected default cluster namespace, got %q", cfg.Namespace)
 	}
-	// partial.yaml sets progress-refresh-ms to 200
-	if cfg.UI.ProgressRefreshMS != 200 {
-		t.Fatalf("expected progress refresh from file, got %d", cfg.UI.ProgressRefreshMS)
+	// partial.yaml sets k8s-refresh-ms to 3000
+	if cfg.UI.K8sRefreshMS != 3000 {
+		t.Fatalf("expected k8s refresh from file, got %d", cfg.UI.K8sRefreshMS)
 	}
 	// Other UI settings should use defaults
-	if cfg.UI.LsRefreshNodesMS != config.DefaultLsRefreshNodesMS {
-		t.Fatalf("expected default ls refresh nodes, got %d", cfg.UI.LsRefreshNodesMS)
+	if cfg.UI.CephRefreshMS != config.DefaultCephRefreshMS {
+		t.Fatalf("expected default ceph refresh, got %d", cfg.UI.CephRefreshMS)
 	}
 }
 
 func TestLoadConfigEnvOverridesDefault(t *testing.T) {
 	t.Setenv("CROOK_NAMESPACE", "env-ns")
-	t.Setenv("CROOK_UI_PROGRESS_REFRESH_MS", "220")
+	t.Setenv("CROOK_UI_K8S_REFRESH_MS", "2500")
 
 	result, err := config.LoadConfig(config.LoadOptions{ConfigFile: testdataPath(t, "full.yaml")})
 	if err != nil {
@@ -150,8 +150,8 @@ func TestLoadConfigEnvOverridesDefault(t *testing.T) {
 	if cfg.Namespace != "env-ns" {
 		t.Fatalf("expected env override for cluster namespace, got %q", cfg.Namespace)
 	}
-	if cfg.UI.ProgressRefreshMS != 220 {
-		t.Fatalf("expected env override for progress refresh, got %d", cfg.UI.ProgressRefreshMS)
+	if cfg.UI.K8sRefreshMS != 2500 {
+		t.Fatalf("expected env override for k8s refresh, got %d", cfg.UI.K8sRefreshMS)
 	}
 }
 

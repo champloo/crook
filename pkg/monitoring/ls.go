@@ -26,24 +26,20 @@ type LsMonitorConfig struct {
 	// NodeFilter optionally filters resources to a specific node
 	NodeFilter string
 
-	// Refresh intervals (independent per resource)
-	NodesRefreshInterval       time.Duration
-	DeploymentsRefreshInterval time.Duration
-	PodsRefreshInterval        time.Duration
-	OSDsRefreshInterval        time.Duration
-	HeaderRefreshInterval      time.Duration
+	// K8sRefreshInterval is the refresh interval for Kubernetes API resources (nodes, deployments, pods)
+	K8sRefreshInterval time.Duration
+
+	// CephRefreshInterval is the refresh interval for Ceph CLI operations (OSDs, header)
+	CephRefreshInterval time.Duration
 }
 
 // DefaultLsMonitorConfig returns a config with default refresh intervals
 func DefaultLsMonitorConfig(client *k8s.Client, namespace string) *LsMonitorConfig {
 	return &LsMonitorConfig{
-		Client:                     client,
-		Namespace:                  namespace,
-		NodesRefreshInterval:       2 * time.Second,
-		DeploymentsRefreshInterval: 2 * time.Second,
-		PodsRefreshInterval:        2 * time.Second,
-		OSDsRefreshInterval:        5 * time.Second,
-		HeaderRefreshInterval:      5 * time.Second,
+		Client:              client,
+		Namespace:           namespace,
+		K8sRefreshInterval:  2 * time.Second,
+		CephRefreshInterval: 5 * time.Second,
 	}
 }
 
@@ -202,7 +198,7 @@ func (m *LsMonitor) startNodesPoller() <-chan []k8s.NodeInfo {
 	go func() {
 		defer m.wg.Done()
 		defer close(updates)
-		runPoller(m.ctx, updates, m.config.NodesRefreshInterval, "nodes", m.fetchNodes, m.handleError)
+		runPoller(m.ctx, updates, m.config.K8sRefreshInterval, "nodes", m.fetchNodes, m.handleError)
 	}()
 	return updates
 }
@@ -219,7 +215,7 @@ func (m *LsMonitor) startDeploymentsPoller() <-chan []k8s.DeploymentInfo {
 	go func() {
 		defer m.wg.Done()
 		defer close(updates)
-		runPoller(m.ctx, updates, m.config.DeploymentsRefreshInterval, "deployments", m.fetchDeployments, m.handleError)
+		runPoller(m.ctx, updates, m.config.K8sRefreshInterval, "deployments", m.fetchDeployments, m.handleError)
 	}()
 	return updates
 }
@@ -252,7 +248,7 @@ func (m *LsMonitor) startPodsPoller() <-chan []k8s.PodInfo {
 	go func() {
 		defer m.wg.Done()
 		defer close(updates)
-		runPoller(m.ctx, updates, m.config.PodsRefreshInterval, "pods", m.fetchPods, m.handleError)
+		runPoller(m.ctx, updates, m.config.K8sRefreshInterval, "pods", m.fetchPods, m.handleError)
 	}()
 	return updates
 }
@@ -269,7 +265,7 @@ func (m *LsMonitor) startOSDsPoller() <-chan []k8s.OSDInfo {
 	go func() {
 		defer m.wg.Done()
 		defer close(updates)
-		runPoller(m.ctx, updates, m.config.OSDsRefreshInterval, "osds", m.fetchOSDs, m.handleError)
+		runPoller(m.ctx, updates, m.config.CephRefreshInterval, "osds", m.fetchOSDs, m.handleError)
 	}()
 	return updates
 }
@@ -302,7 +298,7 @@ func (m *LsMonitor) startHeaderPoller() <-chan *components.ClusterHeaderData {
 	go func() {
 		defer m.wg.Done()
 		defer close(updates)
-		runPoller(m.ctx, updates, m.config.HeaderRefreshInterval, "header", m.fetchHeader, m.handleError)
+		runPoller(m.ctx, updates, m.config.CephRefreshInterval, "header", m.fetchHeader, m.handleError)
 	}()
 	return updates
 }
