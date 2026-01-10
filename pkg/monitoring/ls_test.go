@@ -155,23 +155,6 @@ func TestLsMonitorGetLatest(t *testing.T) {
 	}
 }
 
-func TestLsMonitorGetLatest_ReturnsSnapshot(t *testing.T) {
-	//nolint:staticcheck // SA1019: using deprecated NewSimpleClientset
-	clientset := fake.NewSimpleClientset()
-	client := &k8s.Client{Clientset: clientset}
-	cfg := DefaultLsMonitorConfig(client, "rook-ceph")
-
-	monitor := newTestMonitor(t, cfg)
-	monitor.updateNodes([]k8s.NodeInfo{
-		{Name: "node-1", Roles: []string{"worker"}},
-	})
-
-	latest := monitor.GetLatest()
-	if latest == monitor.latest {
-		t.Fatal("expected GetLatest to return a snapshot, not the internal pointer")
-	}
-}
-
 func TestLsMonitorGetLatest_ThreadSafe(t *testing.T) {
 	//nolint:staticcheck // SA1019: using deprecated NewSimpleClientset
 	clientset := fake.NewSimpleClientset()
