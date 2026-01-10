@@ -7,11 +7,14 @@ import (
 	"strings"
 	"time"
 
+	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"github.com/andri/crook/pkg/config"
 	"github.com/andri/crook/pkg/k8s"
 	"github.com/andri/crook/pkg/maintenance"
 	"github.com/andri/crook/pkg/tui/components"
+	"github.com/andri/crook/pkg/tui/keys"
 	"github.com/andri/crook/pkg/tui/styles"
 	appsv1 "k8s.io/api/apps/v1"
 )
@@ -172,10 +175,18 @@ type DownModel struct {
 	cancelFunc     context.CancelFunc // Cancel function for ongoing operation
 	progressChan   chan maintenance.DownPhaseProgress
 	progressClosed bool // Track if progress channel is closed
+
+	// Keybindings and help
+	keyBindings keys.FlowBindings
+	helpModel   help.Model
 }
 
 // NewDownModel creates a new down phase model
 func NewDownModel(cfg DownModelConfig) *DownModel {
+	h := help.New()
+	h.Styles.ShortKey = h.Styles.ShortKey.Foreground(styles.ColorInfo)
+	h.Styles.ShortDesc = h.Styles.ShortDesc.Foreground(styles.ColorSubtle)
+
 	return &DownModel{
 		config:        cfg,
 		state:         DownStateInit,
@@ -183,6 +194,8 @@ func NewDownModel(cfg DownModelConfig) *DownModel {
 		statusList:    components.NewStatusList(),
 		progress:      components.NewIndeterminateProgress(""),
 		downPlan:      make([]DownPlanItem, 0),
+		keyBindings:   keys.DefaultFlowBindings(),
+		helpModel:     h,
 	}
 }
 
@@ -448,26 +461,26 @@ func (m *DownModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // handleKeyPress processes keyboard input based on current state
 func (m *DownModel) handleKeyPress(msg tea.KeyMsg) tea.Cmd {
+	// Update keybinding state based on current flow state
+	m.updateKeyBindings()
+
 	switch m.state { //nolint:exhaustive // default handles all operation states uniformly
 	case DownStateError:
-		switch msg.String() {
-		case "r":
-			// Retry - restart the operation
+		switch {
+		case key.Matches(msg, m.keyBindings.Retry):
 			m.startExecution()
 			return m.executeDownPhaseCmd()
-		case "q", "esc":
+		case key.Matches(msg, m.keyBindings.Quit):
 			return m.exitCmd(FlowExitError, m.lastError)
 		}
 
 	case DownStateComplete:
-		switch msg.String() {
-		case "enter", "q", "esc":
+		if key.Matches(msg, m.keyBindings.Exit) {
 			return m.exitCmd(FlowExitCompleted, nil)
 		}
 
 	case DownStateNothingToDo:
-		switch msg.String() {
-		case "enter", "q", "esc":
+		if key.Matches(msg, m.keyBindings.Exit) {
 			return m.exitCmd(FlowExitNothingToDo, nil)
 		}
 
@@ -477,8 +490,7 @@ func (m *DownModel) handleKeyPress(msg tea.KeyMsg) tea.Cmd {
 
 	default:
 		// During operations, allow cancel
-		if msg.String() == "ctrl+c" {
-			// Cancel ongoing operation before quitting
+		if key.Matches(msg, m.keyBindings.Interrupt) {
 			if m.cancelFunc != nil {
 				m.cancelFunc()
 			}
@@ -487,6 +499,20 @@ func (m *DownModel) handleKeyPress(msg tea.KeyMsg) tea.Cmd {
 	}
 
 	return nil
+}
+
+// updateKeyBindings updates the keybinding state based on current flow state
+func (m *DownModel) updateKeyBindings() {
+	switch m.state { //nolint:exhaustive // default handles all operation states
+	case DownStateConfirm:
+		m.keyBindings.SetStateConfirm()
+	case DownStateError:
+		m.keyBindings.SetStateError()
+	case DownStateComplete, DownStateNothingToDo:
+		m.keyBindings.SetStateComplete()
+	default:
+		m.keyBindings.SetStateRunning()
+	}
 }
 
 func (m *DownModel) exitCmd(reason FlowExitReason, err error) tea.Cmd {
@@ -800,22 +826,9 @@ func (m *DownModel) renderComplete() string {
 
 // renderFooter renders context-sensitive help
 func (m *DownModel) renderFooter() string {
-	var help string
-
-	switch m.state { //nolint:exhaustive // default handles all operation states uniformly
-	case DownStateConfirm:
-		help = "y: proceed  n: cancel"
-	case DownStateNothingToDo:
-		help = "Enter/q: exit"
-	case DownStateError:
-		help = "r: retry  q: quit"
-	case DownStateComplete:
-		help = "Enter/q: exit"
-	default:
-		help = "Ctrl+C: cancel"
-	}
-
-	return styles.StyleSubtle.Render(help)
+	m.updateKeyBindings()
+	m.helpModel.SetWidth(m.width)
+	return m.helpModel.View(&m.keyBindings)
 }
 
 // SetSize implements SubModel

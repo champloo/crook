@@ -3,6 +3,7 @@ module github.com/andri/crook
 go 1.25.4
 
 require (
+	charm.land/bubbles/v2 v2.0.0-rc.1
 	charm.land/bubbletea/v2 v2.0.0-rc.2
 	charm.land/lipgloss/v2 v2.0.0-beta.3.0.20251106192539-4b304240aab7
 	github.com/charmbracelet/x/ansi v0.11.3

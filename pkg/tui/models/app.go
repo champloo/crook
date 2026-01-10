@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 
+	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"github.com/andri/crook/pkg/config"
 	"github.com/andri/crook/pkg/k8s"
@@ -83,6 +84,9 @@ type AppModel struct {
 	quitting       bool
 	initialized    bool
 	termCapability terminal.Capability
+
+	// Global keybindings
+	forceQuit key.Binding
 }
 
 // NewAppModel creates a new app model with the given configuration
@@ -94,6 +98,10 @@ func NewAppModel(cfg AppConfig) *AppModel {
 		config:         cfg,
 		route:          cfg.Route,
 		termCapability: cap,
+		forceQuit: key.NewBinding(
+			key.WithKeys("ctrl+c"),
+			key.WithHelp("Ctrl+C", "quit"),
+		),
 	}
 }
 
@@ -222,9 +230,7 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // handleGlobalKeys processes global keyboard shortcuts
 func (m *AppModel) handleGlobalKeys(msg tea.KeyMsg) tea.Cmd {
-	switch msg.String() {
-	case "ctrl+c":
-		// Graceful quit
+	if key.Matches(msg, m.forceQuit) {
 		m.quitting = true
 		return tea.Quit
 	}

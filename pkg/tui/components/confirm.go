@@ -3,7 +3,9 @@ package components
 import (
 	"fmt"
 
+	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
+	"github.com/andri/crook/pkg/tui/keys"
 	"github.com/andri/crook/pkg/tui/styles"
 )
 
@@ -40,25 +42,30 @@ type ConfirmPrompt struct {
 
 	// Width for text wrapping (0 = no wrapping)
 	Width int
+
+	// keyBindings holds the keybindings for this component
+	keyBindings keys.ConfirmBindings
 }
 
 // NewConfirmPrompt creates a new confirmation prompt
 func NewConfirmPrompt(question string) *ConfirmPrompt {
 	return &ConfirmPrompt{
-		Question:   question,
-		DefaultYes: false,
-		Result:     ConfirmPending,
-		ShowHint:   true,
+		Question:    question,
+		DefaultYes:  false,
+		Result:      ConfirmPending,
+		ShowHint:    true,
+		keyBindings: keys.DefaultConfirmBindings(),
 	}
 }
 
 // NewConfirmPromptWithDefault creates a confirmation prompt with a default answer
 func NewConfirmPromptWithDefault(question string, defaultYes bool) *ConfirmPrompt {
 	return &ConfirmPrompt{
-		Question:   question,
-		DefaultYes: defaultYes,
-		Result:     ConfirmPending,
-		ShowHint:   true,
+		Question:    question,
+		DefaultYes:  defaultYes,
+		Result:      ConfirmPending,
+		ShowHint:    true,
+		keyBindings: keys.DefaultConfirmBindings(),
 	}
 }
 
@@ -81,16 +88,16 @@ func (c *ConfirmPrompt) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "y", "Y":
+		switch {
+		case key.Matches(msg, c.keyBindings.Yes):
 			c.Result = ConfirmYes
 			return c, func() tea.Msg { return ConfirmResultMsg{Result: ConfirmYes} }
 
-		case "n", "N":
+		case key.Matches(msg, c.keyBindings.No):
 			c.Result = ConfirmNo
 			return c, func() tea.Msg { return ConfirmResultMsg{Result: ConfirmNo} }
 
-		case "enter":
+		case key.Matches(msg, c.keyBindings.Accept):
 			if c.DefaultYes {
 				c.Result = ConfirmYes
 				return c, func() tea.Msg { return ConfirmResultMsg{Result: ConfirmYes} }
@@ -98,7 +105,7 @@ func (c *ConfirmPrompt) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			c.Result = ConfirmNo
 			return c, func() tea.Msg { return ConfirmResultMsg{Result: ConfirmNo} }
 
-		case "esc", "ctrl+c":
+		case key.Matches(msg, c.keyBindings.Cancel):
 			c.Result = ConfirmCancelled
 			return c, func() tea.Msg { return ConfirmResultMsg{Result: ConfirmCancelled} }
 		}

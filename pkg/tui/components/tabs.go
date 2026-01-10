@@ -4,8 +4,10 @@ package components
 import (
 	"strings"
 
+	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/andri/crook/pkg/tui/keys"
 	"github.com/andri/crook/pkg/tui/styles"
 )
 
@@ -36,6 +38,9 @@ type TabBar struct {
 	activeStyle   lipgloss.Style
 	inactiveStyle lipgloss.Style
 	badgeStyle    lipgloss.Style
+
+	// keyBindings holds the keybindings for this component
+	keyBindings keys.TabBindings
 }
 
 // TabSwitchMsg is sent when a tab is switched
@@ -59,6 +64,7 @@ func NewTabBar(tabs []Tab) *TabBar {
 		badgeStyle: lipgloss.NewStyle().
 			Foreground(styles.ColorWarning).
 			Bold(true),
+		keyBindings: keys.DefaultTabBindings(),
 	}
 }
 
@@ -71,15 +77,19 @@ func (t *TabBar) Init() tea.Cmd {
 func (t *TabBar) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "tab":
+		switch {
+		case key.Matches(msg, t.keyBindings.Next):
 			return t, t.nextTab()
-		case "shift+tab":
+		case key.Matches(msg, t.keyBindings.Prev):
 			return t, t.prevTab()
-		case "1", "2", "3", "4", "5", "6", "7", "8", "9":
-			index := int(msg.String()[0] - '1')
-			if index < len(t.Tabs) {
-				return t, t.switchToTab(index)
+		case key.Matches(msg, t.keyBindings.Select):
+			// Extract the numeric key pressed
+			keyStr := msg.String()
+			if len(keyStr) == 1 && keyStr[0] >= '1' && keyStr[0] <= '9' {
+				index := int(keyStr[0] - '1')
+				if index < len(t.Tabs) {
+					return t, t.switchToTab(index)
+				}
 			}
 		}
 	case TabSwitchMsg:

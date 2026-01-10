@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"strings"
 
+	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/andri/crook/pkg/k8s"
 	"github.com/andri/crook/pkg/tui/format"
+	"github.com/andri/crook/pkg/tui/keys"
 	"github.com/andri/crook/pkg/tui/styles"
 )
 
@@ -57,6 +59,9 @@ type DetailPanel struct {
 
 	// content is the rendered content (cached)
 	content []string
+
+	// keyBindings holds the keybindings for this component
+	keyBindings keys.DetailBindings
 }
 
 // NewDetailPanel creates a new detail panel
@@ -64,6 +69,7 @@ func NewDetailPanel() *DetailPanel {
 	return &DetailPanel{
 		relatedResources: make([]RelatedResource, 0),
 		content:          make([]string, 0),
+		keyBindings:      keys.DefaultDetailBindings(),
 	}
 }
 
@@ -83,25 +89,25 @@ func (d *DetailPanel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "esc", "q":
+		switch {
+		case key.Matches(msg, d.keyBindings.Close):
 			d.visible = false
 			return d, func() tea.Msg { return DetailCloseMsg{} }
 
-		case "j", "down":
+		case key.Matches(msg, d.keyBindings.Down):
 			if d.scrollOffset < d.maxScroll {
 				d.scrollOffset++
 			}
 
-		case "k", "up":
+		case key.Matches(msg, d.keyBindings.Up):
 			if d.scrollOffset > 0 {
 				d.scrollOffset--
 			}
 
-		case "g":
+		case key.Matches(msg, d.keyBindings.Top):
 			d.scrollOffset = 0
 
-		case "G":
+		case key.Matches(msg, d.keyBindings.Bottom):
 			d.scrollOffset = d.maxScroll
 		}
 

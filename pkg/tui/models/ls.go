@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/andri/crook/pkg/config"
@@ -14,6 +16,7 @@ import (
 	"github.com/andri/crook/pkg/monitoring"
 	"github.com/andri/crook/pkg/tui/components"
 	"github.com/andri/crook/pkg/tui/format"
+	"github.com/andri/crook/pkg/tui/keys"
 	"github.com/andri/crook/pkg/tui/styles"
 	"github.com/andri/crook/pkg/tui/views"
 )
@@ -145,6 +148,10 @@ type LsModel struct {
 	activeTab       LsTab
 	deploymentsView *views.DeploymentsView
 	podsView        *views.PodsView
+
+	// Keybindings and help
+	keyMap    keys.LsKeyMap
+	helpModel help.Model
 }
 
 type sizedModel interface {
@@ -154,15 +161,13 @@ type sizedModel interface {
 }
 
 func (m *LsModel) handleHelpKeyMsg(msg tea.KeyMsg) (bool, tea.Cmd) {
-	key := msg.String()
-
 	// When help is visible, consume key presses so underlying models don't receive input.
 	if m.helpVisible {
-		switch key {
-		case "esc", "?":
+		switch {
+		case key.Matches(msg, m.keyMap.Help) || msg.String() == "esc":
 			m.helpVisible = false
 			return true, nil
-		case "ctrl+c":
+		case key.Matches(msg, m.keyMap.Quit):
 			if m.monitor != nil {
 				m.monitor.Stop()
 			}
@@ -172,7 +177,7 @@ func (m *LsModel) handleHelpKeyMsg(msg tea.KeyMsg) (bool, tea.Cmd) {
 		}
 	}
 
-	if key == "?" {
+	if key.Matches(msg, m.keyMap.Help) {
 		m.helpVisible = true
 		return true, nil
 	}
@@ -265,6 +270,13 @@ func NewLsModel(cfg LsModelConfig) *LsModel {
 		}
 	}
 
+	// Initialize help model with crook styling
+	h := help.New()
+	h.Styles.ShortKey = h.Styles.ShortKey.Foreground(styles.ColorInfo)
+	h.Styles.ShortDesc = h.Styles.ShortDesc.Foreground(styles.ColorSubtle)
+	h.Styles.FullKey = h.Styles.FullKey.Foreground(styles.ColorInfo)
+	h.Styles.FullDesc = h.Styles.FullDesc.Foreground(styles.ColorSubtle)
+
 	return &LsModel{
 		config:              cfg,
 		activePane:          LsPaneNodes,
@@ -280,6 +292,9 @@ func NewLsModel(cfg LsModelConfig) *LsModel {
 		activeTab:       showTabs[0],
 		deploymentsView: deploymentsPodsView.GetDeploymentsView(),
 		podsView:        deploymentsPodsView.GetPodsView(),
+		// Keybindings and help
+		keyMap:    keys.DefaultLsKeyMap(),
+		helpModel: h,
 	}
 }
 
@@ -577,14 +592,15 @@ func (m *LsModel) updateBadge(tabIndex, count int) {
 
 // handleKeyPress processes keyboard input
 func (m *LsModel) handleKeyPress(msg tea.KeyMsg) tea.Cmd {
-	key := msg.String()
+	// Update contextual bindings before processing
+	m.updateKeyBindings()
 
 	// If help is visible, only Esc or ? closes it (Ctrl+C always quits)
 	if m.helpVisible {
-		switch key {
-		case "esc", "?":
+		switch {
+		case key.Matches(msg, m.keyMap.Help) || msg.String() == "esc":
 			m.helpVisible = false
-		case "ctrl+c":
+		case key.Matches(msg, m.keyMap.Quit):
 			if m.monitor != nil {
 				m.monitor.Stop()
 			}
@@ -593,49 +609,53 @@ func (m *LsModel) handleKeyPress(msg tea.KeyMsg) tea.Cmd {
 		return nil
 	}
 
-	if cmd, ok := m.handleQuitKey(key); ok {
+	if cmd, ok := m.handleQuitKey(msg); ok {
 		return cmd
 	}
-	if m.handleHelpAndPaneNavKey(key) {
+	if m.handleHelpAndPaneNavKey(msg) {
 		return nil
 	}
-	if cmd, ok := m.handlePaneSwitchKey(key, msg); ok {
+	if cmd, ok := m.handlePaneSwitchKey(msg); ok {
 		return cmd
 	}
-	if m.handleDeploymentsToggleKey(key) {
+	if m.handleDeploymentsToggleKey(msg) {
 		return nil
 	}
-	if m.handleCursorKey(key) {
+	if m.handleCursorKey(msg) {
 		return nil
 	}
-	if cmd, ok := m.handleActionKey(key); ok {
+	if cmd, ok := m.handleActionKey(msg); ok {
 		return cmd
 	}
 
 	return nil
 }
 
-func (m *LsModel) handleQuitKey(key string) (tea.Cmd, bool) {
-	switch key {
-	case "q", "esc", "ctrl+c":
+// updateKeyBindings updates contextual bindings based on current state
+func (m *LsModel) updateKeyBindings() {
+	showingPods := m.deploymentsPodsView != nil && m.deploymentsPodsView.IsShowingPods()
+	m.keyMap.SetContext(keys.LsPane(m.activePane), showingPods)
+}
+
+func (m *LsModel) handleQuitKey(msg tea.KeyMsg) (tea.Cmd, bool) {
+	if key.Matches(msg, m.keyMap.Quit) {
 		if m.monitor != nil {
 			m.monitor.Stop()
 		}
 		return tea.Quit, true
-	default:
-		return nil, false
 	}
+	return nil, false
 }
 
-func (m *LsModel) handleHelpAndPaneNavKey(key string) bool {
-	switch key {
-	case "?":
+func (m *LsModel) handleHelpAndPaneNavKey(msg tea.KeyMsg) bool {
+	switch {
+	case key.Matches(msg, m.keyMap.Help):
 		m.helpVisible = !m.helpVisible
 		return true
-	case "tab":
+	case key.Matches(msg, m.keyMap.NextPane):
 		m.nextPane()
 		return true
-	case "shift+tab":
+	case key.Matches(msg, m.keyMap.PrevPane):
 		m.prevPane()
 		return true
 	default:
@@ -643,22 +663,24 @@ func (m *LsModel) handleHelpAndPaneNavKey(key string) bool {
 	}
 }
 
-func (m *LsModel) handlePaneSwitchKey(key string, msg tea.KeyMsg) (tea.Cmd, bool) {
-	switch key {
-	case "1":
+func (m *LsModel) handlePaneSwitchKey(msg tea.KeyMsg) (tea.Cmd, bool) {
+	switch {
+	case key.Matches(msg, m.keyMap.Pane1):
 		m.setActivePane(LsPaneNodes)
 		_, cmd := m.tabBar.Update(msg)
 		return cmd, true
-	case "2":
+	case key.Matches(msg, m.keyMap.Pane2):
 		m.setActivePane(LsPaneDeployments)
 		_, cmd := m.tabBar.Update(msg)
 		return cmd, true
-	case "3":
+	case key.Matches(msg, m.keyMap.Pane3):
 		m.setActivePane(LsPaneOSDs)
 		_, cmd := m.tabBar.Update(msg)
 		return cmd, true
 	default:
-		if len(key) == 1 && key[0] >= '4' && key[0] <= '9' {
+		// Handle 4-9 keys for legacy tab bar
+		keyStr := msg.String()
+		if len(keyStr) == 1 && keyStr[0] >= '4' && keyStr[0] <= '9' {
 			_, cmd := m.tabBar.Update(msg)
 			return cmd, true
 		}
@@ -666,16 +688,16 @@ func (m *LsModel) handlePaneSwitchKey(key string, msg tea.KeyMsg) (tea.Cmd, bool
 	}
 }
 
-func (m *LsModel) handleDeploymentsToggleKey(key string) bool {
-	switch key {
-	case "[":
+func (m *LsModel) handleDeploymentsToggleKey(msg tea.KeyMsg) bool {
+	switch {
+	case key.Matches(msg, m.keyMap.ShowDeploy):
 		if m.activePane == LsPaneDeployments {
 			m.deploymentsPodsView.ShowDeployments()
 			m.panes[LsPaneDeployments].SetTitle("Deployments")
 			m.updateAllCounts()
 		}
 		return true
-	case "]":
+	case key.Matches(msg, m.keyMap.ShowPods):
 		if m.activePane == LsPaneDeployments {
 			m.deploymentsPodsView.ShowPods()
 			m.panes[LsPaneDeployments].SetTitle("Pods")
@@ -687,12 +709,12 @@ func (m *LsModel) handleDeploymentsToggleKey(key string) bool {
 	}
 }
 
-func (m *LsModel) handleCursorKey(key string) bool {
-	switch key {
-	case "j", "down":
+func (m *LsModel) handleCursorKey(msg tea.KeyMsg) bool {
+	switch {
+	case key.Matches(msg, m.keyMap.Down):
 		m.updateActiveViewCursor(1)
 		return true
-	case "k", "up":
+	case key.Matches(msg, m.keyMap.Up):
 		m.updateActiveViewCursor(-1)
 		return true
 	default:
@@ -700,12 +722,12 @@ func (m *LsModel) handleCursorKey(key string) bool {
 	}
 }
 
-func (m *LsModel) handleActionKey(key string) (tea.Cmd, bool) {
-	switch key {
-	case "r":
+func (m *LsModel) handleActionKey(msg tea.KeyMsg) (tea.Cmd, bool) {
+	switch {
+	case key.Matches(msg, m.keyMap.Refresh):
 		tab := m.activeTab
 		return func() tea.Msg { return LsRefreshMsg{Tab: tab} }, true
-	case "d":
+	case key.Matches(msg, m.keyMap.NodeDown):
 		if m.activePane != LsPaneNodes {
 			return nil, true
 		}
@@ -714,7 +736,7 @@ func (m *LsModel) handleActionKey(key string) (tea.Cmd, bool) {
 			return nil, true
 		}
 		return m.openMaintenanceFlow(node.Name, false), true
-	case "u":
+	case key.Matches(msg, m.keyMap.NodeUp):
 		if m.activePane != LsPaneNodes {
 			return nil, true
 		}
@@ -1002,18 +1024,10 @@ func (m *LsModel) topRowWidths() (int, int) {
 
 // renderStatusBar renders the bottom status bar with help hints
 func (m *LsModel) renderStatusBar() string {
-	var hints []string
+	m.updateKeyBindings()
+	m.helpModel.SetWidth(m.width)
 
-	hints = append(hints, "Tab/1-3: pane", "j/k: navigate")
-	if m.activePane == LsPaneNodes {
-		hints = append(hints, "u/d: up/down")
-	}
-	if m.activePane == LsPaneDeployments {
-		hints = append(hints, "[/]: deployments/pods")
-	}
-	hints = append(hints, "r: refresh", "?: help", "q: quit")
-
-	status := styles.StyleSubtle.Render(strings.Join(hints, "  "))
+	status := m.helpModel.View(&m.keyMap)
 	if m.lastError == nil {
 		return status
 	}
@@ -1024,27 +1038,17 @@ func (m *LsModel) renderStatusBar() string {
 
 // renderHelp renders the help overlay
 func (m *LsModel) renderHelp() string {
-	help := `
-╭─────────────────────────────────────────╮
-│             crook ls Help               │
-├─────────────────────────────────────────┤
-│  Navigation                             │
-│    Tab, 1-3    Switch panes             │
-│    [, ]        Toggle deployments/pods  │
-│    j/k, ↑/↓    Move cursor              │
-│                                         │
-│  Actions                                │
-│    u/d         Up/down selected node    │
-│    r           Refresh data             │
-│                                         │
-│  General                                │
-│    ?           Toggle this help         │
-│    q, Esc      Quit                     │
-╰─────────────────────────────────────────╯
+	m.updateKeyBindings()
+	m.helpModel.ShowAll = true
+	m.helpModel.SetWidth(m.width - 4)
+	content := m.helpModel.View(&m.keyMap)
+	m.helpModel.ShowAll = false
 
-Press Esc or ? to close
-`
-	return styles.StyleBox.Render(help)
+	// Add title and close instruction
+	title := styles.StyleHeading.Render("crook ls Help")
+	footer := styles.StyleSubtle.Render("Press Esc or ? to close")
+
+	return styles.StyleBox.Render(title + "\n\n" + content + "\n\n" + footer)
 }
 
 // SetSize implements SubModel

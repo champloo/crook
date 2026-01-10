@@ -768,16 +768,18 @@ func TestLsModel_View_Help(t *testing.T) {
 		t.Error("View should show help overlay")
 	}
 
-	if !contains(view, "Navigation") {
-		t.Error("Help should contain Navigation section")
+	// Check for key bindings from the help model (format: "key description")
+	if !contains(view, "Tab") {
+		t.Error("Help should contain Tab key binding")
 	}
 
-	if !contains(view, "Switch panes") {
-		t.Error("Help should mention pane switching")
+	if !contains(view, "next pane") || !contains(view, "prev pane") {
+		t.Error("Help should mention pane navigation")
 	}
 
-	if !contains(view, "deployments/pods") {
-		t.Error("Help should mention deployments/pods toggle")
+	// Check for quit binding
+	if !contains(view, "quit") {
+		t.Error("Help should mention quit")
 	}
 }
 
@@ -788,25 +790,28 @@ func TestLsModel_View_StatusBarShowsToggleHint(t *testing.T) {
 	model.width = 100
 	model.height = 40
 
-	// On Nodes pane - should not show toggle hint
+	// On Nodes pane - should show maintenance hints
 	model.setActivePane(LsPaneNodes)
 	view := model.Render()
-	// The status bar should show pane hints but not the toggle hint
-	if !contains(view, "Tab/1-3: pane") {
-		t.Error("View should contain pane navigation hint")
+	// The status bar should show pane hints (Tab for next pane)
+	if !contains(view, "Tab") {
+		t.Error("View should contain Tab key for pane navigation")
 	}
-	if !contains(view, "u/d: up/down") {
+	// On Nodes pane, should show maintenance actions
+	if !contains(view, "down node") {
 		t.Error("View should contain maintenance hint on Nodes pane")
 	}
-	if contains(view, "[/]: deployments/pods") {
+	// Should not show deployments toggle since we're on Nodes pane
+	if contains(view, "deployments") && contains(view, "pods") {
 		t.Error("View should not contain toggle hint when on Nodes pane")
 	}
 
-	// On Deployments pane - should show toggle hint
+	// On Deployments pane - should show toggle hint for pods
 	model.setActivePane(LsPaneDeployments)
 	view = model.Render()
-	if !contains(view, "[/]: deployments/pods") {
-		t.Error("View should contain toggle hint when on Deployments pane")
+	// When on deployments pane and showing deployments (default), should show pods toggle
+	if !contains(view, "pods") {
+		t.Error("View should contain pods toggle hint when on Deployments pane")
 	}
 }
 

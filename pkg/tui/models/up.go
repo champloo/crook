@@ -7,11 +7,14 @@ import (
 	"strings"
 	"time"
 
+	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"github.com/andri/crook/pkg/config"
 	"github.com/andri/crook/pkg/k8s"
 	"github.com/andri/crook/pkg/maintenance"
 	"github.com/andri/crook/pkg/tui/components"
+	"github.com/andri/crook/pkg/tui/keys"
 	"github.com/andri/crook/pkg/tui/styles"
 	appsv1 "k8s.io/api/apps/v1"
 )
@@ -173,10 +176,18 @@ type UpModel struct {
 	cancelFunc     context.CancelFunc // Cancel function for ongoing operation
 	progressChan   chan maintenance.UpPhaseProgress
 	progressClosed bool // Track if progress channel is closed
+
+	// Keybindings and help
+	keyBindings keys.FlowBindings
+	helpModel   help.Model
 }
 
 // NewUpModel creates a new up phase model
 func NewUpModel(cfg UpModelConfig) *UpModel {
+	h := help.New()
+	h.Styles.ShortKey = h.Styles.ShortKey.Foreground(styles.ColorInfo)
+	h.Styles.ShortDesc = h.Styles.ShortDesc.Foreground(styles.ColorSubtle)
+
 	return &UpModel{
 		config:        cfg,
 		state:         UpStateInit,
@@ -184,6 +195,8 @@ func NewUpModel(cfg UpModelConfig) *UpModel {
 		statusList:    components.NewStatusList(),
 		progress:      components.NewIndeterminateProgress(""),
 		restorePlan:   make([]RestorePlanItem, 0),
+		keyBindings:   keys.DefaultFlowBindings(),
+		helpModel:     h,
 	}
 }
 
@@ -448,26 +461,26 @@ func (m *UpModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // handleKeyPress processes keyboard input based on current state
 func (m *UpModel) handleKeyPress(msg tea.KeyMsg) tea.Cmd {
+	// Update keybinding state based on current flow state
+	m.updateKeyBindings()
+
 	switch m.state { //nolint:exhaustive // default handles all operation states uniformly
 	case UpStateError:
-		switch msg.String() {
-		case "r":
-			// Retry - restart the operation
+		switch {
+		case key.Matches(msg, m.keyBindings.Retry):
 			m.startExecution()
 			return m.executeUpPhaseCmd()
-		case "q", "esc":
+		case key.Matches(msg, m.keyBindings.Quit):
 			return m.exitCmd(FlowExitError, m.lastError)
 		}
 
 	case UpStateComplete:
-		switch msg.String() {
-		case "enter", "q", "esc":
+		if key.Matches(msg, m.keyBindings.Exit) {
 			return m.exitCmd(FlowExitCompleted, nil)
 		}
 
 	case UpStateNothingToDo:
-		switch msg.String() {
-		case "enter", "q", "esc":
+		if key.Matches(msg, m.keyBindings.Exit) {
 			return m.exitCmd(FlowExitNothingToDo, nil)
 		}
 
@@ -477,8 +490,7 @@ func (m *UpModel) handleKeyPress(msg tea.KeyMsg) tea.Cmd {
 
 	default:
 		// During operations, allow cancel
-		if msg.String() == "ctrl+c" {
-			// Cancel ongoing operation before quitting
+		if key.Matches(msg, m.keyBindings.Interrupt) {
 			if m.cancelFunc != nil {
 				m.cancelFunc()
 			}
@@ -487,6 +499,20 @@ func (m *UpModel) handleKeyPress(msg tea.KeyMsg) tea.Cmd {
 	}
 
 	return nil
+}
+
+// updateKeyBindings updates the keybinding state based on current flow state
+func (m *UpModel) updateKeyBindings() {
+	switch m.state { //nolint:exhaustive // default handles all operation states
+	case UpStateConfirm:
+		m.keyBindings.SetStateConfirm()
+	case UpStateError:
+		m.keyBindings.SetStateError()
+	case UpStateComplete, UpStateNothingToDo:
+		m.keyBindings.SetStateComplete()
+	default:
+		m.keyBindings.SetStateRunning()
+	}
 }
 
 func (m *UpModel) exitCmd(reason FlowExitReason, err error) tea.Cmd {
@@ -794,22 +820,9 @@ func (m *UpModel) renderComplete() string {
 
 // renderFooter renders context-sensitive help
 func (m *UpModel) renderFooter() string {
-	var help string
-
-	switch m.state { //nolint:exhaustive // default handles all operation states uniformly
-	case UpStateConfirm:
-		help = "y: proceed  n: cancel"
-	case UpStateNothingToDo:
-		help = "Enter/q: exit"
-	case UpStateError:
-		help = "r: retry  q: quit"
-	case UpStateComplete:
-		help = "Enter/q: exit"
-	default:
-		help = "Ctrl+C: cancel"
-	}
-
-	return styles.StyleSubtle.Render(help)
+	m.updateKeyBindings()
+	m.helpModel.SetWidth(m.width)
+	return m.helpModel.View(&m.keyBindings)
 }
 
 // SetSize implements SubModel
