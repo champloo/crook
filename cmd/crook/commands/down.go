@@ -12,6 +12,7 @@ import (
 	"github.com/andri/crook/pkg/k8s"
 	"github.com/andri/crook/pkg/maintenance"
 	"github.com/spf13/cobra"
+	appsv1 "k8s.io/api/apps/v1"
 )
 
 // DownOptions holds options specific to the down command
@@ -88,10 +89,27 @@ func runDown(ctx context.Context, nodeName string, opts *DownOptions) error {
 		return fmt.Errorf("failed to create kubernetes client: %w", err)
 	}
 
+	// Validate node exists
+	exists, err := client.NodeExists(ctx, nodeName)
+	if err != nil {
+		return fmt.Errorf("failed to check if node %q exists: %w", nodeName, err)
+	}
+	if !exists {
+		return fmt.Errorf("node %q not found in cluster", nodeName)
+	}
+
 	// Discover deployments to show summary
 	deployments, err := client.ListNodePinnedDeployments(ctx, cfg.Namespace, nodeName)
 	if err != nil {
 		return fmt.Errorf("failed to discover deployments: %w", err)
+	}
+
+	pw := cli.NewProgressWriter(os.Stdout)
+
+	// Check if all deployments are already scaled down
+	if allDeploymentsScaledDown(deployments) {
+		pw.PrintSuccess(fmt.Sprintf("Node %s is already prepared for maintenance - all deployments are scaled down", nodeName))
+		return nil
 	}
 
 	// Build deployment names for display
@@ -101,7 +119,6 @@ func runDown(ctx context.Context, nodeName string, opts *DownOptions) error {
 	}
 
 	// Show summary
-	pw := cli.NewProgressWriter(os.Stdout)
 	pw.PrintSummary(nodeName, len(deployments), deploymentNames)
 
 	// Confirm unless -y
@@ -128,4 +145,21 @@ func runDown(ctx context.Context, nodeName string, opts *DownOptions) error {
 
 	pw.PrintSuccess(fmt.Sprintf("Node %s is now ready for maintenance", nodeName))
 	return nil
+}
+
+// allDeploymentsScaledDown returns true if there are no deployments or all have 0 replicas.
+func allDeploymentsScaledDown(deployments []appsv1.Deployment) bool {
+	if len(deployments) == 0 {
+		return true
+	}
+	for _, d := range deployments {
+		replicas := int32(1) // default if nil
+		if d.Spec.Replicas != nil {
+			replicas = *d.Spec.Replicas
+		}
+		if replicas > 0 {
+			return false
+		}
+	}
+	return true
 }

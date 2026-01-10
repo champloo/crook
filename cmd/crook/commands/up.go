@@ -87,10 +87,27 @@ func runUp(ctx context.Context, nodeName string, opts *UpOptions) error {
 		return fmt.Errorf("failed to create kubernetes client: %w", err)
 	}
 
+	// Validate node exists
+	exists, err := client.NodeExists(ctx, nodeName)
+	if err != nil {
+		return fmt.Errorf("failed to check if node %q exists: %w", nodeName, err)
+	}
+	if !exists {
+		return fmt.Errorf("node %q not found in cluster", nodeName)
+	}
+
 	// Discover scaled-down deployments to show summary
 	deployments, err := client.ListScaledDownDeploymentsForNode(ctx, cfg.Namespace, nodeName)
 	if err != nil {
 		return fmt.Errorf("failed to discover deployments: %w", err)
+	}
+
+	pw := cli.NewProgressWriter(os.Stdout)
+
+	// Check if there are no scaled-down deployments to restore
+	if len(deployments) == 0 {
+		pw.PrintSuccess(fmt.Sprintf("Node %s is already operational - no scaled-down deployments to restore", nodeName))
+		return nil
 	}
 
 	// Build deployment names for display
@@ -100,7 +117,6 @@ func runUp(ctx context.Context, nodeName string, opts *UpOptions) error {
 	}
 
 	// Show summary
-	pw := cli.NewProgressWriter(os.Stdout)
 	pw.PrintSummary(nodeName, len(deployments), deploymentNames)
 
 	// Confirm unless -y
