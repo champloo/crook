@@ -4,12 +4,13 @@ package commands
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
-	tea "charm.land/bubbletea/v2"
 	"github.com/andri/crook/internal/logger"
+	"github.com/andri/crook/pkg/cli"
 	"github.com/andri/crook/pkg/k8s"
-	"github.com/andri/crook/pkg/tui/models"
+	"github.com/andri/crook/pkg/maintenance"
 	"github.com/spf13/cobra"
 )
 
@@ -17,6 +18,9 @@ import (
 type DownOptions struct {
 	// Timeout for the overall operation
 	Timeout time.Duration
+
+	// Yes skips the confirmation prompt
+	Yes bool
 }
 
 // newDownCmd creates the down subcommand
@@ -42,6 +46,9 @@ Use 'crook up <node>' to restore the node after maintenance is complete.`,
 		Example: `  # Prepare node 'worker-1' for maintenance
   crook down worker-1
 
+  # Skip confirmation prompt
+  crook down -y worker-1
+
   # Set a timeout for the operation
   crook down worker-1 --timeout 10m`,
 		Args: cobra.ExactArgs(1),
@@ -55,6 +62,8 @@ Use 'crook up <node>' to restore the node after maintenance is complete.`,
 	flags := cmd.Flags()
 	flags.DurationVar(&opts.Timeout, "timeout", 10*time.Minute,
 		"timeout for the overall operation")
+	flags.BoolVarP(&opts.Yes, "yes", "y", false,
+		"skip confirmation prompt")
 
 	return cmd
 }
@@ -79,37 +88,44 @@ func runDown(ctx context.Context, nodeName string, opts *DownOptions) error {
 		return fmt.Errorf("failed to create kubernetes client: %w", err)
 	}
 
-	return runDownTUI(ctx, client, nodeName)
-}
-
-// runDownTUI runs the down phase with the interactive TUI
-func runDownTUI(ctx context.Context, client *k8s.Client, nodeName string) error {
-	cfg := GlobalOptions.Config
-
-	// Create the TUI app model configured for down phase
-	appCfg := models.AppConfig{
-		Route:    models.RouteDown,
-		NodeName: nodeName,
-		Config:   cfg,
-		Client:   client,
-		Context:  ctx,
-	}
-
-	app := models.NewAppModel(appCfg)
-
-	// Run the Bubble Tea program
-	p := tea.NewProgram(app)
-	finalModel, err := p.Run()
+	// Discover deployments to show summary
+	deployments, err := client.ListNodePinnedDeployments(ctx, cfg.Namespace, nodeName)
 	if err != nil {
-		return fmt.Errorf("TUI error: %w", err)
+		return fmt.Errorf("failed to discover deployments: %w", err)
 	}
 
-	// Check if the operation completed successfully
-	if appModel, ok := finalModel.(*models.AppModel); ok {
-		if !appModel.IsInitialized() {
-			return fmt.Errorf("operation was cancelled or failed to initialize")
+	// Build deployment names for display
+	var deploymentNames []string
+	for _, d := range deployments {
+		deploymentNames = append(deploymentNames, fmt.Sprintf("%s/%s", d.Namespace, d.Name))
+	}
+
+	// Show summary
+	pw := cli.NewProgressWriter(os.Stdout)
+	pw.PrintSummary(nodeName, len(deployments), deploymentNames)
+
+	// Confirm unless -y
+	if !opts.Yes {
+		confirmed, confirmErr := cli.Confirm(cli.ConfirmOptions{
+			Question: "Proceed with down phase?",
+		})
+		if confirmErr != nil {
+			return fmt.Errorf("confirmation failed: %w", confirmErr)
+		}
+		if !confirmed {
+			return fmt.Errorf("operation cancelled by user")
 		}
 	}
 
+	// Execute the down phase with progress callback
+	executeErr := maintenance.ExecuteDownPhase(ctx, client, cfg, nodeName, maintenance.DownPhaseOptions{
+		ProgressCallback: pw.OnDownProgress,
+	})
+	if executeErr != nil {
+		pw.PrintError(fmt.Sprintf("Down phase failed: %s", executeErr.Error()))
+		return executeErr
+	}
+
+	pw.PrintSuccess(fmt.Sprintf("Node %s is now ready for maintenance", nodeName))
 	return nil
 }

@@ -8,9 +8,13 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/andri/crook/internal/logger"
 	"github.com/andri/crook/pkg/config"
+	"github.com/andri/crook/pkg/k8s"
+	"github.com/andri/crook/pkg/tui/models"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -72,7 +76,9 @@ Key features:
   - Prevents data loss by managing Ceph OSDs, monitors, and services
   - Maintains cluster state across reboots and maintenance windows
   - Interactive TUI with real-time feedback
-  - Pre-flight validation and health monitoring`,
+  - Pre-flight validation and health monitoring
+
+Run 'crook' without arguments to launch the interactive TUI.`,
 		SilenceUsage:      true,
 		SilenceErrors:     true,
 		CompletionOptions: cobra.CompletionOptions{DisableDefaultCmd: true},
@@ -81,6 +87,9 @@ Key features:
 		},
 		PersistentPostRun: func(_ *cobra.Command, _ []string) {
 			cleanup()
+		},
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runInteractiveTUI(cmd.Context())
 		},
 	}
 
@@ -238,4 +247,33 @@ func newVersionCmd() *cobra.Command {
 // Execute runs the root command
 func Execute() error {
 	return NewRootCmd().Execute()
+}
+
+// runInteractiveTUI launches the interactive TUI for node management
+func runInteractiveTUI(ctx context.Context) error {
+	cfg := GlobalOptions.Config
+
+	// Initialize Kubernetes client
+	logger.Info("connecting to kubernetes cluster")
+	client, err := k8s.NewClient(ctx, k8s.ClientConfig{
+		CephCommandTimeout: time.Duration(cfg.Timeouts.CephCommandTimeoutSeconds) * time.Second,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create kubernetes client: %w", err)
+	}
+
+	// Create the ls model (multi-pane TUI with embedded up/down flows)
+	model := models.NewLsModel(models.LsModelConfig{
+		Config:  cfg,
+		Client:  client,
+		Context: ctx,
+	})
+
+	// Run the TUI
+	p := tea.NewProgram(model)
+	if _, runErr := p.Run(); runErr != nil {
+		return fmt.Errorf("TUI error: %w", runErr)
+	}
+
+	return nil
 }

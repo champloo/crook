@@ -12,10 +12,6 @@ func Render(w io.Writer, data *Data, format Format) error {
 		return RenderTable(w, data)
 	case FormatJSON:
 		return RenderJSON(w, data)
-	case FormatYAML:
-		return RenderYAML(w, data)
-	case FormatTUI:
-		return fmt.Errorf("TUI format should not be rendered through this function")
 	default:
 		return fmt.Errorf("unknown output format: %s", format)
 	}

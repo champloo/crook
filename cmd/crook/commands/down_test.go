@@ -60,7 +60,7 @@ func TestDownCmdHasRequiredFlags(t *testing.T) {
 		}
 	}
 
-	expectedFlags := []string{"timeout"}
+	expectedFlags := []string{"timeout", "yes"}
 
 	for _, flagName := range expectedFlags {
 		found := false
@@ -74,6 +74,26 @@ func TestDownCmdHasRequiredFlags(t *testing.T) {
 			t.Errorf("expected down command to have flag %q", flagName)
 		}
 	}
+}
+
+func TestDownCmdHasYesShorthand(t *testing.T) {
+	cmd := commands.NewRootCmd()
+
+	// Find the down subcommand
+	for _, subCmd := range cmd.Commands() {
+		if strings.HasPrefix(subCmd.Use, "down") {
+			// Test -y shorthand for --yes
+			yesFlag := subCmd.Flags().ShorthandLookup("y")
+			if yesFlag == nil {
+				t.Error("expected -y shorthand for --yes flag")
+			} else if yesFlag.Name != "yes" {
+				t.Errorf("expected -y to be shorthand for 'yes', got %s", yesFlag.Name)
+			}
+			return
+		}
+	}
+
+	t.Fatal("down subcommand not found")
 }
 
 func TestDownCmdRequiresNodeArg(t *testing.T) {

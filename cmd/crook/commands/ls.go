@@ -9,17 +9,14 @@ import (
 	"strings"
 	"time"
 
-	tea "charm.land/bubbletea/v2"
-	"github.com/andri/crook/pkg/config"
 	"github.com/andri/crook/pkg/k8s"
-	"github.com/andri/crook/pkg/tui/models"
 	"github.com/andri/crook/pkg/tui/output"
 	"github.com/spf13/cobra"
 )
 
 // LsOptions holds options specific to the ls command
 type LsOptions struct {
-	// Output specifies the output format: tui, table, json, yaml
+	// Output specifies the output format: table, json
 	Output string
 
 	// Show specifies which resource types to display (comma-separated)
@@ -30,7 +27,7 @@ type LsOptions struct {
 }
 
 // validOutputFormats are the allowed values for --output
-var validOutputFormats = []string{"tui", "table", "json", "yaml"}
+var validOutputFormats = []string{"table", "json"}
 
 // validShowValues are the allowed values for --show (comma-separated)
 var validShowValues = []string{"nodes", "deployments", "osds", "pods"}
@@ -42,21 +39,17 @@ func newLsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "ls [node-name]",
 		Short: "List Rook-Ceph resources",
-		Long: `List Rook-Ceph resources in an interactive TUI or formatted output.
+		Long: `List Rook-Ceph resources in formatted output.
 
 Displays nodes, deployments, OSDs, and pods related to your Rook-Ceph cluster
-with support for filtering, search, and multiple output formats.
+with support for filtering and multiple output formats.
 
-By default, opens an interactive TUI with tabbed views. Use --output to
-select alternative output formats for scripting or CI/CD integration.`,
-		Example: `  # Interactive TUI mode (default)
+Use 'crook' without arguments to launch the interactive TUI instead.`,
+		Example: `  # Table output (default)
   crook ls
 
   # Filter by node name
   crook ls worker-1
-
-  # Table output for scripting
-  crook ls --output table
 
   # JSON output for automation
   crook ls --output json
@@ -78,8 +71,8 @@ select alternative output formats for scripting or CI/CD integration.`,
 
 	// Add ls-specific flags
 	flags := cmd.Flags()
-	flags.StringVarP(&opts.Output, "output", "o", "tui",
-		"output format: tui, table, json, yaml")
+	flags.StringVarP(&opts.Output, "output", "o", "table",
+		"output format: table, json")
 	flags.StringVar(&opts.Show, "show", "",
 		"resource types to display (comma-separated): nodes,deployments,osds,pods")
 
@@ -135,37 +128,6 @@ func runLs(ctx context.Context, opts *LsOptions) error {
 		}
 	}
 
-	// Handle non-TUI output formats
-	if opts.Output != "tui" {
-		return runLsNonTUI(ctx, opts, cfg, client)
-	}
-
-	// Parse --show flag into LsTab slice
-	var showTabs []models.LsTab
-	if opts.Show != "" {
-		showTabs = parseShowTabs(opts.Show)
-	}
-
-	// Create the ls model
-	model := models.NewLsModel(models.LsModelConfig{
-		NodeFilter: opts.NodeFilter,
-		Config:     cfg,
-		Client:     client,
-		Context:    ctx,
-		ShowTabs:   showTabs,
-	})
-
-	// Run the TUI
-	p := tea.NewProgram(model)
-	if _, runErr := p.Run(); runErr != nil {
-		return fmt.Errorf("TUI error: %w", runErr)
-	}
-
-	return nil
-}
-
-// runLsNonTUI handles non-TUI output formats (table, json, yaml)
-func runLsNonTUI(ctx context.Context, opts *LsOptions, cfg config.Config, client *k8s.Client) error {
 	// Parse output format
 	format, err := output.ParseFormat(opts.Output)
 	if err != nil {
@@ -191,26 +153,4 @@ func runLsNonTUI(ctx context.Context, opts *LsOptions, cfg config.Config, client
 	}
 
 	return nil
-}
-
-// parseShowTabs converts the --show string to a slice of LsTab
-func parseShowTabs(show string) []models.LsTab {
-	var tabs []models.LsTab
-	values := strings.Split(show, ",")
-
-	for _, v := range values {
-		v = strings.TrimSpace(strings.ToLower(v))
-		switch v {
-		case "nodes":
-			tabs = append(tabs, models.LsTabNodes)
-		case "deployments":
-			tabs = append(tabs, models.LsTabDeployments)
-		case "osds":
-			tabs = append(tabs, models.LsTabOSDs)
-		case "pods":
-			tabs = append(tabs, models.LsTabPods)
-		}
-	}
-
-	return tabs
 }

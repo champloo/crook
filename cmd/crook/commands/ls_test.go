@@ -91,13 +91,13 @@ func TestLsCmdDefaultValues(t *testing.T) {
 	// Find the ls subcommand
 	for _, subCmd := range cmd.Commands() {
 		if strings.HasPrefix(subCmd.Use, "ls") {
-			// Test --output default (tui)
+			// Test --output default (table)
 			outputFlag := subCmd.Flags().Lookup("output")
 			if outputFlag == nil {
 				t.Fatal("expected output flag to exist")
 			}
-			if outputFlag.DefValue != "tui" {
-				t.Errorf("expected default output to be 'tui', got %s", outputFlag.DefValue)
+			if outputFlag.DefValue != "table" {
+				t.Errorf("expected default output to be 'table', got %s", outputFlag.DefValue)
 			}
 
 			return
@@ -133,10 +133,10 @@ func TestLsCmdValidatesOutputFlag(t *testing.T) {
 		wantError bool
 		errorMsg  string
 	}{
-		{"valid tui", "tui", false, ""},
 		{"valid table", "table", false, ""},
 		{"valid json", "json", false, ""},
-		{"valid yaml", "yaml", false, ""},
+		{"invalid tui", "tui", true, "must be one of"},
+		{"invalid yaml", "yaml", true, "must be one of"},
 		{"invalid format", "csv", true, "must be one of"},
 		{"invalid empty after set", "invalid", true, "must be one of"},
 	}

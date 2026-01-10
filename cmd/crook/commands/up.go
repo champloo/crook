@@ -4,12 +4,13 @@ package commands
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
-	tea "charm.land/bubbletea/v2"
 	"github.com/andri/crook/internal/logger"
+	"github.com/andri/crook/pkg/cli"
 	"github.com/andri/crook/pkg/k8s"
-	"github.com/andri/crook/pkg/tui/models"
+	"github.com/andri/crook/pkg/maintenance"
 	"github.com/spf13/cobra"
 )
 
@@ -17,6 +18,9 @@ import (
 type UpOptions struct {
 	// Timeout for the overall operation
 	Timeout time.Duration
+
+	// Yes skips the confirmation prompt
+	Yes bool
 }
 
 // newUpCmd creates the up subcommand
@@ -41,6 +45,9 @@ is complete.`,
 		Example: `  # Restore node 'worker-1' after maintenance
   crook up worker-1
 
+  # Skip confirmation prompt
+  crook up -y worker-1
+
   # Set a timeout for the operation
   crook up worker-1 --timeout 15m`,
 		Args: cobra.ExactArgs(1),
@@ -54,6 +61,8 @@ is complete.`,
 	flags := cmd.Flags()
 	flags.DurationVar(&opts.Timeout, "timeout", 15*time.Minute,
 		"timeout for the overall operation")
+	flags.BoolVarP(&opts.Yes, "yes", "y", false,
+		"skip confirmation prompt")
 
 	return cmd
 }
@@ -78,37 +87,46 @@ func runUp(ctx context.Context, nodeName string, opts *UpOptions) error {
 		return fmt.Errorf("failed to create kubernetes client: %w", err)
 	}
 
-	return runUpTUI(ctx, client, nodeName)
-}
-
-// runUpTUI runs the up phase with the interactive TUI
-func runUpTUI(ctx context.Context, client *k8s.Client, nodeName string) error {
-	cfg := GlobalOptions.Config
-
-	// Create the TUI app model configured for up phase
-	appCfg := models.AppConfig{
-		Route:    models.RouteUp,
-		NodeName: nodeName,
-		Config:   cfg,
-		Client:   client,
-		Context:  ctx,
-	}
-
-	app := models.NewAppModel(appCfg)
-
-	// Run the Bubble Tea program
-	p := tea.NewProgram(app)
-	finalModel, err := p.Run()
+	// Discover scaled-down deployments to show summary
+	deployments, err := client.ListScaledDownDeploymentsForNode(ctx, cfg.Namespace, nodeName)
 	if err != nil {
-		return fmt.Errorf("TUI error: %w", err)
+		return fmt.Errorf("failed to discover deployments: %w", err)
 	}
 
-	// Check if the operation completed successfully
-	if appModel, ok := finalModel.(*models.AppModel); ok {
-		if !appModel.IsInitialized() {
-			return fmt.Errorf("operation was cancelled or failed to initialize")
+	// Build deployment names for display
+	var deploymentNames []string
+	for _, d := range deployments {
+		deploymentNames = append(deploymentNames, fmt.Sprintf("%s/%s", d.Namespace, d.Name))
+	}
+
+	// Show summary
+	pw := cli.NewProgressWriter(os.Stdout)
+	pw.PrintSummary(nodeName, len(deployments), deploymentNames)
+
+	// Confirm unless -y
+	if !opts.Yes {
+		confirmed, confirmErr := cli.Confirm(cli.ConfirmOptions{
+			Question: "Proceed with up phase?",
+		})
+		if confirmErr != nil {
+			return fmt.Errorf("confirmation failed: %w", confirmErr)
+		}
+		if !confirmed {
+			return fmt.Errorf("operation cancelled by user")
 		}
 	}
 
+	// Execute the up phase with progress callback
+	// Pass discovered deployments to ensure consistency between confirmation and execution
+	executeErr := maintenance.ExecuteUpPhase(ctx, client, cfg, nodeName, maintenance.UpPhaseOptions{
+		ProgressCallback: pw.OnUpProgress,
+		Deployments:      deployments,
+	})
+	if executeErr != nil {
+		pw.PrintError(fmt.Sprintf("Up phase failed: %s", executeErr.Error()))
+		return executeErr
+	}
+
+	pw.PrintSuccess(fmt.Sprintf("Node %s has been restored and is operational", nodeName))
 	return nil
 }

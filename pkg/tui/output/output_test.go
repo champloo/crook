@@ -9,7 +9,6 @@ import (
 
 	"github.com/andri/crook/pkg/k8s"
 	"github.com/andri/crook/pkg/tui/output"
-	"gopkg.in/yaml.v3"
 )
 
 func TestParseFormat(t *testing.T) {
@@ -19,11 +18,11 @@ func TestParseFormat(t *testing.T) {
 		want    output.Format
 		wantErr bool
 	}{
-		{name: "tui", input: "tui", want: output.FormatTUI, wantErr: false},
 		{name: "table", input: "table", want: output.FormatTable, wantErr: false},
 		{name: "json", input: "json", want: output.FormatJSON, wantErr: false},
-		{name: "yaml", input: "yaml", want: output.FormatYAML, wantErr: false},
 		{name: "invalid", input: "invalid", wantErr: true},
+		{name: "yaml", input: "yaml", wantErr: true},
+		{name: "tui", input: "tui", wantErr: true},
 	}
 
 	for _, tt := range tests {
@@ -41,26 +40,6 @@ func TestParseFormat(t *testing.T) {
 			}
 			if got != tt.want {
 				t.Errorf("ParseFormat(%q) = %v, want %v", tt.input, got, tt.want)
-			}
-		})
-	}
-}
-
-func TestFormatIsNonTUI(t *testing.T) {
-	tests := []struct {
-		format output.Format
-		want   bool
-	}{
-		{output.FormatTUI, false},
-		{output.FormatTable, true},
-		{output.FormatJSON, true},
-		{output.FormatYAML, true},
-	}
-
-	for _, tt := range tests {
-		t.Run(string(tt.format), func(t *testing.T) {
-			if got := tt.format.IsNonTUI(); got != tt.want {
-				t.Errorf("Format(%q).IsNonTUI() = %v, want %v", tt.format, got, tt.want)
 			}
 		})
 	}
@@ -260,54 +239,6 @@ func TestRenderJSONParseable(t *testing.T) {
 	}
 }
 
-func TestRenderYAML(t *testing.T) {
-	data := createTestData()
-	var buf bytes.Buffer
-
-	err := output.RenderYAML(&buf, data)
-	if err != nil {
-		t.Fatalf("RenderYAML() error: %v", err)
-	}
-
-	// Verify it's valid YAML
-	var parsed map[string]interface{}
-	if parseErr := yaml.Unmarshal(buf.Bytes(), &parsed); parseErr != nil {
-		t.Fatalf("RenderYAML() produced invalid YAML: %v", parseErr)
-	}
-
-	// Verify structure
-	if _, ok := parsed["cluster_health"]; !ok {
-		t.Error("RenderYAML() missing cluster_health")
-	}
-	if _, ok := parsed["nodes"]; !ok {
-		t.Error("RenderYAML() missing nodes")
-	}
-}
-
-func TestRenderYAMLParseable(t *testing.T) {
-	data := createTestData()
-	var buf bytes.Buffer
-
-	err := output.RenderYAML(&buf, data)
-	if err != nil {
-		t.Fatalf("RenderYAML() error: %v", err)
-	}
-
-	// Verify YAML is valid and contains expected fields
-	var parsed map[string]any
-	if parseErr := yaml.Unmarshal(buf.Bytes(), &parsed); parseErr != nil {
-		t.Fatalf("RenderYAML() output not parseable: %v", parseErr)
-	}
-
-	health, ok := parsed["cluster_health"].(map[string]any)
-	if !ok {
-		t.Fatal("missing cluster_health")
-	}
-	if health["status"] != "HEALTH_OK" {
-		t.Errorf("Parsed health status = %v, want %q", health["status"], "HEALTH_OK")
-	}
-}
-
 func TestRenderTable(t *testing.T) {
 	data := createTestData()
 	var buf bytes.Buffer
@@ -317,30 +248,30 @@ func TestRenderTable(t *testing.T) {
 		t.Fatalf("RenderTable() error: %v", err)
 	}
 
-	output := buf.String()
+	tableOutput := buf.String()
 
 	// Verify sections are present
-	if !strings.Contains(output, "NODES") {
+	if !strings.Contains(tableOutput, "NODES") {
 		t.Error("RenderTable() missing NODES section")
 	}
-	if !strings.Contains(output, "DEPLOYMENTS") {
+	if !strings.Contains(tableOutput, "DEPLOYMENTS") {
 		t.Error("RenderTable() missing DEPLOYMENTS section")
 	}
-	if !strings.Contains(output, "OSDS") {
+	if !strings.Contains(tableOutput, "OSDS") {
 		t.Error("RenderTable() missing OSDS section")
 	}
-	if !strings.Contains(output, "PODS") {
+	if !strings.Contains(tableOutput, "PODS") {
 		t.Error("RenderTable() missing PODS section")
 	}
 
 	// Verify data is present
-	if !strings.Contains(output, "worker-1") {
+	if !strings.Contains(tableOutput, "worker-1") {
 		t.Error("RenderTable() missing node data")
 	}
-	if !strings.Contains(output, "rook-ceph-osd-0") {
+	if !strings.Contains(tableOutput, "rook-ceph-osd-0") {
 		t.Error("RenderTable() missing deployment data")
 	}
-	if !strings.Contains(output, "osd.0") {
+	if !strings.Contains(tableOutput, "osd.0") {
 		t.Error("RenderTable() missing OSD data")
 	}
 }
@@ -404,8 +335,7 @@ func TestRender(t *testing.T) {
 	}{
 		{name: "table", format: output.FormatTable, wantErr: false},
 		{name: "json", format: output.FormatJSON, wantErr: false},
-		{name: "yaml", format: output.FormatYAML, wantErr: false},
-		{name: "tui", format: output.FormatTUI, wantErr: true}, // TUI should error
+		{name: "invalid", format: output.Format("invalid"), wantErr: true},
 	}
 
 	for _, tt := range tests {
