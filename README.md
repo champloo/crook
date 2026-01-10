@@ -37,6 +37,30 @@ just build
 just install
 ```
 
+### Install with Nix
+
+If you have Nix with flakes enabled:
+
+```bash
+# Run directly without installing
+nix run github:andri/crook
+
+# Install to user profile
+nix profile install github:andri/crook
+
+# Build locally
+nix build
+./result/bin/crook --help
+
+# Enter development shell
+nix develop
+```
+
+For NixOS or home-manager, add to your flake inputs and use:
+```nix
+environment.systemPackages = [ inputs.crook.packages.${system}.default ];
+```
+
 ## Quick Start
 
 ### Interactive TUI

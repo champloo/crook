@@ -1,3 +1,7 @@
+# Nix
+result
+result-*
+
 # Devenv
 .devenv*
 devenv.local.nix
