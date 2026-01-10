@@ -104,6 +104,11 @@ func runUp(ctx context.Context, nodeName string, opts *UpOptions) error {
 
 	pw := cli.NewProgressWriter(os.Stdout)
 
+	if len(deployments) == 0 && isUpDesiredState(ctx, client, cfg, nodeName) {
+		pw.PrintSuccess(fmt.Sprintf("Node %s is already operational (uncordoned, noout unset, operator running)", nodeName))
+		return nil
+	}
+
 	// Build deployment names for display
 	var deploymentNames []string
 	for _, d := range deployments {
