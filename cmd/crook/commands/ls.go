@@ -9,11 +9,11 @@ import (
 	"strings"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/andri/crook/pkg/config"
 	"github.com/andri/crook/pkg/k8s"
 	"github.com/andri/crook/pkg/tui/models"
 	"github.com/andri/crook/pkg/tui/output"
-	tea "charm.land/bubbletea/v2"
 	"github.com/spf13/cobra"
 )
 

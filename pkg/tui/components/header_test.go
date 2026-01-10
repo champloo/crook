@@ -47,7 +47,7 @@ func TestClusterHeader_SetData(t *testing.T) {
 
 func TestClusterHeader_View_Loading(t *testing.T) {
 	h := NewClusterHeader()
-	view := h.View()
+	view := h.Render()
 
 	if !strings.Contains(view, "loading") {
 		t.Errorf("expected 'loading' in view, got: %s", view)
@@ -70,7 +70,7 @@ func TestClusterHeader_View_HealthOK(t *testing.T) {
 	})
 	h.SetWidth(100)
 
-	view := h.View()
+	view := h.Render()
 
 	if !strings.Contains(view, "HEALTH_OK") {
 		t.Errorf("expected 'HEALTH_OK' in view, got: %s", view)
@@ -108,7 +108,7 @@ func TestClusterHeader_View_HealthWarn(t *testing.T) {
 	})
 	h.SetWidth(100)
 
-	view := h.View()
+	view := h.Render()
 
 	if !strings.Contains(view, "HEALTH_WARN") {
 		t.Errorf("expected 'HEALTH_WARN' in view, got: %s", view)
@@ -134,7 +134,7 @@ func TestClusterHeader_View_NooutSet(t *testing.T) {
 	})
 	h.SetWidth(100)
 
-	view := h.View()
+	view := h.Render()
 
 	// Should contain noout with checkmark
 	if !strings.Contains(view, "noout") {
@@ -158,7 +158,7 @@ func TestClusterHeader_View_Compact(t *testing.T) {
 	})
 	h.SetWidth(60) // Narrow terminal
 
-	view := h.View()
+	view := h.Render()
 
 	// Compact view should be single line (no newlines, or just one for wrapping)
 	if strings.Count(view, "\n") > 0 {
@@ -180,7 +180,7 @@ func TestClusterHeader_Error(t *testing.T) {
 		t.Error("expected GetError to return set error")
 	}
 
-	view := h.View()
+	view := h.Render()
 	if !strings.Contains(view, "error") {
 		t.Errorf("expected 'error' in view, got: %s", view)
 	}

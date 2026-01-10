@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/andri/crook/pkg/config"
 	"github.com/andri/crook/pkg/tui/components"
-	tea "charm.land/bubbletea/v2"
 )
 
 func TestUpPhaseState_String(t *testing.T) {
@@ -325,14 +325,14 @@ func TestUpModel_handleKeyPress_ErrorState(t *testing.T) {
 	model.state = UpStateError
 
 	// Test 'q' to quit
-	quitMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}
+	quitMsg := tea.KeyPressMsg{Code: 'q', Text: "q"}
 	cmd := model.handleKeyPress(quitMsg)
 	if cmd == nil {
 		t.Error("'q' in error state should return quit command")
 	}
 
 	// Test 'esc' to quit
-	escMsg := tea.KeyMsg{Type: tea.KeyEsc}
+	escMsg := tea.KeyPressMsg{Code: tea.KeyEscape}
 	cmd = model.handleKeyPress(escMsg)
 	if cmd == nil {
 		t.Error("'esc' in error state should return quit command")
@@ -348,7 +348,7 @@ func TestUpModel_handleKeyPress_ErrorState_Embedded(t *testing.T) {
 	model.state = UpStateError
 	model.lastError = errors.New("test error")
 
-	escMsg := tea.KeyMsg{Type: tea.KeyEsc}
+	escMsg := tea.KeyPressMsg{Code: tea.KeyEscape}
 	cmd := model.handleKeyPress(escMsg)
 	if cmd == nil {
 		t.Fatal("'esc' in error state should return exit message command")
@@ -374,14 +374,14 @@ func TestUpModel_handleKeyPress_CompleteState(t *testing.T) {
 	model.state = UpStateComplete
 
 	// Test Enter to exit
-	enterMsg := tea.KeyMsg{Type: tea.KeyEnter}
+	enterMsg := tea.KeyPressMsg{Code: tea.KeyEnter}
 	cmd := model.handleKeyPress(enterMsg)
 	if cmd == nil {
 		t.Error("Enter in complete state should return quit command")
 	}
 
 	// Test 'q' to exit
-	quitMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}
+	quitMsg := tea.KeyPressMsg{Code: 'q', Text: "q"}
 	cmd = model.handleKeyPress(quitMsg)
 	if cmd == nil {
 		t.Error("'q' in complete state should return quit command")
@@ -396,7 +396,7 @@ func TestUpModel_handleKeyPress_CompleteState_Embedded(t *testing.T) {
 	})
 	model.state = UpStateComplete
 
-	enterMsg := tea.KeyMsg{Type: tea.KeyEnter}
+	enterMsg := tea.KeyPressMsg{Code: tea.KeyEnter}
 	cmd := model.handleKeyPress(enterMsg)
 	if cmd == nil {
 		t.Fatal("Enter in complete state should return exit message command")
@@ -420,14 +420,14 @@ func TestUpModel_handleKeyPress_OperationInProgress(t *testing.T) {
 	model.operationInProgress = true
 
 	// Regular keys should not do anything
-	quitMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}
+	quitMsg := tea.KeyPressMsg{Code: 'q', Text: "q"}
 	cmd := model.handleKeyPress(quitMsg)
 	if cmd != nil {
 		t.Error("'q' during operation should not return command")
 	}
 
 	// Ctrl+C should still work
-	ctrlCMsg := tea.KeyMsg{Type: tea.KeyCtrlC}
+	ctrlCMsg := tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}
 	cmd = model.handleKeyPress(ctrlCMsg)
 	if cmd == nil {
 		t.Error("Ctrl+C during operation should return quit command")
@@ -501,7 +501,7 @@ func TestUpModel_View_Init(t *testing.T) {
 	model.width = 80
 	model.height = 24
 
-	view := model.View()
+	view := model.Render()
 
 	if !contains(view, "Up Phase") {
 		t.Errorf("View should contain 'Up Phase', got %q", view)
@@ -524,7 +524,7 @@ func TestUpModel_View_Confirm(t *testing.T) {
 		{Namespace: "ns1", Name: "deploy1", CurrentReplicas: 0, Status: "pending"},
 	}
 
-	view := model.View()
+	view := model.Render()
 
 	if !contains(view, "Target Node") {
 		t.Errorf("View should contain 'Target Node', got %q", view)
@@ -545,7 +545,7 @@ func TestUpModel_View_Error(t *testing.T) {
 	model.state = UpStateError
 	model.lastError = errors.New("test error message")
 
-	view := model.View()
+	view := model.Render()
 
 	if !contains(view, "Error") {
 		t.Errorf("View should contain 'Error', got %q", view)
@@ -569,7 +569,7 @@ func TestUpModel_View_Complete(t *testing.T) {
 	}
 	model.elapsedTime = 30 * time.Second
 
-	view := model.View()
+	view := model.Render()
 
 	if !contains(view, "Complete") {
 		t.Errorf("View should contain 'Complete', got %q", view)
@@ -651,14 +651,14 @@ func TestUpModel_handleKeyPress_NothingToDoState(t *testing.T) {
 	model.state = UpStateNothingToDo
 
 	// Test Enter to exit
-	enterMsg := tea.KeyMsg{Type: tea.KeyEnter}
+	enterMsg := tea.KeyPressMsg{Code: tea.KeyEnter}
 	cmd := model.handleKeyPress(enterMsg)
 	if cmd == nil {
 		t.Error("Enter in nothing-to-do state should return quit command")
 	}
 
 	// Test 'q' to exit
-	quitMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}
+	quitMsg := tea.KeyPressMsg{Code: 'q', Text: "q"}
 	cmd = model.handleKeyPress(quitMsg)
 	if cmd == nil {
 		t.Error("'q' in nothing-to-do state should return quit command")
@@ -673,7 +673,7 @@ func TestUpModel_handleKeyPress_NothingToDoState_Embedded(t *testing.T) {
 	})
 	model.state = UpStateNothingToDo
 
-	enterMsg := tea.KeyMsg{Type: tea.KeyEnter}
+	enterMsg := tea.KeyPressMsg{Code: tea.KeyEnter}
 	cmd := model.handleKeyPress(enterMsg)
 	if cmd == nil {
 		t.Fatal("Enter in nothing-to-do state should return exit message command")
@@ -697,7 +697,7 @@ func TestUpModel_View_NothingToDo(t *testing.T) {
 	model.height = 24
 	model.state = UpStateNothingToDo
 
-	view := model.View()
+	view := model.Render()
 
 	if !contains(view, "All deployments are already scaled up") {
 		t.Errorf("View should contain 'All deployments are already scaled up', got %q", view)

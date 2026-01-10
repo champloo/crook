@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/andri/crook/pkg/tui/format"
-	"github.com/andri/crook/pkg/tui/styles"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/andri/crook/pkg/tui/format"
+	"github.com/andri/crook/pkg/tui/styles"
 )
 
 // TableColumn defines a column in the table

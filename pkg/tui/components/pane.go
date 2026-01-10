@@ -6,9 +6,9 @@ import (
 	"image/color"
 	"strings"
 
+	"charm.land/lipgloss/v2"
 	"github.com/andri/crook/pkg/tui/format"
 	"github.com/andri/crook/pkg/tui/styles"
-	"charm.land/lipgloss/v2"
 )
 
 // PaneConfig holds configuration for a Pane component.

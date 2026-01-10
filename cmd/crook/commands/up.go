@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/andri/crook/internal/logger"
 	"github.com/andri/crook/pkg/k8s"
 	"github.com/andri/crook/pkg/tui/models"
-	tea "charm.land/bubbletea/v2"
 	"github.com/spf13/cobra"
 )
 

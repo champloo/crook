@@ -57,7 +57,7 @@ func TestPodsView_SetNodeFilter(t *testing.T) {
 
 func TestPodsView_View_Empty(t *testing.T) {
 	v := NewPodsView()
-	view := v.View()
+	view := v.Render()
 
 	if !strings.Contains(view, "No pods found") {
 		t.Errorf("expected 'No pods found' in empty view, got: %s", view)
@@ -82,7 +82,7 @@ func TestPodsView_View_WithPods(t *testing.T) {
 	}
 
 	v.SetPods(pods)
-	view := v.View()
+	view := v.Render()
 
 	// Check header
 	if !strings.Contains(view, "NAME") {

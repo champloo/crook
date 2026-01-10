@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"strings"
 
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/andri/crook/pkg/k8s"
 	"github.com/andri/crook/pkg/tui/format"
 	"github.com/andri/crook/pkg/tui/styles"
-	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 )
 
 // ResourceType represents the type of resource being displayed
@@ -116,11 +116,16 @@ func (d *DetailPanel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // View implements tea.Model
 func (d *DetailPanel) View() tea.View {
+	return tea.NewView(d.Render())
+}
+
+// Render returns the string representation for composition
+func (d *DetailPanel) Render() string {
 	if !d.visible {
-		return tea.NewView("")
+		return ""
 	}
 
-	return tea.NewView(d.renderPanel())
+	return d.renderPanel()
 }
 
 // ShowNode displays node details

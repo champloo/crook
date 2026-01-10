@@ -7,12 +7,12 @@ import (
 	"strings"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/andri/crook/pkg/config"
 	"github.com/andri/crook/pkg/k8s"
 	"github.com/andri/crook/pkg/maintenance"
 	"github.com/andri/crook/pkg/tui/components"
 	"github.com/andri/crook/pkg/tui/styles"
-	tea "charm.land/bubbletea/v2"
 	appsv1 "k8s.io/api/apps/v1"
 )
 

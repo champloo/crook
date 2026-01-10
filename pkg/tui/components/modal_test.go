@@ -3,8 +3,8 @@ package components
 import (
 	"testing"
 
-	"github.com/andri/crook/pkg/tui/styles"
 	tea "charm.land/bubbletea/v2"
+	"github.com/andri/crook/pkg/tui/styles"
 )
 
 type mockModalContent struct {
@@ -20,9 +20,9 @@ func (m *mockModalContent) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m *mockModalContent) View() string {
-	return "content"
-}
+func (m *mockModalContent) View() tea.View { return tea.NewView(m.Render()) }
+
+func (m *mockModalContent) Render() string { return "content" }
 
 func (m *mockModalContent) SetSize(width, height int) {
 	m.width = width
@@ -31,7 +31,7 @@ func (m *mockModalContent) SetSize(width, height int) {
 
 func TestModal_EscCloses(t *testing.T) {
 	modal := NewModal(ModalConfig{})
-	_, cmd := modal.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	_, cmd := modal.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	if cmd == nil {
 		t.Fatal("expected close command on Esc")
 	}

@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/andri/crook/pkg/config"
 	"github.com/andri/crook/pkg/k8s"
 	"github.com/andri/crook/pkg/monitoring"
@@ -14,8 +16,6 @@ import (
 	"github.com/andri/crook/pkg/tui/format"
 	"github.com/andri/crook/pkg/tui/styles"
 	"github.com/andri/crook/pkg/tui/views"
-	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 )
 
 // LsPane represents the available panes in the multi-pane ls view

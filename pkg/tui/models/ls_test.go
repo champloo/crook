@@ -7,10 +7,10 @@ import (
 
 	"github.com/andri/crook/pkg/k8s"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/andri/crook/pkg/config"
 	"github.com/andri/crook/pkg/monitoring"
 	"github.com/andri/crook/pkg/tui/components"
-	tea "charm.land/bubbletea/v2"
 )
 
 type stubSizedModel struct {
@@ -24,7 +24,9 @@ func (m *stubSizedModel) Update(tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m *stubSizedModel) View() string { return "" }
+func (m *stubSizedModel) View() tea.View { return tea.NewView(m.Render()) }
+
+func (m *stubSizedModel) Render() string { return "" }
 
 func (m *stubSizedModel) SetSize(width, height int) {}
 
@@ -186,7 +188,7 @@ func TestLsModel_View_DoesNotPanicOnTinySize(t *testing.T) {
 	}()
 
 	_, _ = model.Update(tea.WindowSizeMsg{Width: 10, Height: 6})
-	_ = model.View()
+	_ = model.Render()
 }
 
 func TestLsModel_topRowWidths(t *testing.T) {
@@ -327,11 +329,11 @@ func TestLsModel_handleKeyPress_Quit(t *testing.T) {
 			var msg tea.KeyMsg
 			switch tt.key {
 			case "ctrl+c":
-				msg = tea.KeyMsg{Type: tea.KeyCtrlC}
+				msg = tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}
 			case "esc":
-				msg = tea.KeyMsg{Type: tea.KeyEsc}
+				msg = tea.KeyPressMsg{Code: tea.KeyEscape}
 			default:
-				msg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(tt.key)}
+				msg = tea.KeyPressMsg{Code: rune(tt.key[0]), Text: tt.key}
 			}
 
 			cmd := model.handleKeyPress(msg)
@@ -347,7 +349,7 @@ func TestLsModel_handleKeyPress_Help(t *testing.T) {
 		Context: context.Background(),
 	})
 
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("?")}
+	msg := tea.KeyPressMsg{Code: '?', Text: "?"}
 	model.handleKeyPress(msg)
 
 	if !model.helpVisible {
@@ -355,7 +357,7 @@ func TestLsModel_handleKeyPress_Help(t *testing.T) {
 	}
 
 	// Non-escape keys should not close help
-	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("x")})
+	model.handleKeyPress(tea.KeyPressMsg{Code: 'x', Text: "x"})
 	if !model.helpVisible {
 		t.Error("help should remain visible after pressing non-close key")
 	}
@@ -368,7 +370,7 @@ func TestLsModel_handleKeyPress_Help(t *testing.T) {
 
 	// Esc should close help
 	model.helpVisible = true
-	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyEsc})
+	model.handleKeyPress(tea.KeyPressMsg{Code: tea.KeyEscape})
 	if model.helpVisible {
 		t.Error("help should be hidden after pressing esc")
 	}
@@ -383,7 +385,7 @@ func TestLsModel_Update_Help_WhileMaintenanceFlowActive(t *testing.T) {
 	model.maintenanceFlow = flow
 
 	// Help key should be handled by the container model, not the embedded flow.
-	msgHelp := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}}
+	msgHelp := tea.KeyPressMsg{Code: '?', Text: "?"}
 	updatedModel, _ := model.Update(msgHelp)
 	m, _ := updatedModel.(*LsModel)
 	if !m.helpVisible {
@@ -394,7 +396,7 @@ func TestLsModel_Update_Help_WhileMaintenanceFlowActive(t *testing.T) {
 	}
 
 	// While help is visible, keys should not be routed to the embedded flow.
-	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x'}})
+	updatedModel, _ = m.Update(tea.KeyPressMsg{Code: 'x', Text: "x"})
 	m, _ = updatedModel.(*LsModel)
 	if !m.helpVisible {
 		t.Error("help should remain visible after pressing non-close key while flow is active")
@@ -404,7 +406,7 @@ func TestLsModel_Update_Help_WhileMaintenanceFlowActive(t *testing.T) {
 	}
 
 	// Esc should close help without routing to the embedded flow.
-	updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	updatedModel, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	m, _ = updatedModel.(*LsModel)
 	if m.helpVisible {
 		t.Error("help should be hidden after pressing esc while flow is active")
@@ -415,7 +417,7 @@ func TestLsModel_Update_Help_WhileMaintenanceFlowActive(t *testing.T) {
 
 	// Non-help keys should continue to be routed to the embedded flow.
 	flow.updated = false
-	_, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	_, _ = m.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
 	if !flow.updated {
 		t.Error("embedded flow should receive non-help keys")
 	}
@@ -435,29 +437,29 @@ func TestLsModel_handleKeyPress_Navigation(t *testing.T) {
 	model.nodeCount = 10
 
 	// Test j/down (cursor at 0 initially)
-	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
+	model.handleKeyPress(tea.KeyPressMsg{Code: 'j', Text: "j"})
 	if model.nodesView.GetCursor() != 1 {
 		t.Errorf("cursor after j = %d, want 1", model.nodesView.GetCursor())
 	}
 
-	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyDown})
+	model.handleKeyPress(tea.KeyPressMsg{Code: tea.KeyDown})
 	if model.nodesView.GetCursor() != 2 {
 		t.Errorf("cursor after down = %d, want 2", model.nodesView.GetCursor())
 	}
 
 	// Test k/up
-	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("k")})
+	model.handleKeyPress(tea.KeyPressMsg{Code: 'k', Text: "k"})
 	if model.nodesView.GetCursor() != 1 {
 		t.Errorf("cursor after k = %d, want 1", model.nodesView.GetCursor())
 	}
 
-	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyUp})
+	model.handleKeyPress(tea.KeyPressMsg{Code: tea.KeyUp})
 	if model.nodesView.GetCursor() != 0 {
 		t.Errorf("cursor after up = %d, want 0", model.nodesView.GetCursor())
 	}
 
 	// Test k at top (should stay at 0)
-	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("k")})
+	model.handleKeyPress(tea.KeyPressMsg{Code: 'k', Text: "k"})
 	if model.nodesView.GetCursor() != 0 {
 		t.Errorf("cursor should stay at 0, got %d", model.nodesView.GetCursor())
 	}
@@ -468,7 +470,7 @@ func TestLsModel_handleKeyPress_Refresh(t *testing.T) {
 		Context: context.Background(),
 	})
 
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("r")}
+	msg := tea.KeyPressMsg{Code: 'r', Text: "r"}
 	cmd := model.handleKeyPress(msg)
 
 	if cmd == nil {
@@ -492,33 +494,33 @@ func TestLsModel_handleKeyPress_PaneNavigation(t *testing.T) {
 		t.Errorf("initial pane should be Nodes, got %v", model.activePane)
 	}
 
-	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyTab})
+	model.handleKeyPress(tea.KeyPressMsg{Code: tea.KeyTab})
 	if model.activePane != LsPaneDeployments {
 		t.Errorf("after tab, pane should be Deployments, got %v", model.activePane)
 	}
 
-	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyTab})
+	model.handleKeyPress(tea.KeyPressMsg{Code: tea.KeyTab})
 	if model.activePane != LsPaneOSDs {
 		t.Errorf("after second tab, pane should be OSDs, got %v", model.activePane)
 	}
 
-	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyTab})
+	model.handleKeyPress(tea.KeyPressMsg{Code: tea.KeyTab})
 	if model.activePane != LsPaneNodes {
 		t.Errorf("after third tab, pane should wrap to Nodes, got %v", model.activePane)
 	}
 
 	// Test number keys for direct pane selection
-	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("2")})
+	model.handleKeyPress(tea.KeyPressMsg{Code: '2', Text: "2"})
 	if model.activePane != LsPaneDeployments {
 		t.Errorf("pressing 2 should select Deployments pane, got %v", model.activePane)
 	}
 
-	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("3")})
+	model.handleKeyPress(tea.KeyPressMsg{Code: '3', Text: "3"})
 	if model.activePane != LsPaneOSDs {
 		t.Errorf("pressing 3 should select OSDs pane, got %v", model.activePane)
 	}
 
-	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("1")})
+	model.handleKeyPress(tea.KeyPressMsg{Code: '1', Text: "1"})
 	if model.activePane != LsPaneNodes {
 		t.Errorf("pressing 1 should select Nodes pane, got %v", model.activePane)
 	}
@@ -530,17 +532,17 @@ func TestLsModel_handleKeyPress_ShiftTab(t *testing.T) {
 	})
 
 	// Start at Nodes, shift+tab should go to OSDs (wrap backwards)
-	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyShiftTab})
+	model.handleKeyPress(tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift})
 	if model.activePane != LsPaneOSDs {
 		t.Errorf("shift+tab from Nodes should go to OSDs, got %v", model.activePane)
 	}
 
-	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyShiftTab})
+	model.handleKeyPress(tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift})
 	if model.activePane != LsPaneDeployments {
 		t.Errorf("shift+tab from OSDs should go to Deployments, got %v", model.activePane)
 	}
 
-	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyShiftTab})
+	model.handleKeyPress(tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift})
 	if model.activePane != LsPaneNodes {
 		t.Errorf("shift+tab from Deployments should go to Nodes, got %v", model.activePane)
 	}
@@ -560,13 +562,13 @@ func TestLsModel_handleKeyPress_DeploymentsPodsToggle(t *testing.T) {
 	}
 
 	// Press ] to show pods
-	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("]")})
+	model.handleKeyPress(tea.KeyPressMsg{Code: ']', Text: "]"})
 	if !model.deploymentsPodsView.IsShowingPods() {
 		t.Error("after pressing ], should show pods")
 	}
 
 	// Press [ to show deployments
-	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("[")})
+	model.handleKeyPress(tea.KeyPressMsg{Code: '[', Text: "["})
 	if model.deploymentsPodsView.IsShowingPods() {
 		t.Error("after pressing [, should show deployments")
 	}
@@ -583,13 +585,13 @@ func TestLsModel_handleKeyPress_ToggleOnlyWorksOnDeploymentsPane(t *testing.T) {
 	}
 
 	// Press ] - should not toggle since not on Deployments pane
-	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("]")})
+	model.handleKeyPress(tea.KeyPressMsg{Code: ']', Text: "]"})
 	if model.deploymentsPodsView.IsShowingPods() {
 		t.Error("] should not toggle when not on Deployments pane")
 	}
 
 	// Press [ - should not toggle since not on Deployments pane
-	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("[")})
+	model.handleKeyPress(tea.KeyPressMsg{Code: '[', Text: "["})
 	if model.deploymentsPodsView.IsShowingPods() {
 		t.Error("[ should not toggle when not on Deployments pane")
 	}
@@ -606,7 +608,7 @@ func TestLsModel_handleKeyPress_MaintenanceFlowOpens(t *testing.T) {
 	model.nodeCount = len(nodes)
 	model.nodesView.SetCursor(1)
 
-	cmd := model.handleKeyPress(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("d")})
+	cmd := model.handleKeyPress(tea.KeyPressMsg{Code: 'd', Text: "d"})
 	if model.maintenanceFlow == nil {
 		t.Fatal("expected maintenance flow to open on 'd'")
 	}
@@ -625,7 +627,7 @@ func TestLsModel_handleKeyPress_MaintenanceFlowIgnoredOutsideNodesPane(t *testin
 	model.nodesView.SetNodes(nodes)
 	model.nodeCount = len(nodes)
 
-	cmd := model.handleKeyPress(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("u")})
+	cmd := model.handleKeyPress(tea.KeyPressMsg{Code: 'u', Text: "u"})
 	if cmd != nil {
 		t.Error("did not expect command when not in Nodes pane")
 	}
@@ -640,7 +642,8 @@ func (m *testSizedModel) Init() tea.Cmd { return nil }
 func (m *testSizedModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
-func (m *testSizedModel) View() string              { return "" }
+func (m *testSizedModel) View() tea.View            { return tea.NewView(m.Render()) }
+func (m *testSizedModel) Render() string            { return "" }
 func (m *testSizedModel) SetSize(width, height int) {}
 
 func TestLsModel_Update_MaintenanceExitClosesFlow(t *testing.T) {
@@ -704,7 +707,7 @@ func TestLsModel_View(t *testing.T) {
 	model.width = 80
 	model.height = 40
 
-	view := model.View()
+	view := model.Render()
 
 	if view == "" {
 		t.Error("View should not be empty")
@@ -737,7 +740,7 @@ func TestLsModel_View_AllPanesVisible(t *testing.T) {
 	model.osdsView.SetOSDs([]k8s.OSDInfo{{ID: 0}})
 	model.updateAllCounts()
 
-	view := model.View()
+	view := model.Render()
 
 	// All three pane titles should be visible in their borders (new format: [1] Nodes)
 	if !contains(view, "[1] Nodes") {
@@ -759,7 +762,7 @@ func TestLsModel_View_Help(t *testing.T) {
 	model.height = 40
 	model.helpVisible = true
 
-	view := model.View()
+	view := model.Render()
 
 	if !contains(view, "Help") {
 		t.Error("View should show help overlay")
@@ -787,7 +790,7 @@ func TestLsModel_View_StatusBarShowsToggleHint(t *testing.T) {
 
 	// On Nodes pane - should not show toggle hint
 	model.setActivePane(LsPaneNodes)
-	view := model.View()
+	view := model.Render()
 	// The status bar should show pane hints but not the toggle hint
 	if !contains(view, "Tab/1-3: pane") {
 		t.Error("View should contain pane navigation hint")
@@ -801,7 +804,7 @@ func TestLsModel_View_StatusBarShowsToggleHint(t *testing.T) {
 
 	// On Deployments pane - should show toggle hint
 	model.setActivePane(LsPaneDeployments)
-	view = model.View()
+	view = model.Render()
 	if !contains(view, "[/]: deployments/pods") {
 		t.Error("View should contain toggle hint when on Deployments pane")
 	}
@@ -922,8 +925,8 @@ func TestLsModel_CursorNavigationOnlyAffectsActivePane(t *testing.T) {
 	model.setActivePane(LsPaneNodes)
 
 	// Move cursor down twice
-	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
-	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
+	model.handleKeyPress(tea.KeyPressMsg{Code: 'j', Text: "j"})
+	model.handleKeyPress(tea.KeyPressMsg{Code: 'j', Text: "j"})
 
 	if model.nodesView.GetCursor() != 2 {
 		t.Errorf("nodes cursor should be 2, got %d", model.nodesView.GetCursor())
@@ -936,7 +939,7 @@ func TestLsModel_CursorNavigationOnlyAffectsActivePane(t *testing.T) {
 
 	// Switch to deployments pane
 	model.setActivePane(LsPaneDeployments)
-	model.handleKeyPress(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
+	model.handleKeyPress(tea.KeyPressMsg{Code: 'j', Text: "j"})
 
 	// Deployments cursor should now be 1
 	if model.deploymentsPodsView.GetCursor() != 1 {

@@ -54,7 +54,7 @@ func TestStatusIndicator_Constructors(t *testing.T) {
 func TestStatusIndicator_View_WithIcon(t *testing.T) {
 	s := NewSuccessStatus("Operation complete")
 
-	view := s.View()
+	view := s.Render()
 
 	if !strings.Contains(view, "Operation complete") {
 		t.Error("View should contain label")
@@ -68,7 +68,7 @@ func TestStatusIndicator_View_WithIcon(t *testing.T) {
 func TestStatusIndicator_View_WithDetails(t *testing.T) {
 	s := NewInfoStatus("Status").WithDetails("Additional info")
 
-	view := s.View()
+	view := s.Render()
 
 	if !strings.Contains(view, "Status") {
 		t.Error("View should contain label")
@@ -82,7 +82,7 @@ func TestStatusIndicator_View_WithDetails(t *testing.T) {
 func TestStatusIndicator_View_WithoutIcon(t *testing.T) {
 	s := NewInfoStatus("Status").WithoutIcon()
 
-	view := s.View()
+	view := s.Render()
 
 	if !strings.Contains(view, "Status") {
 		t.Error("View should contain label")
@@ -145,7 +145,7 @@ func TestStatusIndicator_Running_Spinner(t *testing.T) {
 	}
 
 	// View should show spinner frame
-	view := s.View()
+	view := s.Render()
 	hasSpinner := false
 	for _, frame := range spinnerFrames {
 		if strings.Contains(view, frame) {
@@ -200,7 +200,7 @@ func TestStatusList(t *testing.T) {
 	}
 
 	// Test View
-	view := list.View()
+	view := list.Render()
 	if !strings.Contains(view, "Step 1") {
 		t.Error("View should contain Step 1")
 	}

@@ -113,7 +113,7 @@ func TestTable_ClearRows(t *testing.T) {
 func TestTable_View_Empty(t *testing.T) {
 	table := NewTable([]TableColumn{})
 
-	view := table.View()
+	view := table.Render()
 
 	if view != "" {
 		t.Error("Empty table should return empty view")
@@ -124,7 +124,7 @@ func TestTable_View_WithHeader(t *testing.T) {
 	table := NewSimpleTable("Name", "Value")
 	table.AddRow("foo", "bar")
 
-	view := table.View()
+	view := table.Render()
 
 	if !strings.Contains(view, "Name") {
 		t.Error("View should contain header 'Name'")
@@ -143,7 +143,7 @@ func TestTable_View_WithoutHeader(t *testing.T) {
 	table := NewSimpleTable("Name", "Value").WithoutHeader()
 	table.AddRow("foo", "bar")
 
-	view := table.View()
+	view := table.Render()
 
 	// The header text might still appear if it's in the data
 	// But should not be styled as header
@@ -157,7 +157,7 @@ func TestTable_View_WithTitle(t *testing.T) {
 	table.SetTitle("My Table")
 	table.AddRow("1", "2")
 
-	view := table.View()
+	view := table.Render()
 
 	if !strings.Contains(view, "My Table") {
 		t.Error("View should contain title")
@@ -173,7 +173,7 @@ func TestTable_View_WithMaxRows(t *testing.T) {
 	table.AddRow("3")
 	table.AddRow("4")
 
-	view := table.View()
+	view := table.Render()
 
 	if !strings.Contains(view, "1") {
 		t.Error("View should contain first row")
@@ -193,7 +193,7 @@ func TestTable_View_WithBorders(t *testing.T) {
 	table := NewSimpleTable("A", "B").WithBorders()
 	table.AddRow("1", "2")
 
-	view := table.View()
+	view := table.Render()
 
 	if !strings.Contains(view, "│") {
 		t.Error("View should contain border character")
@@ -257,7 +257,7 @@ func TestTable_RenderRow_Truncation(t *testing.T) {
 	// The renderRow is internal, test through View
 	table.AddRow("VeryLongName")
 
-	view := table.View()
+	view := table.Render()
 
 	// Should be truncated - original text shouldn't fully appear
 	if strings.Contains(view, "VeryLongName") {
@@ -283,7 +283,7 @@ func TestKeyValueTable(t *testing.T) {
 	kv.Add("Name", "John")
 	kv.Add("Age", "30")
 
-	view := kv.View()
+	view := kv.Render()
 
 	if !strings.Contains(view, "Name") {
 		t.Error("View should contain 'Name'")
@@ -304,7 +304,7 @@ func TestKeyValueTable_WithType(t *testing.T) {
 	kv.AddWithType("Status", "OK", StatusTypeSuccess)
 	kv.AddWithType("Error", "Failed", StatusTypeError)
 
-	view := kv.View()
+	view := kv.Render()
 
 	// Just verify the view contains the values
 	// (styling is hard to test without ANSI parsing)
@@ -320,7 +320,7 @@ func TestKeyValueTable_WithType(t *testing.T) {
 func TestKeyValueTable_Empty(t *testing.T) {
 	kv := NewKeyValueTable()
 
-	view := kv.View()
+	view := kv.Render()
 
 	if view != "" {
 		t.Error("Empty key-value table should return empty string")

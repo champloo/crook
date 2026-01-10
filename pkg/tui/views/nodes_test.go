@@ -57,38 +57,38 @@ func TestNodesView_CursorNavigation(t *testing.T) {
 	v.SetNodes(nodes)
 
 	// Test j/down key
-	v.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
+	v.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
 	if v.cursor != 1 {
 		t.Errorf("cursor after 'j' = %d, want 1", v.cursor)
 	}
 
 	// Test k/up key
-	v.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("k")})
+	v.Update(tea.KeyPressMsg{Code: 'k', Text: "k"})
 	if v.cursor != 0 {
 		t.Errorf("cursor after 'k' = %d, want 0", v.cursor)
 	}
 
 	// Test G (go to end)
-	v.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("G")})
+	v.Update(tea.KeyPressMsg{Code: 'G', Text: "G"})
 	if v.cursor != 2 {
 		t.Errorf("cursor after 'G' = %d, want 2", v.cursor)
 	}
 
 	// Test g (go to start)
-	v.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("g")})
+	v.Update(tea.KeyPressMsg{Code: 'g', Text: "g"})
 	if v.cursor != 0 {
 		t.Errorf("cursor after 'g' = %d, want 0", v.cursor)
 	}
 
 	// Test cursor doesn't go below 0
-	v.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("k")})
+	v.Update(tea.KeyPressMsg{Code: 'k', Text: "k"})
 	if v.cursor != 0 {
 		t.Errorf("cursor after 'k' at start = %d, want 0", v.cursor)
 	}
 
 	// Test cursor doesn't go above max
 	v.cursor = 2
-	v.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
+	v.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
 	if v.cursor != 2 {
 		t.Errorf("cursor after 'j' at end = %d, want 2", v.cursor)
 	}
@@ -104,7 +104,7 @@ func TestNodesView_Enter(t *testing.T) {
 	v.SetNodes(nodes)
 
 	// Press enter on first node
-	_, cmd := v.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	_, cmd := v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
 	if cmd == nil {
 		t.Fatal("enter key should return a command")
@@ -145,7 +145,7 @@ func TestNodesView_View(t *testing.T) {
 	}
 	v.SetNodes(nodes)
 
-	output := v.View()
+	output := v.Render()
 
 	// Check header is present
 	if !strings.Contains(output, "NAME") {
@@ -181,7 +181,7 @@ func TestNodesView_View_TinyHeightLimitsOutput(t *testing.T) {
 		{Name: "node-3", Status: "Ready"},
 	})
 
-	output := v.View()
+	output := v.Render()
 	if !strings.Contains(output, "(1/3)") {
 		t.Fatalf("expected scroll indicator for tiny height, got: %q", output)
 	}
@@ -197,7 +197,7 @@ func TestNodesView_View_TruncatesRolesWithEllipsis(t *testing.T) {
 		{Name: "node-1", Status: "Ready", Roles: []string{"control-plane", "very-long-role-name"}},
 	})
 
-	output := v.View()
+	output := v.Render()
 	if !strings.Contains(output, "...") {
 		t.Fatalf("expected roles to be truncated with ellipsis, got: %q", output)
 	}
@@ -207,7 +207,7 @@ func TestNodesView_EmptyView(t *testing.T) {
 	v := NewNodesView()
 	v.SetSize(100, 30)
 
-	output := v.View()
+	output := v.Render()
 
 	if !strings.Contains(output, "No nodes found") {
 		t.Errorf("empty view should show 'No nodes found', got: %s", output)

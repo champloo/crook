@@ -61,25 +61,25 @@ func TestOSDsView_CursorNavigation(t *testing.T) {
 	v.SetOSDs(osds)
 
 	// Test j/down key
-	v.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
+	v.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
 	if v.cursor != 1 {
 		t.Errorf("cursor after 'j' = %d, want 1", v.cursor)
 	}
 
 	// Test k/up key
-	v.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("k")})
+	v.Update(tea.KeyPressMsg{Code: 'k', Text: "k"})
 	if v.cursor != 0 {
 		t.Errorf("cursor after 'k' = %d, want 0", v.cursor)
 	}
 
 	// Test G (go to end)
-	v.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("G")})
+	v.Update(tea.KeyPressMsg{Code: 'G', Text: "G"})
 	if v.cursor != 2 {
 		t.Errorf("cursor after 'G' = %d, want 2", v.cursor)
 	}
 
 	// Test g (go to start)
-	v.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("g")})
+	v.Update(tea.KeyPressMsg{Code: 'g', Text: "g"})
 	if v.cursor != 0 {
 		t.Errorf("cursor after 'g' = %d, want 0", v.cursor)
 	}
@@ -95,7 +95,7 @@ func TestOSDsView_Enter(t *testing.T) {
 	v.SetOSDs(osds)
 
 	// Press enter on first OSD
-	_, cmd := v.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	_, cmd := v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
 	if cmd == nil {
 		t.Fatal("enter key should return a command")
@@ -112,7 +112,7 @@ func TestOSDsView_Enter(t *testing.T) {
 	}
 }
 
-func TestOSDsView_View(t *testing.T) {
+func TestOSDsView_Render(t *testing.T) {
 	v := NewOSDsView()
 	v.SetSize(120, 30)
 
@@ -140,7 +140,7 @@ func TestOSDsView_View(t *testing.T) {
 	}
 	v.SetOSDs(osds)
 
-	output := v.View()
+	output := v.Render()
 
 	// Check header is present
 	if !strings.Contains(output, "OSD") {
@@ -177,24 +177,24 @@ func TestOSDsView_NooutBanner(t *testing.T) {
 	v.SetOSDs(osds)
 
 	// Without noout flag
-	output := v.View()
+	output := v.Render()
 	if strings.Contains(output, "noout flag is SET") {
 		t.Error("output should not contain noout warning when flag is not set")
 	}
 
 	// With noout flag
 	v.SetNooutFlag(true)
-	output = v.View()
+	output = v.Render()
 	if !strings.Contains(output, "noout flag is SET") {
 		t.Error("output should contain noout warning when flag is set")
 	}
 }
 
-func TestOSDsView_EmptyView(t *testing.T) {
+func TestOSDsView_EmptyRender(t *testing.T) {
 	v := NewOSDsView()
 	v.SetSize(100, 30)
 
-	output := v.View()
+	output := v.Render()
 
 	if !strings.Contains(output, "No OSDs found") {
 		t.Errorf("empty view should show 'No OSDs found', got: %s", output)

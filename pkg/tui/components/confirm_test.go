@@ -39,7 +39,7 @@ func TestConfirmPrompt_Update_Yes(t *testing.T) {
 	p := NewConfirmPrompt("Continue?")
 
 	// Test 'y'
-	newModel, cmd := p.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+	newModel, cmd := p.Update(tea.KeyPressMsg{Code: 'y', Text: "y"})
 	updated, _ := newModel.(*ConfirmPrompt)
 
 	if updated.Result != ConfirmYes {
@@ -54,7 +54,7 @@ func TestConfirmPrompt_Update_Yes(t *testing.T) {
 func TestConfirmPrompt_Update_No(t *testing.T) {
 	p := NewConfirmPrompt("Continue?")
 
-	newModel, cmd := p.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
+	newModel, cmd := p.Update(tea.KeyPressMsg{Code: 'n', Text: "n"})
 	updated, _ := newModel.(*ConfirmPrompt)
 
 	if updated.Result != ConfirmNo {
@@ -70,7 +70,7 @@ func TestConfirmPrompt_Update_Enter_DefaultNo(t *testing.T) {
 	p := NewConfirmPrompt("Continue?")
 	p.DefaultYes = false
 
-	newModel, _ := p.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	newModel, _ := p.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	updated, _ := newModel.(*ConfirmPrompt)
 
 	if updated.Result != ConfirmNo {
@@ -82,7 +82,7 @@ func TestConfirmPrompt_Update_Enter_DefaultYes(t *testing.T) {
 	p := NewConfirmPrompt("Continue?")
 	p.DefaultYes = true
 
-	newModel, _ := p.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	newModel, _ := p.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	updated, _ := newModel.(*ConfirmPrompt)
 
 	if updated.Result != ConfirmYes {
@@ -93,7 +93,7 @@ func TestConfirmPrompt_Update_Enter_DefaultYes(t *testing.T) {
 func TestConfirmPrompt_Update_Escape(t *testing.T) {
 	p := NewConfirmPrompt("Continue?")
 
-	newModel, _ := p.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	newModel, _ := p.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	updated, _ := newModel.(*ConfirmPrompt)
 
 	if updated.Result != ConfirmCancelled {
@@ -104,7 +104,7 @@ func TestConfirmPrompt_Update_Escape(t *testing.T) {
 func TestConfirmPrompt_Update_CtrlC(t *testing.T) {
 	p := NewConfirmPrompt("Continue?")
 
-	newModel, _ := p.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
+	newModel, _ := p.Update(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
 	updated, _ := newModel.(*ConfirmPrompt)
 
 	if updated.Result != ConfirmCancelled {
@@ -117,7 +117,7 @@ func TestConfirmPrompt_Update_AlreadyAnswered(t *testing.T) {
 	p.Result = ConfirmYes
 
 	// Should ignore further input
-	newModel, cmd := p.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
+	newModel, cmd := p.Update(tea.KeyPressMsg{Code: 'n', Text: "n"})
 	updated, ok := newModel.(*ConfirmPrompt)
 	if !ok {
 		t.Fatal("expected *ConfirmPrompt type")
@@ -135,7 +135,7 @@ func TestConfirmPrompt_Update_AlreadyAnswered(t *testing.T) {
 func TestConfirmPrompt_View_Pending(t *testing.T) {
 	p := NewConfirmPrompt("Continue?")
 
-	view := p.View()
+	view := p.Render()
 
 	if !strings.Contains(view, "Continue?") {
 		t.Error("View should contain question")
@@ -150,7 +150,7 @@ func TestConfirmPrompt_View_DefaultYes_Hint(t *testing.T) {
 	p := NewConfirmPrompt("Continue?")
 	p.DefaultYes = true
 
-	view := p.View()
+	view := p.Render()
 
 	if !strings.Contains(view, "(Y/n)") {
 		t.Error("View should show (Y/n) when default is yes")
@@ -161,7 +161,7 @@ func TestConfirmPrompt_View_Answered(t *testing.T) {
 	p := NewConfirmPrompt("Continue?")
 	p.Result = ConfirmYes
 
-	view := p.View()
+	view := p.Render()
 
 	// Should not show hint after answered
 	if strings.Contains(view, "(y/N)") {
@@ -172,7 +172,7 @@ func TestConfirmPrompt_View_Answered(t *testing.T) {
 func TestConfirmPrompt_View_WithDetails(t *testing.T) {
 	p := NewConfirmPrompt("Delete file?").WithDetails("This action cannot be undone")
 
-	view := p.View()
+	view := p.Render()
 
 	if !strings.Contains(view, "This action cannot be undone") {
 		t.Error("View should contain details")
@@ -268,7 +268,7 @@ func TestConfirmDialog(t *testing.T) {
 
 	// Test view contains both title and question
 	d.SetWidth(60)
-	view := d.View()
+	view := d.Render()
 
 	if !strings.Contains(view, "Confirm Action") {
 		t.Error("View should contain title")
@@ -283,7 +283,7 @@ func TestConfirmDialog_Update(t *testing.T) {
 	d := NewConfirmDialog("Test", "Continue?")
 
 	// Update with 'y'
-	newModel, cmd := d.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+	newModel, cmd := d.Update(tea.KeyPressMsg{Code: 'y', Text: "y"})
 	updated, ok := newModel.(*ConfirmDialog)
 	if !ok {
 		t.Fatal("expected *ConfirmDialog type")

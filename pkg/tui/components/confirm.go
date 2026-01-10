@@ -3,8 +3,8 @@ package components
 import (
 	"fmt"
 
-	"github.com/andri/crook/pkg/tui/styles"
 	tea "charm.land/bubbletea/v2"
+	"github.com/andri/crook/pkg/tui/styles"
 )
 
 // ConfirmResult represents the result of a confirmation prompt
@@ -233,6 +233,11 @@ func (d *ConfirmDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // View implements tea.Model
 func (d *ConfirmDialog) View() tea.View {
+	return tea.NewView(d.Render())
+}
+
+// Render returns the string representation for composition
+func (d *ConfirmDialog) Render() string {
 	content := ""
 
 	if d.title != "" {
@@ -243,7 +248,7 @@ func (d *ConfirmDialog) View() tea.View {
 
 	box := styles.StyleBox.Width(d.width)
 
-	return tea.NewView(box.Render(content))
+	return box.Render(content)
 }
 
 // SetWidth sets the dialog width

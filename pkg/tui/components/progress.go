@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/andri/crook/pkg/tui/styles"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/andri/crook/pkg/tui/styles"
 )
 
 // ProgressState represents the state of a progress bar

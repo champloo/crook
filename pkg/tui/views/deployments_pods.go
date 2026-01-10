@@ -1,8 +1,8 @@
 package views
 
 import (
-	"github.com/andri/crook/pkg/k8s"
 	tea "charm.land/bubbletea/v2"
+	"github.com/andri/crook/pkg/k8s"
 )
 
 // DeploymentsPodsView is a composite view that can toggle between showing

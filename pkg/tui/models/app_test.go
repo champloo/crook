@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/andri/crook/pkg/config"
 	tea "charm.land/bubbletea/v2"
+	"github.com/andri/crook/pkg/config"
 )
 
 type testSubModel struct {
@@ -19,7 +19,9 @@ func (m *testSubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m *testSubModel) View() string { return "test submodel" }
+func (m *testSubModel) View() tea.View { return tea.NewView(m.Render()) }
+
+func (m *testSubModel) Render() string { return "test submodel" }
 
 func (m *testSubModel) SetSize(width, height int) {
 	m.width = width
@@ -111,8 +113,8 @@ func TestAppModel_Update_GlobalKeys_Quit(t *testing.T) {
 		Context: context.Background(),
 	})
 
-	// Test ctrl+c
-	msg := tea.KeyMsg{Type: tea.KeyCtrlC}
+	// Test ctrl+c - in v2, use tea.KeyPressMsg with Mod for ctrl
+	msg := tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}
 	updatedModel, cmd := model.Update(msg)
 	m, _ := updatedModel.(*AppModel)
 
@@ -125,7 +127,7 @@ func TestAppModel_Update_GlobalKeys_Quit(t *testing.T) {
 	}
 }
 
-func TestAppModel_View_SizeWarning(t *testing.T) {
+func TestAppModel_Render_SizeWarning(t *testing.T) {
 	model := NewAppModel(AppConfig{
 		Route:   RouteDown,
 		Context: context.Background(),
@@ -135,13 +137,13 @@ func TestAppModel_View_SizeWarning(t *testing.T) {
 	model.height = 24
 	model.sizeWarning = "Terminal too narrow"
 
-	// Add a placeholder to make View() work
+	// Add a placeholder to make Render() work
 	model.downModel = &testSubModel{}
 
-	view := model.View()
+	view := model.Render()
 
 	if !contains(view, "narrow") {
-		t.Errorf("View should show size warning, got %q", view)
+		t.Errorf("Render should show size warning, got %q", view)
 	}
 }
 
@@ -164,39 +166,39 @@ func TestAppModel_Update_InitError(t *testing.T) {
 	}
 }
 
-func TestAppModel_View_Quitting(t *testing.T) {
+func TestAppModel_Render_Quitting(t *testing.T) {
 	model := NewAppModel(AppConfig{
 		Route:   RouteDown,
 		Context: context.Background(),
 	})
 	model.quitting = true
 
-	view := model.View()
+	view := model.Render()
 
 	if view != "" {
-		t.Errorf("View() when quitting should be empty, got %q", view)
+		t.Errorf("Render() when quitting should be empty, got %q", view)
 	}
 }
 
-func TestAppModel_View_Loading(t *testing.T) {
+func TestAppModel_Render_Loading(t *testing.T) {
 	model := NewAppModel(AppConfig{
 		Route:   RouteDown,
 		Context: context.Background(),
 	})
 	// Not initialized yet
 
-	view := model.View()
+	view := model.Render()
 
 	if view == "" {
-		t.Error("View() should show loading state")
+		t.Error("Render() should show loading state")
 	}
 
 	if !contains(view, "Initializing") {
-		t.Errorf("View() should contain 'Initializing', got %q", view)
+		t.Errorf("Render() should contain 'Initializing', got %q", view)
 	}
 }
 
-func TestAppModel_View_Error(t *testing.T) {
+func TestAppModel_Render_Error(t *testing.T) {
 	model := NewAppModel(AppConfig{
 		Route:   RouteDown,
 		Context: context.Background(),
@@ -205,7 +207,7 @@ func TestAppModel_View_Error(t *testing.T) {
 	model.width = 80
 	model.height = 24
 
-	view := model.View()
+	view := model.Render()
 
 	if !contains(view, "Error") {
 		t.Errorf("Error view should contain 'Error', got %q", view)

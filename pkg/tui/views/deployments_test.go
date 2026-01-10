@@ -61,25 +61,25 @@ func TestDeploymentsView_CursorNavigation(t *testing.T) {
 	v.SetDeployments(deployments)
 
 	// Test j/down key
-	v.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
+	v.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
 	if v.cursor != 1 {
 		t.Errorf("cursor after 'j' = %d, want 1", v.cursor)
 	}
 
 	// Test k/up key
-	v.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("k")})
+	v.Update(tea.KeyPressMsg{Code: 'k', Text: "k"})
 	if v.cursor != 0 {
 		t.Errorf("cursor after 'k' = %d, want 0", v.cursor)
 	}
 
 	// Test G (go to end)
-	v.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("G")})
+	v.Update(tea.KeyPressMsg{Code: 'G', Text: "G"})
 	if v.cursor != 2 {
 		t.Errorf("cursor after 'G' = %d, want 2", v.cursor)
 	}
 
 	// Test g (go to start)
-	v.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("g")})
+	v.Update(tea.KeyPressMsg{Code: 'g', Text: "g"})
 	if v.cursor != 0 {
 		t.Errorf("cursor after 'g' = %d, want 0", v.cursor)
 	}
@@ -95,7 +95,7 @@ func TestDeploymentsView_Enter(t *testing.T) {
 	v.SetDeployments(deployments)
 
 	// Press enter on first deployment
-	_, cmd := v.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	_, cmd := v.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 
 	if cmd == nil {
 		t.Fatal("enter key should return a command")
@@ -150,7 +150,7 @@ func TestDeploymentsView_View(t *testing.T) {
 	}
 	v.SetDeployments(deployments)
 
-	output := v.View()
+	output := v.Render()
 
 	// Check header is present
 	if !strings.Contains(output, "NAME") {
@@ -184,7 +184,7 @@ func TestDeploymentsView_EmptyView(t *testing.T) {
 	v := NewDeploymentsView()
 	v.SetSize(100, 30)
 
-	output := v.View()
+	output := v.Render()
 
 	if !strings.Contains(output, "No deployments found") {
 		t.Errorf("empty view should show 'No deployments found', got: %s", output)
@@ -232,7 +232,7 @@ func TestDeploymentsView_Grouping(t *testing.T) {
 	v.SetDeployments(deployments)
 
 	// With grouping enabled, OSDs should come first
-	output := v.View()
+	output := v.Render()
 	osdPos := strings.Index(output, "OSD")
 	monPos := strings.Index(output, "MON")
 

@@ -171,9 +171,9 @@ func TestDeploymentsPodsView_SetSize_ApplesToBothViews(t *testing.T) {
 	v.SetPods([]k8s.PodInfo{})
 
 	// Should not panic
-	_ = v.View()
+	_ = v.Render()
 	v.ShowPods()
-	_ = v.View()
+	_ = v.Render()
 }
 
 func TestDeploymentsPodsView_SetNodeFilter(t *testing.T) {
@@ -215,14 +215,14 @@ func TestDeploymentsPodsView_View(t *testing.T) {
 	v.SetPods(pods)
 
 	// View deployments
-	deployView := v.View()
+	deployView := v.Render()
 	if deployView == "" {
 		t.Error("deployments View() returned empty string")
 	}
 
 	// Switch and view pods
 	v.ShowPods()
-	podsView := v.View()
+	podsView := v.Render()
 	if podsView == "" {
 		t.Error("pods View() returned empty string")
 	}

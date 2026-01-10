@@ -94,7 +94,7 @@ func TestProgressBar_View_Determinate(t *testing.T) {
 	p.Width = 20
 	p.SetProgress(0.5)
 
-	view := p.View()
+	view := p.Render()
 
 	if !strings.Contains(view, "Downloading") {
 		t.Error("View should contain label")
@@ -112,7 +112,7 @@ func TestProgressBar_View_Determinate(t *testing.T) {
 func TestProgressBar_View_Indeterminate(t *testing.T) {
 	p := NewIndeterminateProgress("Loading")
 
-	view := p.View()
+	view := p.Render()
 
 	if !strings.Contains(view, "Loading") {
 		t.Error("View should contain label")
@@ -138,14 +138,14 @@ func TestProgressBar_View_Clamping(t *testing.T) {
 
 	// Test negative progress
 	p.Progress = -0.5
-	view := p.View()
+	view := p.Render()
 	if strings.Contains(view, "-") {
 		t.Error("Negative progress should be clamped to 0")
 	}
 
 	// Test progress > 1
 	p.Progress = 1.5
-	view = p.View()
+	view = p.Render()
 	fullCount := strings.Count(view, progressFull)
 	emptyCount := strings.Count(view, progressEmpty)
 	if emptyCount > 0 {
@@ -214,7 +214,7 @@ func TestMultiProgress(t *testing.T) {
 	}
 
 	// Test view contains both bars
-	view := mp.View()
+	view := mp.Render()
 	if !strings.Contains(view, "Task 1") {
 		t.Error("View should contain Task 1")
 	}
@@ -246,7 +246,7 @@ func TestProgressBar_View_SmallWidth(t *testing.T) {
 		p.Progress = 0.5
 
 		// This should not panic
-		view := p.View()
+		view := p.Render()
 
 		if view == "" {
 			t.Errorf("View should not be empty for width=%d", width)
@@ -261,7 +261,7 @@ func TestProgressBar_View_ZeroWidth(t *testing.T) {
 	p.Progress = 0.75
 
 	// Width 0 should default to 40, then subtract 5 for percentage = 35
-	view := p.View()
+	view := p.Render()
 
 	if !strings.Contains(view, "75%") {
 		t.Error("View should show 75%")
@@ -276,7 +276,7 @@ func TestProgressBar_View_NegativeWidth(t *testing.T) {
 
 	// Negative width should be treated like 0 (default to 40)
 	// This should not panic
-	view := p.View()
+	view := p.Render()
 
 	if view == "" {
 		t.Error("View should not be empty for negative width")

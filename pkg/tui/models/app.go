@@ -5,11 +5,11 @@ import (
 	"context"
 	"fmt"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/andri/crook/pkg/config"
 	"github.com/andri/crook/pkg/k8s"
 	"github.com/andri/crook/pkg/tui/styles"
 	"github.com/andri/crook/pkg/tui/terminal"
-	tea "charm.land/bubbletea/v2"
 )
 
 // Route represents the current view/route in the application

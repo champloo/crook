@@ -6,8 +6,8 @@ import (
 
 	"github.com/andri/crook/pkg/k8s"
 
-	"github.com/andri/crook/pkg/tui/components"
 	tea "charm.land/bubbletea/v2"
+	"github.com/andri/crook/pkg/tui/components"
 )
 
 func TestDetailPanel_NewDetailPanel(t *testing.T) {
@@ -46,7 +46,7 @@ func TestDetailPanel_ShowNode(t *testing.T) {
 		t.Error("ShowNode() should make panel visible")
 	}
 
-	view := dp.View()
+	view := dp.Render()
 	if view == "" {
 		t.Error("View() returned empty string")
 	}
@@ -82,7 +82,7 @@ func TestDetailPanel_ShowDeployment(t *testing.T) {
 		t.Error("ShowDeployment() should make panel visible")
 	}
 
-	view := dp.View()
+	view := dp.Render()
 	if !strings.Contains(view, "rook-ceph-osd-0") {
 		t.Error("View() missing deployment name")
 	}
@@ -113,7 +113,7 @@ func TestDetailPanel_ShowOSD(t *testing.T) {
 		t.Error("ShowOSD() should make panel visible")
 	}
 
-	view := dp.View()
+	view := dp.Render()
 	if !strings.Contains(view, "osd.0") {
 		t.Error("View() missing OSD name")
 	}
@@ -147,7 +147,7 @@ func TestDetailPanel_ShowPod(t *testing.T) {
 		t.Error("ShowPod() should make panel visible")
 	}
 
-	view := dp.View()
+	view := dp.Render()
 	if !strings.Contains(view, "rook-ceph-osd-0-abc123") {
 		t.Error("View() missing pod name")
 	}
@@ -196,24 +196,24 @@ func TestDetailPanel_KeyNavigation(t *testing.T) {
 	dp.ShowNode(node, related)
 
 	// Test 'j' scrolls down
-	initialView := dp.View()
-	dp.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
-	afterJView := dp.View()
+	initialView := dp.Render()
+	dp.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
+	afterJView := dp.Render()
 
 	// Views might be different if scrolling worked
 	_ = initialView
 	_ = afterJView
 
 	// Test 'k' scrolls up
-	dp.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
+	dp.Update(tea.KeyPressMsg{Code: 'k', Text: "k"})
 
 	// Test 'g' goes to top
-	dp.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
-	dp.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
-	dp.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'g'}})
+	dp.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
+	dp.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
+	dp.Update(tea.KeyPressMsg{Code: 'g', Text: "g"})
 
 	// Test 'G' goes to bottom
-	dp.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'G'}})
+	dp.Update(tea.KeyPressMsg{Code: 'G', Text: "G"})
 }
 
 func TestDetailPanel_CloseWithEsc(t *testing.T) {
@@ -223,7 +223,7 @@ func TestDetailPanel_CloseWithEsc(t *testing.T) {
 	node := k8s.NodeInfo{Name: "test-node", Status: "Ready"}
 	dp.ShowNode(node, nil)
 
-	_, cmd := dp.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	_, cmd := dp.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 
 	// Should return a DetailCloseMsg
 	if cmd == nil {
@@ -247,7 +247,7 @@ func TestDetailPanel_CloseWithQ(t *testing.T) {
 	node := k8s.NodeInfo{Name: "test-node", Status: "Ready"}
 	dp.ShowNode(node, nil)
 
-	_, cmd := dp.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+	_, cmd := dp.Update(tea.KeyPressMsg{Code: 'q', Text: "q"})
 
 	if cmd == nil {
 		t.Fatal("Update(q) should return a command")
@@ -262,7 +262,7 @@ func TestDetailPanel_CloseWithQ(t *testing.T) {
 func TestDetailPanel_ViewWhenHidden(t *testing.T) {
 	dp := components.NewDetailPanel()
 
-	view := dp.View()
+	view := dp.Render()
 	if view != "" {
 		t.Error("View() should return empty string when hidden")
 	}
@@ -283,7 +283,7 @@ func TestDetailPanel_RelatedResources(t *testing.T) {
 	}
 
 	dp.ShowNode(node, related)
-	view := dp.View()
+	view := dp.Render()
 
 	if !strings.Contains(view, "Related Resources") {
 		t.Error("View() missing Related Resources section")
@@ -305,7 +305,7 @@ func TestDetailPanel_SetSize(t *testing.T) {
 	// Set size and verify panel still works
 	dp.SetSize(120, 30)
 
-	view := dp.View()
+	view := dp.Render()
 	if view == "" {
 		t.Error("View() returned empty after SetSize()")
 	}
@@ -323,7 +323,7 @@ func TestDetailPanel_CordonedNode(t *testing.T) {
 	}
 
 	dp.ShowNode(node, nil)
-	view := dp.View()
+	view := dp.Render()
 
 	if !strings.Contains(view, "Cordoned") {
 		t.Error("View() should show Cordoned status for cordoned node")
@@ -345,7 +345,7 @@ func TestDetailPanel_HighRestartPod(t *testing.T) {
 	}
 
 	dp.ShowPod(pod, nil)
-	view := dp.View()
+	view := dp.Render()
 
 	if !strings.Contains(view, "15") {
 		t.Error("View() should show restart count")
@@ -366,7 +366,7 @@ func TestDetailPanel_OSDDown(t *testing.T) {
 	}
 
 	dp.ShowOSD(osd, nil)
-	view := dp.View()
+	view := dp.Render()
 
 	if !strings.Contains(view, "down") {
 		t.Error("View() should show down status")
@@ -389,7 +389,7 @@ func TestDetailPanel_DeploymentScaling(t *testing.T) {
 	}
 
 	dp.ShowDeployment(dep, nil)
-	view := dp.View()
+	view := dp.Render()
 
 	if !strings.Contains(view, "Scaling") {
 		t.Error("View() should show Scaling status")

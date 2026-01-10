@@ -47,7 +47,7 @@ func TestTabBar_Update_Tab(t *testing.T) {
 	tabBar := NewTabBar(tabs)
 
 	// Press Tab to go to next tab
-	msg := tea.KeyMsg{Type: tea.KeyTab}
+	msg := tea.KeyPressMsg{Code: tea.KeyTab}
 	_, cmd := tabBar.Update(msg)
 
 	if cmd == nil {
@@ -75,7 +75,7 @@ func TestTabBar_Update_ShiftTab(t *testing.T) {
 	tabBar.ActiveTab = 1
 
 	// Press Shift+Tab to go to previous tab
-	msg := tea.KeyMsg{Type: tea.KeyShiftTab}
+	msg := tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift}
 	_, cmd := tabBar.Update(msg)
 
 	if cmd == nil {
@@ -111,7 +111,7 @@ func TestTabBar_Update_NumberKeys(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.key, func(t *testing.T) {
-			msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(tt.key)}
+			msg := tea.KeyPressMsg{Code: rune(tt.key[0]), Text: tt.key}
 			_, cmd := tabBar.Update(msg)
 
 			if cmd == nil {
@@ -138,7 +138,7 @@ func TestTabBar_Update_InvalidNumberKey(t *testing.T) {
 	tabBar := NewTabBar(tabs)
 
 	// Press "5" which is out of range
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("5")}
+	msg := tea.KeyPressMsg{Code: '5', Text: "5"}
 	_, cmd := tabBar.Update(msg)
 
 	if cmd != nil {
@@ -185,7 +185,7 @@ func TestTabBar_View(t *testing.T) {
 	}
 	tabBar := NewTabBar(tabs)
 
-	view := tabBar.View()
+	view := tabBar.Render()
 
 	if view == "" {
 		t.Error("View should not be empty")
@@ -207,7 +207,7 @@ func TestTabBar_View_WithBadge(t *testing.T) {
 	}
 	tabBar := NewTabBar(tabs)
 
-	view := tabBar.View()
+	view := tabBar.Render()
 
 	if !containsString(view, "5") {
 		t.Error("View should contain badge '5'")
@@ -217,7 +217,7 @@ func TestTabBar_View_WithBadge(t *testing.T) {
 func TestTabBar_View_Empty(t *testing.T) {
 	tabBar := NewTabBar([]Tab{})
 
-	view := tabBar.View()
+	view := tabBar.Render()
 
 	if view != "" {
 		t.Errorf("View should be empty for no tabs, got %q", view)
