@@ -21,6 +21,7 @@ func TestRunUpExecutesWithNoDeployments(t *testing.T) {
 	GlobalOptions.Config = cfg
 	t.Cleanup(func() { GlobalOptions.Config = prevConfig })
 
+	//nolint:staticcheck // SA1019: using deprecated NewSimpleClientset
 	clientset := fake.NewSimpleClientset(&corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{Name: "node-1"},
 	})
@@ -60,6 +61,7 @@ func TestRunDownExecutesWhenDeploymentsAlreadyScaledDown(t *testing.T) {
 	t.Cleanup(func() { GlobalOptions.Config = prevConfig })
 
 	replicas := int32(0)
+	//nolint:staticcheck // SA1019: using deprecated NewSimpleClientset
 	clientset := fake.NewSimpleClientset(
 		&corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node-1"}},
 		&appsv1.Deployment{

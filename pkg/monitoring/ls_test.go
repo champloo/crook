@@ -73,6 +73,10 @@ func TestNewLsMonitor(t *testing.T) {
 }
 
 func TestNewLsMonitor_InvalidConfig(t *testing.T) {
+	//nolint:staticcheck // SA1019: using deprecated NewSimpleClientset
+	clientset := fake.NewSimpleClientset()
+	client := &k8s.Client{Clientset: clientset}
+
 	testCases := []struct {
 		name   string
 		config *LsMonitorConfig
@@ -84,19 +88,19 @@ func TestNewLsMonitor_InvalidConfig(t *testing.T) {
 			CephRefreshInterval: time.Second,
 		}},
 		{name: "empty namespace", config: &LsMonitorConfig{
-			Client:              &k8s.Client{Clientset: fake.NewSimpleClientset()},
+			Client:              client,
 			Namespace:           " ",
 			K8sRefreshInterval:  time.Second,
 			CephRefreshInterval: time.Second,
 		}},
 		{name: "invalid k8s interval", config: &LsMonitorConfig{
-			Client:              &k8s.Client{Clientset: fake.NewSimpleClientset()},
+			Client:              client,
 			Namespace:           "rook-ceph",
 			K8sRefreshInterval:  0,
 			CephRefreshInterval: time.Second,
 		}},
 		{name: "invalid ceph interval", config: &LsMonitorConfig{
-			Client:              &k8s.Client{Clientset: fake.NewSimpleClientset()},
+			Client:              client,
 			Namespace:           "rook-ceph",
 			K8sRefreshInterval:  time.Second,
 			CephRefreshInterval: -1 * time.Second,
