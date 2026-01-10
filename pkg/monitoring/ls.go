@@ -154,47 +154,16 @@ func (m *LsMonitor) GetLatest() *LsMonitorUpdate {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	// Return a copy to avoid callers mutating internal state.
-	return cloneUpdate(m.latest)
-}
-
-func cloneUpdate(update *LsMonitorUpdate) *LsMonitorUpdate {
-	if update == nil {
-		return nil
-	}
+	// Return a snapshot; slices and header are shared and must be treated as immutable.
 	return &LsMonitorUpdate{
-		Nodes:       cloneNodes(update.Nodes),
-		Deployments: append([]k8s.DeploymentInfo(nil), update.Deployments...),
-		Pods:        append([]k8s.PodInfo(nil), update.Pods...),
-		OSDs:        append([]k8s.OSDInfo(nil), update.OSDs...),
-		Header:      cloneHeader(update.Header),
-		UpdateTime:  update.UpdateTime,
-		Error:       update.Error,
+		Nodes:       m.latest.Nodes,
+		Deployments: m.latest.Deployments,
+		Pods:        m.latest.Pods,
+		OSDs:        m.latest.OSDs,
+		Header:      m.latest.Header,
+		UpdateTime:  m.latest.UpdateTime,
+		Error:       m.latest.Error,
 	}
-}
-
-func cloneNodes(nodes []k8s.NodeInfo) []k8s.NodeInfo {
-	if nodes == nil {
-		return nil
-	}
-	cloned := make([]k8s.NodeInfo, len(nodes))
-	copy(cloned, nodes)
-	for i := range cloned {
-		if nodes[i].Roles != nil {
-			roles := make([]string, len(nodes[i].Roles))
-			copy(roles, nodes[i].Roles)
-			cloned[i].Roles = roles
-		}
-	}
-	return cloned
-}
-
-func cloneHeader(header *components.ClusterHeaderData) *components.ClusterHeaderData {
-	if header == nil {
-		return nil
-	}
-	cloned := *header
-	return &cloned
 }
 
 // runPoller runs a polling loop with the given interval and fetch function.
@@ -558,7 +527,15 @@ func (m *LsMonitor) handleError(source string, err error) {
 // sendUpdate sends the current state to the updates channel
 func (m *LsMonitor) sendUpdate() {
 	m.mu.RLock()
-	update := cloneUpdate(m.latest)
+	update := &LsMonitorUpdate{
+		Nodes:       m.latest.Nodes,
+		Deployments: m.latest.Deployments,
+		Pods:        m.latest.Pods,
+		OSDs:        m.latest.OSDs,
+		Header:      m.latest.Header,
+		UpdateTime:  m.latest.UpdateTime,
+		Error:       m.latest.Error,
+	}
 	m.mu.RUnlock()
 
 	// Non-blocking send

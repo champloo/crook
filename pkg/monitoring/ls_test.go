@@ -155,7 +155,7 @@ func TestLsMonitorGetLatest(t *testing.T) {
 	}
 }
 
-func TestLsMonitorGetLatest_ReturnsCopy(t *testing.T) {
+func TestLsMonitorGetLatest_ReturnsSnapshot(t *testing.T) {
 	//nolint:staticcheck // SA1019: using deprecated NewSimpleClientset
 	clientset := fake.NewSimpleClientset()
 	client := &k8s.Client{Clientset: clientset}
@@ -167,14 +167,8 @@ func TestLsMonitorGetLatest_ReturnsCopy(t *testing.T) {
 	})
 
 	latest := monitor.GetLatest()
-	latest.Nodes[0].Name = "mutated"
-	latest.Nodes[0].Roles[0] = "mutated-role"
-
-	if monitor.latest.Nodes[0].Name == "mutated" {
-		t.Fatal("expected GetLatest to return a copy of nodes")
-	}
-	if monitor.latest.Nodes[0].Roles[0] == "mutated-role" {
-		t.Fatal("expected GetLatest to return a deep copy of node roles")
+	if latest == monitor.latest {
+		t.Fatal("expected GetLatest to return a snapshot, not the internal pointer")
 	}
 }
 
