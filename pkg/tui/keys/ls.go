@@ -135,16 +135,20 @@ func (k LsKeyMap) ShortHelp() []key.Binding {
 	return bindings
 }
 
-// FullHelp implements help.KeyMap for help overlay.
+// FullHelp implements help.KeyMap for expanded help view.
 func (k LsKeyMap) FullHelp() [][]key.Binding {
+	toggle := key.NewBinding(
+		key.WithKeys("[", "]"),
+		key.WithHelp("[/]", "deploy/pods"),
+	)
+	toggle.SetEnabled(k.ShowDeploy.Enabled() || k.ShowPods.Enabled())
+
 	return [][]key.Binding{
-		// Navigation column
-		{k.NextPane, k.PrevPane, k.Pane1, k.Pane2, k.Pane3},
-		// Cursor column
+		// Two-row layout to keep the expanded help compact.
+		{k.NextPane, k.PrevPane},
 		{k.Up, k.Down},
-		// Actions column
-		{k.NodeDown, k.NodeUp, k.Refresh, k.ShowDeploy, k.ShowPods},
-		// General column
+		{k.NodeDown, k.NodeUp},
+		{k.Refresh, toggle},
 		{k.Help, k.Quit},
 	}
 }

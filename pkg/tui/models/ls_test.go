@@ -363,17 +363,18 @@ func TestLsModel_Update_Help_WhileMaintenanceFlowActive(t *testing.T) {
 		t.Error("embedded flow should not receive key input while help is opening")
 	}
 
-	// While help is visible, keys should not be routed to the embedded flow.
+	// While help is visible, keys should still be routed to the embedded flow.
 	updatedModel, _ = m.Update(tea.KeyPressMsg{Code: 'x', Text: "x"})
 	m, _ = updatedModel.(*LsModel)
 	if !m.helpVisible {
 		t.Error("help should remain visible after pressing non-close key while flow is active")
 	}
-	if flow.updated {
-		t.Error("embedded flow should not receive key input while help is visible")
+	if !flow.updated {
+		t.Error("embedded flow should receive key input while help is visible")
 	}
 
 	// Esc should close help without routing to the embedded flow.
+	flow.updated = false
 	updatedModel, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	m, _ = updatedModel.(*LsModel)
 	if m.helpVisible {
@@ -732,22 +733,16 @@ func TestLsModel_View_Help(t *testing.T) {
 
 	view := model.Render()
 
-	if !contains(view, "Help") {
-		t.Error("View should show help overlay")
+	if !contains(view, "[1] Nodes") {
+		t.Error("View should still show panes when help is expanded")
 	}
 
-	// Check for key bindings from the help model (format: "key description")
-	if !contains(view, "Tab") {
-		t.Error("Help should contain Tab key binding")
+	if !contains(view, "prev pane") {
+		t.Error("Expanded help should mention previous pane navigation")
 	}
 
-	if !contains(view, "switch pane") || !contains(view, "prev pane") {
-		t.Error("Help should mention pane navigation")
-	}
-
-	// Check for quit binding
 	if !contains(view, "quit") {
-		t.Error("Help should mention quit")
+		t.Error("Expanded help should mention quit")
 	}
 }
 

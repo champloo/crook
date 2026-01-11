@@ -109,7 +109,7 @@ type LsModel struct {
 	// Legacy cursor field (kept for backwards compatibility with tests)
 	cursor int
 
-	// Help overlay state
+	// Help expanded state
 	helpVisible bool
 
 	// Terminal dimensions
@@ -160,29 +160,17 @@ type sizedModel interface {
 	Render() string
 }
 
-func (m *LsModel) handleHelpKeyMsg(msg tea.KeyMsg) (bool, tea.Cmd) {
-	// When help is visible, consume key presses so underlying models don't receive input.
-	if m.helpVisible {
-		switch {
-		case key.Matches(msg, m.keyMap.Help) || msg.String() == "esc":
-			m.helpVisible = false
-			return true, nil
-		case key.Matches(msg, m.keyMap.Quit):
-			if m.monitor != nil {
-				m.monitor.Stop()
-			}
-			return true, tea.Quit
-		default:
-			return true, nil
-		}
+func (m *LsModel) handleHelpKeyMsg(msg tea.KeyMsg) bool {
+	switch {
+	case key.Matches(msg, m.keyMap.Help):
+		m.helpVisible = !m.helpVisible
+		return true
+	case m.helpVisible && msg.String() == "esc":
+		m.helpVisible = false
+		return true
+	default:
+		return false
 	}
-
-	if key.Matches(msg, m.keyMap.Help) {
-		m.helpVisible = true
-		return true, nil
-	}
-
-	return false, nil
 }
 
 const (
@@ -283,6 +271,7 @@ func NewLsModel(cfg LsModelConfig) *LsModel {
 
 	// Initialize help model with crook styling
 	h := help.New()
+	h.FullSeparator = "   "
 	h.Styles.ShortKey = h.Styles.ShortKey.Foreground(styles.ColorInfo)
 	h.Styles.ShortDesc = h.Styles.ShortDesc.Foreground(styles.ColorSubtle)
 	h.Styles.FullKey = h.Styles.FullKey.Foreground(styles.ColorInfo)
@@ -377,8 +366,8 @@ func (m *LsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
-		if handled, cmd := m.handleHelpKeyMsg(keyMsg); handled {
-			return m, cmd
+		if handled := m.handleHelpKeyMsg(keyMsg); handled {
+			return m, nil
 		}
 	}
 
@@ -529,6 +518,12 @@ func (m *LsModel) updateViewSizes() {
 func (m *LsModel) paneHeights() (int, int) {
 	headerHeight := 4
 	statusBarHeight := 2
+	if m.helpVisible {
+		statusBarHeight++
+		if m.lastError != nil {
+			statusBarHeight++
+		}
+	}
 	availableHeight := m.height - headerHeight - statusBarHeight
 
 	// Height distribution: active pane gets 50%, inactive get 25% each.
@@ -876,11 +871,6 @@ func (m *LsModel) View() tea.View {
 func (m *LsModel) Render() string {
 	var b strings.Builder
 
-	// Help overlay takes precedence
-	if m.helpVisible {
-		return m.renderHelp()
-	}
-
 	// Header with cluster summary
 	b.WriteString(m.renderHeader())
 	b.WriteString("\n\n")
@@ -1036,6 +1026,7 @@ func (m *LsModel) topRowWidths() (int, int) {
 func (m *LsModel) renderStatusBar() string {
 	m.updateKeyBindings()
 	m.helpModel.SetWidth(m.width)
+	m.helpModel.ShowAll = m.helpVisible
 
 	status := m.helpModel.View(&m.keyMap)
 	if m.lastError == nil {
@@ -1043,22 +1034,10 @@ func (m *LsModel) renderStatusBar() string {
 	}
 
 	errText := styles.StyleError.Render("error: " + format.SanitizeForDisplay(m.lastError.Error()))
+	if m.helpVisible {
+		return errText + "\n" + status
+	}
 	return errText + "  " + status
-}
-
-// renderHelp renders the help overlay
-func (m *LsModel) renderHelp() string {
-	m.updateKeyBindings()
-	m.helpModel.ShowAll = true
-	m.helpModel.SetWidth(max(m.width-4, 1))
-	content := m.helpModel.View(&m.keyMap)
-	m.helpModel.ShowAll = false
-
-	// Add title and close instruction
-	title := styles.StyleHeading.Render("crook ls Help")
-	footer := styles.StyleSubtle.Render("Press Esc or ? to close")
-
-	return styles.StyleBox.Render(title + "\n\n" + content + "\n\n" + footer)
 }
 
 // SetSize implements SubModel
@@ -1084,7 +1063,7 @@ func (m *LsModel) GetCursor() int {
 	return m.cursor
 }
 
-// IsHelpVisible returns whether help overlay is visible
+// IsHelpVisible returns whether expanded help is visible
 func (m *LsModel) IsHelpVisible() bool {
 	return m.helpVisible
 }
