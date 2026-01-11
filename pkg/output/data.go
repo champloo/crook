@@ -72,31 +72,20 @@ func resourceTypeStrings() []string {
 	return values
 }
 
-// splitTrim splits a string and trims whitespace from each part
+// splitTrim splits a string by separator and trims whitespace from each part
 func splitTrim(s, sep string) []string {
 	if s == "" {
 		return nil
 	}
 
-	parts := make([]string, 0)
-	start := 0
-	for i := 0; i <= len(s); i++ {
-		if i == len(s) || (len(sep) == 1 && s[i] == sep[0]) {
-			part := s[start:i]
-			// Trim whitespace manually
-			for len(part) > 0 && (part[0] == ' ' || part[0] == '\t') {
-				part = part[1:]
-			}
-			for len(part) > 0 && (part[len(part)-1] == ' ' || part[len(part)-1] == '\t') {
-				part = part[:len(part)-1]
-			}
-			if len(part) > 0 {
-				parts = append(parts, part)
-			}
-			start = i + 1
+	parts := strings.Split(s, sep)
+	result := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if trimmed := strings.TrimSpace(part); trimmed != "" {
+			result = append(result, trimmed)
 		}
 	}
-	return parts
+	return result
 }
 
 // ClusterHealth represents the Ceph cluster health status

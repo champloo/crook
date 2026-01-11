@@ -98,10 +98,10 @@ func TestValidateDownPhase_NamespaceMissing(t *testing.T) {
 		t.Error("Expected namespace check to fail")
 	}
 
-	// Verify that namespace checks failed
+	// Verify that namespace check failed
 	namespaceCheckFailed := false
 	for _, r := range results.Results {
-		if (r.Check == "Operator namespace" || r.Check == "Cluster namespace") && !r.Passed {
+		if r.Check == "Namespace" && !r.Passed {
 			namespaceCheckFailed = true
 			break
 		}

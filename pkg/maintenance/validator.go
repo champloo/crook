@@ -43,21 +43,14 @@ func ValidateDownPhase(ctx context.Context, client *k8s.Client, cfg config.Confi
 		results.addResult("Node existence", true, nil, fmt.Sprintf("Node %s exists", nodeName))
 	}
 
-	// Check 3: Operator namespace exists
+	// Check 3: Namespace exists
 	if err := validateNamespaceExists(ctx, client, cfg.Namespace); err != nil {
-		results.addResult("Operator namespace", false, err, fmt.Sprintf("Namespace %s not found", cfg.Namespace))
+		results.addResult("Namespace", false, err, fmt.Sprintf("Namespace %s not found", cfg.Namespace))
 	} else {
-		results.addResult("Operator namespace", true, nil, fmt.Sprintf("Namespace %s exists", cfg.Namespace))
+		results.addResult("Namespace", true, nil, fmt.Sprintf("Namespace %s exists", cfg.Namespace))
 	}
 
-	// Check 4: Cluster namespace exists
-	if err := validateNamespaceExists(ctx, client, cfg.Namespace); err != nil {
-		results.addResult("Cluster namespace", false, err, fmt.Sprintf("Namespace %s not found", cfg.Namespace))
-	} else {
-		results.addResult("Cluster namespace", true, nil, fmt.Sprintf("Namespace %s exists", cfg.Namespace))
-	}
-
-	// Check 5: rook-ceph-tools deployment exists and is ready
+	// Check 4: rook-ceph-tools deployment exists and is ready
 	if err := validateRookToolsDeployment(ctx, client, cfg.Namespace); err != nil {
 		results.addResult("rook-ceph-tools deployment", false, err, "rook-ceph-tools deployment not ready")
 	} else {
@@ -90,18 +83,11 @@ func ValidateUpPhase(ctx context.Context, client *k8s.Client, cfg config.Config,
 		results.addResult("Node existence", true, nil, fmt.Sprintf("Node %s exists", nodeName))
 	}
 
-	// Check 3: Operator namespace exists
+	// Check 3: Namespace exists
 	if err := validateNamespaceExists(ctx, client, cfg.Namespace); err != nil {
-		results.addResult("Operator namespace", false, err, fmt.Sprintf("Namespace %s not found", cfg.Namespace))
+		results.addResult("Namespace", false, err, fmt.Sprintf("Namespace %s not found", cfg.Namespace))
 	} else {
-		results.addResult("Operator namespace", true, nil, fmt.Sprintf("Namespace %s exists", cfg.Namespace))
-	}
-
-	// Check 4: Cluster namespace exists
-	if err := validateNamespaceExists(ctx, client, cfg.Namespace); err != nil {
-		results.addResult("Cluster namespace", false, err, fmt.Sprintf("Namespace %s not found", cfg.Namespace))
-	} else {
-		results.addResult("Cluster namespace", true, nil, fmt.Sprintf("Namespace %s exists", cfg.Namespace))
+		results.addResult("Namespace", true, nil, fmt.Sprintf("Namespace %s exists", cfg.Namespace))
 	}
 
 	return results, nil

@@ -87,6 +87,7 @@ type AppModel struct {
 
 	// Global keybindings
 	forceQuit key.Binding
+	errorQuit key.Binding // 'q' only works on error screen
 }
 
 // NewAppModel creates a new app model with the given configuration
@@ -101,6 +102,10 @@ func NewAppModel(cfg AppConfig) *AppModel {
 		forceQuit: key.NewBinding(
 			key.WithKeys("ctrl+c"),
 			key.WithHelp("Ctrl+C", "quit"),
+		),
+		errorQuit: key.NewBinding(
+			key.WithKeys("q"),
+			key.WithHelp("q", "quit"),
 		),
 	}
 }
@@ -235,6 +240,12 @@ func (m *AppModel) handleGlobalKeys(msg tea.KeyMsg) tea.Cmd {
 		return tea.Quit
 	}
 
+	// Allow 'q' to quit on error screen
+	if m.initError != nil && key.Matches(msg, m.errorQuit) {
+		m.quitting = true
+		return tea.Quit
+	}
+
 	return nil
 }
 
@@ -283,8 +294,8 @@ func (m *AppModel) Render() string {
 // renderError displays initialization or fatal errors
 func (m *AppModel) renderError() string {
 	errorBox := styles.StyleBoxError.
-		Width(m.width - 4).
-		Render(fmt.Sprintf("%s Error\n\n%s\n\nPress 'q' to quit.",
+		Width(max(m.width-4, 0)).
+		Render(fmt.Sprintf("%s Error\n\n%s\n\nPress 'q' or Ctrl+C to quit.",
 			styles.IconCross,
 			m.initError.Error()))
 
