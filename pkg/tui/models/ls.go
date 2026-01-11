@@ -140,8 +140,8 @@ type LsModel struct {
 	maintenancePane     *components.Pane
 
 	// Monitor for background updates
-	monitor        *monitoring.LsMonitor
-	lastUpdateTime time.Time
+	monitor   *monitoring.LsMonitor
+	updatesCh <-chan *monitoring.LsMonitorUpdate
 
 	// Legacy fields for backwards compatibility
 	tabBar          *components.TabBar
@@ -228,7 +228,8 @@ type LsRefreshMsg struct {
 
 // LsMonitorStartedMsg is sent when the monitor is ready
 type LsMonitorStartedMsg struct {
-	Monitor *monitoring.LsMonitor
+	Monitor   *monitoring.LsMonitor
+	UpdatesCh <-chan *monitoring.LsMonitorUpdate
 }
 
 // LsMonitorStartFailedMsg is sent when the monitor fails to start
@@ -236,8 +237,13 @@ type LsMonitorStartFailedMsg struct {
 	Err error
 }
 
-// LsRefreshTickMsg triggers checking for monitor updates
-type LsRefreshTickMsg struct{}
+// LsMonitorUpdateMsg carries an update from the monitor channel
+type LsMonitorUpdateMsg struct {
+	Update *monitoring.LsMonitorUpdate
+}
+
+// LsMonitorClosedMsg signals the monitor channel was closed
+type LsMonitorClosedMsg struct{}
 
 // NewLsModel creates a new ls model
 func NewLsModel(cfg LsModelConfig) *LsModel {
@@ -305,17 +311,7 @@ func NewLsModel(cfg LsModelConfig) *LsModel {
 
 // Init implements tea.Model
 func (m *LsModel) Init() tea.Cmd {
-	return tea.Batch(
-		m.startMonitorCmd(),
-		m.tickCmd(),
-	)
-}
-
-// tickCmd returns a command that ticks every 100ms to check for monitor updates
-func (m *LsModel) tickCmd() tea.Cmd {
-	return tea.Tick(100*time.Millisecond, func(_ time.Time) tea.Msg {
-		return LsRefreshTickMsg{}
-	})
+	return m.startMonitorCmd()
 }
 
 // startMonitorCmd starts the LsMonitor in a goroutine and returns when ready
@@ -341,8 +337,23 @@ func (m *LsModel) startMonitorCmd() tea.Cmd {
 		if err != nil {
 			return LsMonitorStartFailedMsg{Err: err}
 		}
-		monitor.Start()
-		return LsMonitorStartedMsg{Monitor: monitor}
+		updatesCh := monitor.Start()
+		return LsMonitorStartedMsg{Monitor: monitor, UpdatesCh: updatesCh}
+	}
+}
+
+// waitForMonitorUpdateCmd returns a command that waits for the next monitor update
+func (m *LsModel) waitForMonitorUpdateCmd() tea.Cmd {
+	ch := m.updatesCh
+	if ch == nil {
+		return nil
+	}
+	return func() tea.Msg {
+		update, ok := <-ch
+		if !ok {
+			return LsMonitorClosedMsg{}
+		}
+		return LsMonitorUpdateMsg{Update: update}
 	}
 }
 
@@ -428,17 +439,21 @@ func (m *LsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case LsMonitorStartedMsg:
 		m.monitor = msg.Monitor
+		m.updatesCh = msg.UpdatesCh
+		// Start listening for updates from the channel
+		cmds = append(cmds, m.waitForMonitorUpdateCmd())
 
-	case LsRefreshTickMsg:
-		// Check for new data from monitor
-		if m.monitor != nil {
-			latest := m.monitor.GetLatest()
-			if latest != nil && latest.UpdateTime.After(m.lastUpdateTime) {
-				m.updateFromMonitor(latest)
-				m.lastUpdateTime = latest.UpdateTime
-			}
+	case LsMonitorUpdateMsg:
+		// Process update from monitor channel
+		if msg.Update != nil {
+			m.updateFromMonitor(msg.Update)
 		}
-		cmds = append(cmds, m.tickCmd())
+		// Queue next wait on the channel
+		cmds = append(cmds, m.waitForMonitorUpdateCmd())
+
+	case LsMonitorClosedMsg:
+		// Monitor channel was closed, nothing more to do
+		m.updatesCh = nil
 	}
 
 	return m, tea.Batch(cmds...)
