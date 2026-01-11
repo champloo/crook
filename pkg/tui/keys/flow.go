@@ -15,7 +15,7 @@ type FlowBindings struct {
 }
 
 // DefaultFlowBindings returns the default flow keybindings.
-// All bindings start disabled except Interrupt; use SetStateXxx to enable.
+// All bindings start disabled; use SetStateXxx to enable appropriate bindings.
 func DefaultFlowBindings() FlowBindings {
 	return FlowBindings{
 		Proceed: key.NewBinding(
@@ -41,6 +41,7 @@ func DefaultFlowBindings() FlowBindings {
 		Interrupt: key.NewBinding(
 			key.WithKeys("ctrl+c"),
 			key.WithHelp("Ctrl+C", "cancel"),
+			key.WithDisabled(),
 		),
 		Quit: key.NewBinding(
 			key.WithKeys("q", "esc"),
@@ -73,7 +74,7 @@ func (f *FlowBindings) SetStateComplete() {
 // SetStateRunning enables bindings for running state.
 func (f *FlowBindings) SetStateRunning() {
 	f.disableAll()
-	// Only Interrupt is active (always enabled)
+	f.Interrupt.SetEnabled(true)
 }
 
 // disableAll disables all state-specific bindings.
@@ -82,6 +83,7 @@ func (f *FlowBindings) disableAll() {
 	f.Cancel.SetEnabled(false)
 	f.Retry.SetEnabled(false)
 	f.Exit.SetEnabled(false)
+	f.Interrupt.SetEnabled(false)
 	f.Quit.SetEnabled(false)
 }
 

@@ -601,29 +601,16 @@ func (m *LsModel) updateBadge(tabIndex, count int) {
 	m.tabBar.SetBadge(tabIndex, fmt.Sprintf("%d", count))
 }
 
-// handleKeyPress processes keyboard input
+// handleKeyPress processes keyboard input.
+// Note: Help visibility is handled by handleHelpKeyMsg in Update() before this is called.
 func (m *LsModel) handleKeyPress(msg tea.KeyMsg) tea.Cmd {
 	// Update contextual bindings before processing
 	m.updateKeyBindings()
 
-	// If help is visible, only Esc or ? closes it (Ctrl+C always quits)
-	if m.helpVisible {
-		switch {
-		case key.Matches(msg, m.keyMap.Help) || msg.String() == "esc":
-			m.helpVisible = false
-		case key.Matches(msg, m.keyMap.Quit):
-			if m.monitor != nil {
-				m.monitor.Stop()
-			}
-			return tea.Quit
-		}
-		return nil
-	}
-
 	if cmd, ok := m.handleQuitKey(msg); ok {
 		return cmd
 	}
-	if m.handleHelpAndPaneNavKey(msg) {
+	if m.handlePaneNavKey(msg) {
 		return nil
 	}
 	if cmd, ok := m.handlePaneSwitchKey(msg); ok {
@@ -658,11 +645,8 @@ func (m *LsModel) handleQuitKey(msg tea.KeyMsg) (tea.Cmd, bool) {
 	return nil, false
 }
 
-func (m *LsModel) handleHelpAndPaneNavKey(msg tea.KeyMsg) bool {
+func (m *LsModel) handlePaneNavKey(msg tea.KeyMsg) bool {
 	switch {
-	case key.Matches(msg, m.keyMap.Help):
-		m.helpVisible = !m.helpVisible
-		return true
 	case key.Matches(msg, m.keyMap.NextPane):
 		m.nextPane()
 		return true
@@ -1051,7 +1035,7 @@ func (m *LsModel) renderStatusBar() string {
 func (m *LsModel) renderHelp() string {
 	m.updateKeyBindings()
 	m.helpModel.ShowAll = true
-	m.helpModel.SetWidth(m.width - 4)
+	m.helpModel.SetWidth(max(m.width-4, 1))
 	content := m.helpModel.View(&m.keyMap)
 	m.helpModel.ShowAll = false
 

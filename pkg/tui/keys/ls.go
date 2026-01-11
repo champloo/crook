@@ -43,7 +43,7 @@ func DefaultLsKeyMap() LsKeyMap {
 	return LsKeyMap{
 		Quit: key.NewBinding(
 			key.WithKeys("q", "esc", "ctrl+c"),
-			key.WithHelp("q", "quit"),
+			key.WithHelp("q/Esc", "quit"),
 		),
 		Help: key.NewBinding(
 			key.WithKeys("?"),
@@ -59,7 +59,7 @@ func DefaultLsKeyMap() LsKeyMap {
 		),
 		NextPane: key.NewBinding(
 			key.WithKeys("tab"),
-			key.WithHelp("Tab", "next pane"),
+			key.WithHelp("Tab/1-3", "switch pane"),
 		),
 		PrevPane: key.NewBinding(
 			key.WithKeys("shift+tab"),

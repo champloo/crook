@@ -344,38 +344,6 @@ func TestLsModel_handleKeyPress_Quit(t *testing.T) {
 	}
 }
 
-func TestLsModel_handleKeyPress_Help(t *testing.T) {
-	model := NewLsModel(LsModelConfig{
-		Context: context.Background(),
-	})
-
-	msg := tea.KeyPressMsg{Code: '?', Text: "?"}
-	model.handleKeyPress(msg)
-
-	if !model.helpVisible {
-		t.Error("help should be visible after pressing ?")
-	}
-
-	// Non-escape keys should not close help
-	model.handleKeyPress(tea.KeyPressMsg{Code: 'x', Text: "x"})
-	if !model.helpVisible {
-		t.Error("help should remain visible after pressing non-close key")
-	}
-
-	// ? should toggle help off
-	model.handleKeyPress(msg)
-	if model.helpVisible {
-		t.Error("help should be hidden after pressing ? again")
-	}
-
-	// Esc should close help
-	model.helpVisible = true
-	model.handleKeyPress(tea.KeyPressMsg{Code: tea.KeyEscape})
-	if model.helpVisible {
-		t.Error("help should be hidden after pressing esc")
-	}
-}
-
 func TestLsModel_Update_Help_WhileMaintenanceFlowActive(t *testing.T) {
 	model := NewLsModel(LsModelConfig{
 		Context: context.Background(),
@@ -773,7 +741,7 @@ func TestLsModel_View_Help(t *testing.T) {
 		t.Error("Help should contain Tab key binding")
 	}
 
-	if !contains(view, "next pane") || !contains(view, "prev pane") {
+	if !contains(view, "switch pane") || !contains(view, "prev pane") {
 		t.Error("Help should mention pane navigation")
 	}
 
