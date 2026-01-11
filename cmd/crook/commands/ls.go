@@ -2,9 +2,7 @@
 package commands
 
 import (
-	"context"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/andri/crook/pkg/k8s"
@@ -57,7 +55,7 @@ Use 'crook' without arguments to launch the interactive TUI instead.`,
 			return validateLsOptions(opts)
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runLs(cmd.Context(), opts)
+			return runLs(cmd, opts)
 		},
 	}
 
@@ -86,8 +84,9 @@ func validateLsOptions(opts *LsOptions) error {
 }
 
 // runLs executes the ls command
-func runLs(ctx context.Context, opts *LsOptions) error {
+func runLs(cmd *cobra.Command, opts *LsOptions) error {
 	cfg := GlobalOptions.Config
+	ctx := cmd.Context()
 
 	// Initialize Kubernetes client with config-derived settings
 	client, err := k8s.NewClient(ctx, k8s.ClientConfig{
@@ -131,7 +130,7 @@ func runLs(ctx context.Context, opts *LsOptions) error {
 		return fmt.Errorf("failed to fetch data: %w", fetchErr)
 	}
 
-	if renderErr := output.Render(os.Stdout, data, format); renderErr != nil {
+	if renderErr := output.Render(cmd.OutOrStdout(), data, format); renderErr != nil {
 		return fmt.Errorf("failed to render output: %w", renderErr)
 	}
 

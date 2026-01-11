@@ -1,17 +1,29 @@
 package commands
 
 import (
+	"bytes"
 	"context"
 	"testing"
 
 	"github.com/andri/crook/pkg/config"
 	"github.com/andri/crook/pkg/k8s"
 	"github.com/andri/crook/pkg/maintenance"
+	"github.com/spf13/cobra"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
+
+// newTestCmd creates a cobra.Command for testing with context and IO streams set.
+func newTestCmd() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.SetContext(context.Background())
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetErr(&bytes.Buffer{})
+	cmd.SetIn(&bytes.Buffer{})
+	return cmd
+}
 
 func TestRunUpExecutesWithNoDeployments(t *testing.T) {
 	cfg := config.DefaultConfig()
@@ -44,7 +56,7 @@ func TestRunUpExecutesWithNoDeployments(t *testing.T) {
 		return nil
 	}
 
-	if err := runUp(context.Background(), "node-1", &UpOptions{Yes: true}); err != nil {
+	if err := runUp(newTestCmd(), "node-1", &UpOptions{Yes: true}); err != nil {
 		t.Fatalf("runUp returned error: %v", err)
 	}
 	if !called {
@@ -98,7 +110,7 @@ func TestRunDownExecutesWhenDeploymentsAlreadyScaledDown(t *testing.T) {
 		return nil
 	}
 
-	if err := runDown(context.Background(), "node-1", &DownOptions{Yes: true}); err != nil {
+	if err := runDown(newTestCmd(), "node-1", &DownOptions{Yes: true}); err != nil {
 		t.Fatalf("runDown returned error: %v", err)
 	}
 	if !called {

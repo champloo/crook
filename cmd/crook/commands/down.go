@@ -4,7 +4,6 @@ package commands
 import (
 	"context"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/andri/crook/internal/logger"
@@ -54,7 +53,7 @@ Use 'crook up <node>' to restore the node after maintenance is complete.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			nodeName := args[0]
-			return runDown(cmd.Context(), nodeName, opts)
+			return runDown(cmd, nodeName, opts)
 		},
 	}
 
@@ -69,8 +68,9 @@ Use 'crook up <node>' to restore the node after maintenance is complete.`,
 }
 
 // runDown executes the down phase workflow
-func runDown(ctx context.Context, nodeName string, opts *DownOptions) error {
+func runDown(cmd *cobra.Command, nodeName string, opts *DownOptions) error {
 	cfg := GlobalOptions.Config
+	ctx := cmd.Context()
 
 	// Apply timeout to context
 	if opts.Timeout > 0 {
@@ -103,7 +103,7 @@ func runDown(ctx context.Context, nodeName string, opts *DownOptions) error {
 		return fmt.Errorf("failed to discover deployments: %w", err)
 	}
 
-	pw := cli.NewProgressWriter(os.Stdout)
+	pw := cli.NewProgressWriter(cmd.OutOrStdout())
 
 	if maintenance.IsInDownState(ctx, client, cfg, nodeName, deployments) {
 		pw.PrintSuccess(fmt.Sprintf("Node %s is already prepared for maintenance (cordoned, noout set, operator down)", nodeName))
@@ -123,6 +123,8 @@ func runDown(ctx context.Context, nodeName string, opts *DownOptions) error {
 	if !opts.Yes {
 		confirmed, confirmErr := cli.Confirm(cli.ConfirmOptions{
 			Question: "Proceed with down phase?",
+			Input:    cmd.InOrStdin(),
+			Output:   cmd.OutOrStdout(),
 		})
 		if confirmErr != nil {
 			return fmt.Errorf("confirmation failed: %w", confirmErr)

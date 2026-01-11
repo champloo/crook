@@ -4,7 +4,6 @@ package commands
 import (
 	"context"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/andri/crook/internal/logger"
@@ -53,7 +52,7 @@ is complete.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			nodeName := args[0]
-			return runUp(cmd.Context(), nodeName, opts)
+			return runUp(cmd, nodeName, opts)
 		},
 	}
 
@@ -68,8 +67,9 @@ is complete.`,
 }
 
 // runUp executes the up phase workflow
-func runUp(ctx context.Context, nodeName string, opts *UpOptions) error {
+func runUp(cmd *cobra.Command, nodeName string, opts *UpOptions) error {
 	cfg := GlobalOptions.Config
+	ctx := cmd.Context()
 
 	// Apply timeout to context
 	if opts.Timeout > 0 {
@@ -102,7 +102,7 @@ func runUp(ctx context.Context, nodeName string, opts *UpOptions) error {
 		return fmt.Errorf("failed to discover deployments: %w", err)
 	}
 
-	pw := cli.NewProgressWriter(os.Stdout)
+	pw := cli.NewProgressWriter(cmd.OutOrStdout())
 
 	if maintenance.IsInUpState(ctx, client, cfg, nodeName, deployments) {
 		pw.PrintSuccess(fmt.Sprintf("Node %s is already operational (uncordoned, noout unset, operator running)", nodeName))
@@ -122,6 +122,8 @@ func runUp(ctx context.Context, nodeName string, opts *UpOptions) error {
 	if !opts.Yes {
 		confirmed, confirmErr := cli.Confirm(cli.ConfirmOptions{
 			Question: "Proceed with up phase?",
+			Input:    cmd.InOrStdin(),
+			Output:   cmd.OutOrStdout(),
 		})
 		if confirmErr != nil {
 			return fmt.Errorf("confirmation failed: %w", confirmErr)
