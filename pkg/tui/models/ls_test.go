@@ -344,7 +344,7 @@ func TestLsModel_handleKeyPress_Quit(t *testing.T) {
 	}
 }
 
-func TestLsModel_Update_Help_WhileMaintenanceFlowActive(t *testing.T) {
+func TestLsModel_Update_KeyRouting_WhileMaintenanceFlowActive(t *testing.T) {
 	model := NewLsModel(LsModelConfig{
 		Context: context.Background(),
 	})
@@ -352,43 +352,10 @@ func TestLsModel_Update_Help_WhileMaintenanceFlowActive(t *testing.T) {
 	flow := &stubSizedModel{}
 	model.maintenanceFlow = flow
 
-	// Help key should be handled by the container model, not the embedded flow.
-	msgHelp := tea.KeyPressMsg{Code: '?', Text: "?"}
-	updatedModel, _ := model.Update(msgHelp)
-	m, _ := updatedModel.(*LsModel)
-	if !m.helpVisible {
-		t.Error("help should be visible after pressing ? even while flow is active")
-	}
-	if flow.updated {
-		t.Error("embedded flow should not receive key input while help is opening")
-	}
-
-	// While help is visible, keys should still be routed to the embedded flow.
-	updatedModel, _ = m.Update(tea.KeyPressMsg{Code: 'x', Text: "x"})
-	m, _ = updatedModel.(*LsModel)
-	if !m.helpVisible {
-		t.Error("help should remain visible after pressing non-close key while flow is active")
-	}
+	// Keys should be routed to the embedded flow.
+	_, _ = model.Update(tea.KeyPressMsg{Code: '?', Text: "?"})
 	if !flow.updated {
-		t.Error("embedded flow should receive key input while help is visible")
-	}
-
-	// Esc should close help without routing to the embedded flow.
-	flow.updated = false
-	updatedModel, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
-	m, _ = updatedModel.(*LsModel)
-	if m.helpVisible {
-		t.Error("help should be hidden after pressing esc while flow is active")
-	}
-	if flow.updated {
-		t.Error("embedded flow should not receive key input when closing help")
-	}
-
-	// Non-help keys should continue to be routed to the embedded flow.
-	flow.updated = false
-	_, _ = m.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
-	if !flow.updated {
-		t.Error("embedded flow should receive non-help keys")
+		t.Error("embedded flow should receive key input while flow is active")
 	}
 }
 
@@ -723,29 +690,6 @@ func TestLsModel_View_AllPanesVisible(t *testing.T) {
 	}
 }
 
-func TestLsModel_View_Help(t *testing.T) {
-	model := NewLsModel(LsModelConfig{
-		Context: context.Background(),
-	})
-	model.width = 80
-	model.height = 40
-	model.helpVisible = true
-
-	view := model.Render()
-
-	if !contains(view, "[1] Nodes") {
-		t.Error("View should still show panes when help is expanded")
-	}
-
-	if !contains(view, "prev pane") {
-		t.Error("Expanded help should mention previous pane navigation")
-	}
-
-	if !contains(view, "quit") {
-		t.Error("Expanded help should mention quit")
-	}
-}
-
 func TestLsModel_View_StatusBarShowsToggleHint(t *testing.T) {
 	model := NewLsModel(LsModelConfig{
 		Context: context.Background(),
@@ -801,7 +745,6 @@ func TestLsModel_Getters(t *testing.T) {
 	model.activePane = LsPaneOSDs
 	model.activeTab = LsTabOSDs
 	model.cursor = 5
-	model.helpVisible = true
 
 	if model.GetActiveTab() != LsTabOSDs {
 		t.Errorf("GetActiveTab() = %v, want %v", model.GetActiveTab(), LsTabOSDs)
@@ -815,8 +758,8 @@ func TestLsModel_Getters(t *testing.T) {
 		t.Errorf("GetCursor() = %d, want 5", model.GetCursor())
 	}
 
-	if !model.IsHelpVisible() {
-		t.Error("IsHelpVisible() should return true")
+	if model.IsHelpVisible() {
+		t.Error("IsHelpVisible() should return false")
 	}
 }
 

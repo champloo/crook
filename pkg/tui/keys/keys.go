@@ -8,7 +8,6 @@ import (
 // GlobalBindings are active everywhere in the application.
 type GlobalBindings struct {
 	Quit key.Binding
-	Help key.Binding
 }
 
 // DefaultGlobalBindings returns the default global keybindings.
@@ -17,10 +16,6 @@ func DefaultGlobalBindings() GlobalBindings {
 		Quit: key.NewBinding(
 			key.WithKeys("q", "esc", "ctrl+c"),
 			key.WithHelp("q/Esc", "quit"),
-		),
-		Help: key.NewBinding(
-			key.WithKeys("?"),
-			key.WithHelp("?", "help"),
 		),
 	}
 }

@@ -109,9 +109,6 @@ type LsModel struct {
 	// Legacy cursor field (kept for backwards compatibility with tests)
 	cursor int
 
-	// Help expanded state
-	helpVisible bool
-
 	// Terminal dimensions
 	width  int
 	height int
@@ -158,19 +155,6 @@ type sizedModel interface {
 	tea.Model
 	SetSize(width, height int)
 	Render() string
-}
-
-func (m *LsModel) handleHelpKeyMsg(msg tea.KeyMsg) bool {
-	switch {
-	case key.Matches(msg, m.keyMap.Help):
-		m.helpVisible = !m.helpVisible
-		return true
-	case m.helpVisible && msg.String() == "esc":
-		m.helpVisible = false
-		return true
-	default:
-		return false
-	}
 }
 
 const (
@@ -271,7 +255,6 @@ func NewLsModel(cfg LsModelConfig) *LsModel {
 
 	// Initialize help model with crook styling
 	h := help.New()
-	h.FullSeparator = "   "
 	h.Styles.ShortKey = h.Styles.ShortKey.Foreground(styles.ColorInfo)
 	h.Styles.ShortDesc = h.Styles.ShortDesc.Foreground(styles.ColorSubtle)
 	h.Styles.FullKey = h.Styles.FullKey.Foreground(styles.ColorInfo)
@@ -363,12 +346,6 @@ func (m *LsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		cmds = append(cmds, m.closeMaintenanceFlow())
 		return m, tea.Batch(cmds...)
-	}
-
-	if keyMsg, ok := msg.(tea.KeyMsg); ok {
-		if handled := m.handleHelpKeyMsg(keyMsg); handled {
-			return m, nil
-		}
 	}
 
 	if m.maintenanceFlow != nil {
@@ -518,12 +495,6 @@ func (m *LsModel) updateViewSizes() {
 func (m *LsModel) paneHeights() (int, int) {
 	headerHeight := 4
 	statusBarHeight := 2
-	if m.helpVisible {
-		statusBarHeight++
-		if m.lastError != nil {
-			statusBarHeight++
-		}
-	}
 	availableHeight := m.height - headerHeight - statusBarHeight
 
 	// Height distribution: active pane gets 50%, inactive get 25% each.
@@ -612,7 +583,6 @@ func (m *LsModel) updateBadge(tabIndex, count int) {
 }
 
 // handleKeyPress processes keyboard input.
-// Note: Help visibility is handled by handleHelpKeyMsg in Update() before this is called.
 func (m *LsModel) handleKeyPress(msg tea.KeyMsg) tea.Cmd {
 	// Update contextual bindings before processing
 	m.updateKeyBindings()
@@ -1026,7 +996,6 @@ func (m *LsModel) topRowWidths() (int, int) {
 func (m *LsModel) renderStatusBar() string {
 	m.updateKeyBindings()
 	m.helpModel.SetWidth(m.width)
-	m.helpModel.ShowAll = m.helpVisible
 
 	status := m.helpModel.View(&m.keyMap)
 	if m.lastError == nil {
@@ -1034,9 +1003,6 @@ func (m *LsModel) renderStatusBar() string {
 	}
 
 	errText := styles.StyleError.Render("error: " + format.SanitizeForDisplay(m.lastError.Error()))
-	if m.helpVisible {
-		return errText + "\n" + status
-	}
 	return errText + "  " + status
 }
 
@@ -1063,9 +1029,10 @@ func (m *LsModel) GetCursor() int {
 	return m.cursor
 }
 
-// IsHelpVisible returns whether expanded help is visible
+// IsHelpVisible returns whether expanded help is visible.
+// Deprecated: there is no expanded help panel.
 func (m *LsModel) IsHelpVisible() bool {
-	return m.helpVisible
+	return false
 }
 
 // GetNodeFilter returns the current node filter

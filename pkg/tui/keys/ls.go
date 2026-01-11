@@ -17,7 +17,6 @@ const (
 type LsKeyMap struct {
 	// Global bindings
 	Quit key.Binding
-	Help key.Binding
 
 	// Navigation
 	Up   key.Binding
@@ -44,10 +43,6 @@ func DefaultLsKeyMap() LsKeyMap {
 		Quit: key.NewBinding(
 			key.WithKeys("q", "esc", "ctrl+c"),
 			key.WithHelp("q/Esc", "quit"),
-		),
-		Help: key.NewBinding(
-			key.WithKeys("?"),
-			key.WithHelp("?", "help"),
 		),
 		Up: key.NewBinding(
 			key.WithKeys("k", "up"),
@@ -131,24 +126,16 @@ func (k LsKeyMap) ShortHelp() []key.Binding {
 		bindings = append(bindings, k.ShowPods)
 	}
 
-	bindings = append(bindings, k.Refresh, k.Help, k.Quit)
+	bindings = append(bindings, k.Refresh, k.Quit)
 	return bindings
 }
 
-// FullHelp implements help.KeyMap for expanded help view.
+// FullHelp implements help.KeyMap.
 func (k LsKeyMap) FullHelp() [][]key.Binding {
-	toggle := key.NewBinding(
-		key.WithKeys("[", "]"),
-		key.WithHelp("[/]", "deploy/pods"),
-	)
-	toggle.SetEnabled(k.ShowDeploy.Enabled() || k.ShowPods.Enabled())
-
 	return [][]key.Binding{
-		// Two-row layout to keep the expanded help compact.
-		{k.NextPane, k.PrevPane},
+		{k.NextPane, k.PrevPane, k.Pane1, k.Pane2, k.Pane3},
 		{k.Up, k.Down},
-		{k.NodeDown, k.NodeUp},
-		{k.Refresh, toggle},
-		{k.Help, k.Quit},
+		{k.NodeDown, k.NodeUp, k.Refresh, k.ShowDeploy, k.ShowPods},
+		{k.Quit},
 	}
 }
