@@ -1,6 +1,7 @@
 package k8s
 
 import (
+	"fmt"
 	"math"
 	"testing"
 )
@@ -111,6 +112,18 @@ func TestParseStorageUsage(t *testing.T) {
 			input:   `not valid json`,
 			wantErr: true,
 		},
+		{
+			// Real output captured from test cluster running Ceph Tentacle (v20).
+			// Confirms percent_used is a fraction (1.52e-05 = 0.0015%).
+			name:            "real cluster output - Ceph Tentacle",
+			input:           `{"stats":{"total_bytes":32212254720,"total_avail_bytes":32102449152,"total_used_bytes":109805568,"total_used_raw_bytes":109805568,"total_used_raw_ratio":0.0034088133834302425,"num_osds":3,"num_per_pool_osds":3,"num_per_pool_omap_osds":1},"stats_by_class":{"hdd":{"total_bytes":32212254720,"total_avail_bytes":32102449152,"total_used_bytes":109805568,"total_used_raw_bytes":109805568,"total_used_raw_ratio":0.0034088133834302425}},"pools":[{"name":".mgr","id":1,"stats":{"stored":459280,"objects":2,"kb_used":452,"bytes_used":462848,"percent_used":1.5197146240097936e-05,"max_avail":30455781376}}]}`,
+			wantTotalBytes:  32212254720,
+			wantUsedBytes:   109805568,
+			wantAvailBytes:  32102449152,
+			wantUsedPercent: 0.34, // ~0.34% cluster usage
+			wantPoolCount:   1,
+			wantErr:         false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -153,6 +166,10 @@ func TestParseStorageUsage(t *testing.T) {
 	}
 }
 
+// TestParseStorageUsage_PoolDetails verifies pool percent_used conversion.
+// Ceph JSON API returns percent_used as a fraction (0.0-1.0), not a percentage.
+// Source: PGMap.cc dump_object_stat_sum() calculates used = used_bytes/(used_bytes+avail)
+// Verified in Quincy, Reef, and Tentacle branches at github.com/ceph/ceph/blob/main/src/mon/PGMap.cc
 func TestParseStorageUsage_PoolDetails(t *testing.T) {
 	input := `{
 		"stats": {
@@ -201,13 +218,103 @@ func TestParseStorageUsage_PoolDetails(t *testing.T) {
 		t.Errorf("Pool.Objects = %d, want %d", pool.Objects, 1234)
 	}
 
-	// percent_used is 0.03 (3%), converted to 3.0
+	// percent_used is 0.03 (fraction), converted to 3.0 (percentage)
 	if math.Abs(pool.UsedPercent-3.0) > 0.1 {
 		t.Errorf("Pool.UsedPercent = %.2f, want approximately 3.0", pool.UsedPercent)
 	}
 
 	if pool.MaxAvail != 1000000000 {
 		t.Errorf("Pool.MaxAvail = %d, want %d", pool.MaxAvail, 1000000000)
+	}
+}
+
+// TestParseStorageUsage_RealClusterPoolPercent verifies pool percent_used from real cluster.
+// Real output from test cluster: percent_used = 1.5197146240097936e-05 (fraction)
+// Expected display: 0.0015197% (after *100 conversion)
+func TestParseStorageUsage_RealClusterPoolPercent(t *testing.T) {
+	// Actual output from `ceph df --format json` on test cluster running Ceph Tentacle (v20)
+	input := `{"stats":{"total_bytes":32212254720,"total_avail_bytes":32102449152,"total_used_bytes":109805568,"total_used_raw_bytes":109805568,"total_used_raw_ratio":0.0034088133834302425,"num_osds":3,"num_per_pool_osds":3,"num_per_pool_omap_osds":1},"stats_by_class":{"hdd":{"total_bytes":32212254720,"total_avail_bytes":32102449152,"total_used_bytes":109805568,"total_used_raw_bytes":109805568,"total_used_raw_ratio":0.0034088133834302425}},"pools":[{"name":".mgr","id":1,"stats":{"stored":459280,"objects":2,"kb_used":452,"bytes_used":462848,"percent_used":1.5197146240097936e-05,"max_avail":30455781376}}]}`
+
+	result, err := parseStorageUsage(input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(result.Pools) != 1 {
+		t.Fatalf("expected 1 pool, got %d", len(result.Pools))
+	}
+
+	pool := result.Pools[0]
+
+	// Verify pool metadata
+	if pool.Name != ".mgr" {
+		t.Errorf("Pool.Name = %q, want %q", pool.Name, ".mgr")
+	}
+
+	// The critical test: percent_used = 1.5197146240097936e-05 (fraction)
+	// After *100 conversion: 0.0015197146240097936 (percentage)
+	// This proves we're NOT getting 100x inflation (which would be 0.15%)
+	expectedPercent := 1.5197146240097936e-05 * 100 // = 0.0015197...
+	if math.Abs(pool.UsedPercent-expectedPercent) > 0.0001 {
+		t.Errorf("Pool.UsedPercent = %.10f, want %.10f (fraction*100)", pool.UsedPercent, expectedPercent)
+	}
+
+	// Sanity check: if there was a 100x bug, we'd see ~0.15% instead of ~0.0015%
+	if pool.UsedPercent > 0.01 {
+		t.Errorf("Pool.UsedPercent = %.6f%%, suspiciously high - possible 100x inflation bug", pool.UsedPercent)
+	}
+}
+
+// TestParseStorageUsage_PoolPercentBoundary verifies pool percent_used boundary cases.
+// Ensures correct conversion at 0% and 100% (fraction 0.0 and 1.0).
+func TestParseStorageUsage_PoolPercentBoundary(t *testing.T) {
+	tests := []struct {
+		name               string
+		percentUsedInput   float64 // Fraction as returned by Ceph JSON
+		wantPercentDisplay float64 // Expected percentage for display
+	}{
+		{"empty pool", 0.0, 0.0},
+		{"nearly empty", 0.001, 0.1},
+		{"half full", 0.5, 50.0},
+		{"nearly full", 0.9999, 99.99},
+		{"completely full", 1.0, 100.0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			input := fmt.Sprintf(`{
+				"stats": {
+					"total_bytes": 1000000000000,
+					"total_used_bytes": 500000000000,
+					"total_avail_bytes": 500000000000
+				},
+				"pools": [
+					{
+						"name": "testpool",
+						"id": 1,
+						"stats": {
+							"stored": 100,
+							"objects": 1,
+							"percent_used": %v,
+							"max_avail": 100
+						}
+					}
+				]
+			}`, tt.percentUsedInput)
+
+			result, err := parseStorageUsage(input)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if len(result.Pools) != 1 {
+				t.Fatalf("expected 1 pool, got %d", len(result.Pools))
+			}
+
+			if math.Abs(result.Pools[0].UsedPercent-tt.wantPercentDisplay) > 0.01 {
+				t.Errorf("Pool.UsedPercent = %.4f, want %.4f", result.Pools[0].UsedPercent, tt.wantPercentDisplay)
+			}
+		})
 	}
 }
 

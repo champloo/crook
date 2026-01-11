@@ -377,7 +377,10 @@ func parseStorageUsage(output string) (*StorageUsage, error) {
 			Name:        pool.Name,
 			ID:          pool.ID,
 			StoredBytes: pool.Stats.Stored,
-			UsedPercent: pool.Stats.PercentUsed * 100, // Convert from decimal to percentage
+			// Ceph JSON API returns percent_used as a fraction (0.0-1.0), not a percentage.
+			// Source: PGMap.cc dump_object_stat_sum() calculates used = used_bytes/(used_bytes+avail)
+			// Verified in Quincy, Reef, and Tentacle branches at github.com/ceph/ceph/blob/main/src/mon/PGMap.cc
+			UsedPercent: pool.Stats.PercentUsed * 100,
 			MaxAvail:    pool.Stats.MaxAvail,
 			Objects:     pool.Stats.Objects,
 		})
