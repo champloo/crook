@@ -55,6 +55,9 @@ type RootOptions struct {
 
 	// CancelFunc cancels the root context
 	CancelFunc context.CancelFunc
+
+	// logFileHandle tracks the opened log file for cleanup
+	logFileHandle *os.File
 }
 
 // GlobalOptions is the singleton instance for root options
@@ -184,6 +187,12 @@ func buildFlagSet(cmd *cobra.Command) *pflag.FlagSet {
 func initLogger() error {
 	cfg := GlobalOptions.Config.Logging
 
+	// Close any previously opened log file (handles multiple calls in tests)
+	if GlobalOptions.logFileHandle != nil {
+		_ = GlobalOptions.logFileHandle.Close()
+		GlobalOptions.logFileHandle = nil
+	}
+
 	// Determine log level
 	level := logger.LevelInfo
 	switch cfg.Level {
@@ -203,6 +212,7 @@ func initLogger() error {
 			return fmt.Errorf("failed to open log file %s: %w", cfg.File, err)
 		}
 		output = f
+		GlobalOptions.logFileHandle = f
 	}
 
 	// Determine format
@@ -226,6 +236,10 @@ func initLogger() error {
 func cleanup() {
 	if GlobalOptions.CancelFunc != nil {
 		GlobalOptions.CancelFunc()
+	}
+	if GlobalOptions.logFileHandle != nil {
+		_ = GlobalOptions.logFileHandle.Close()
+		GlobalOptions.logFileHandle = nil
 	}
 }
 
