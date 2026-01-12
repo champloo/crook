@@ -1,8 +1,10 @@
 package config_test
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/andri/crook/pkg/config"
@@ -203,6 +205,49 @@ func TestLoadConfigInvalidYAML(t *testing.T) {
 	_, err := config.LoadConfig(config.LoadOptions{ConfigFile: configPath})
 	if err == nil {
 		t.Fatalf("expected error for invalid YAML")
+	}
+}
+
+func TestLoadConfigValidationErrorActionable(t *testing.T) {
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "invalid-config.yaml")
+	// Invalid config: bad namespace, invalid log level
+	configContents := []byte(`
+namespace: "INVALID_NS!"
+logging:
+  level: "verbose"
+  format: "xml"
+ui:
+  k8s-refresh-ms: 0
+`)
+	if err := os.WriteFile(configPath, configContents, 0o600); err != nil {
+		t.Fatalf("write config file: %v", err)
+	}
+
+	_, err := config.LoadConfig(config.LoadOptions{ConfigFile: configPath})
+	if err == nil {
+		t.Fatalf("expected validation error")
+	}
+
+	// Verify it's a ValidationError
+	var validationErr *config.ValidationError
+	if !errors.As(err, &validationErr) {
+		t.Fatalf("expected *config.ValidationError, got %T", err)
+	}
+
+	// Verify error message contains actionable details
+	msg := err.Error()
+	if !strings.Contains(msg, "invalid namespace") {
+		t.Errorf("expected namespace error in message, got: %s", msg)
+	}
+	if !strings.Contains(msg, "invalid logging.level") {
+		t.Errorf("expected log level error in message, got: %s", msg)
+	}
+	if !strings.Contains(msg, "invalid logging.format") {
+		t.Errorf("expected log format error in message, got: %s", msg)
+	}
+	if !strings.Contains(msg, "k8s-refresh-ms must be > 0") {
+		t.Errorf("expected refresh interval error in message, got: %s", msg)
 	}
 }
 

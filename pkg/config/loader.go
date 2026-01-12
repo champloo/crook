@@ -61,7 +61,7 @@ func LoadConfig(opts LoadOptions) (LoadResult, error) {
 			Config:         cfg,
 			Validation:     validation,
 			ConfigFileUsed: v.ConfigFileUsed(),
-		}, fmt.Errorf("configuration validation failed")
+		}, &ValidationError{Result: validation}
 	}
 
 	return LoadResult{
