@@ -29,12 +29,14 @@ type NodesView struct {
 
 type nodesColumnLayout struct {
 	name     int
+	ip       int
 	status   int
 	roles    int
 	schedule int
 	cephPods int
 	age      int
 
+	showIP    bool
 	showRoles bool
 	showAge   bool
 }
@@ -152,47 +154,64 @@ func truncateEllipsis(s string, width int) string {
 
 func (v *NodesView) columnLayout() nodesColumnLayout {
 	switch {
-	case v.width >= 100:
+	case v.width >= 120:
 		return nodesColumnLayout{
 			name:      30,
+			ip:        16,
 			status:    10,
 			roles:     20,
 			schedule:  12,
 			cephPods:  10,
 			age:       10,
+			showIP:    true,
+			showRoles: true,
+			showAge:   true,
+		}
+	case v.width >= 100:
+		return nodesColumnLayout{
+			name:      26,
+			ip:        16,
+			status:    10,
+			roles:     16,
+			schedule:  12,
+			cephPods:  10,
+			age:       8,
+			showIP:    true,
 			showRoles: true,
 			showAge:   true,
 		}
 	case v.width >= 82:
 		return nodesColumnLayout{
-			name:      24,
+			name:      20,
+			ip:        16,
 			status:    9,
-			roles:     14,
 			schedule:  11,
 			cephPods:  8,
 			age:       8,
-			showRoles: true,
+			showIP:    true,
+			showRoles: false,
 			showAge:   true,
 		}
 	case v.width >= 66:
 		return nodesColumnLayout{
-			name:      24,
+			name:      20,
+			ip:        16,
 			status:    9,
 			schedule:  11,
 			cephPods:  8,
-			age:       8,
+			showIP:    true,
 			showRoles: false,
-			showAge:   true,
+			showAge:   false,
 		}
 	default:
 		return nodesColumnLayout{
-			name:      max(12, v.width-(8+10+6+6)-4),
+			name:      max(12, v.width-(8+10+6)-4),
 			status:    8,
 			schedule:  10,
 			cephPods:  6,
-			age:       6,
+			showIP:    false,
 			showRoles: false,
-			showAge:   true,
+			showAge:   false,
 		}
 	}
 }
@@ -206,8 +225,11 @@ func (v *NodesView) renderHeader() string {
 	layout := v.columnLayout()
 	cols := []string{
 		format.PadRight("NAME", layout.name),
-		format.PadRight("STATUS", layout.status),
 	}
+	if layout.showIP {
+		cols = append(cols, format.PadRight("IP", layout.ip))
+	}
+	cols = append(cols, format.PadRight("STATUS", layout.status))
 	if layout.showRoles {
 		cols = append(cols, format.PadRight("ROLES", layout.roles))
 	}
@@ -274,10 +296,20 @@ func (v *NodesView) renderRow(node k8s.NodeInfo, selected bool) string {
 		rolesText = truncateEllipsis(rolesText, layout.roles)
 	}
 
+	// Format IP address, show "-" if not available
+	ipText := node.IP
+	if ipText == "" {
+		ipText = "-"
+	}
+	ipText = truncateEllipsis(ipText, layout.ip)
+
 	cols := []string{
 		nameStyle.Render(format.PadRight(node.Name, layout.name)),
-		statusStyle.Render(format.PadRight(node.Status, layout.status)),
 	}
+	if layout.showIP {
+		cols = append(cols, styles.StyleSubtle.Render(format.PadRight(ipText, layout.ip)))
+	}
+	cols = append(cols, statusStyle.Render(format.PadRight(node.Status, layout.status)))
 	if layout.showRoles {
 		cols = append(cols, styles.StyleNormal.Render(format.PadRight(rolesText, layout.roles)))
 	}
@@ -316,6 +348,10 @@ func (v *NodesView) getTableWidth() int {
 	layout := v.columnLayout()
 	width := layout.name + layout.status + layout.schedule + layout.cephPods
 	cols := 4
+	if layout.showIP {
+		width += layout.ip
+		cols++
+	}
 	if layout.showRoles {
 		width += layout.roles
 		cols++

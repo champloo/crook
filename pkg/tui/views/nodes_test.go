@@ -192,7 +192,7 @@ func TestNodesView_View_TinyHeightLimitsOutput(t *testing.T) {
 
 func TestNodesView_View_TruncatesRolesWithEllipsis(t *testing.T) {
 	v := NewNodesView()
-	v.SetSize(82, 30) // includes Roles column with width 14
+	v.SetSize(100, 30) // width >= 100 includes Roles column
 	v.SetNodes([]k8s.NodeInfo{
 		{Name: "node-1", Status: "Ready", Roles: []string{"control-plane", "very-long-role-name"}},
 	})
@@ -200,6 +200,40 @@ func TestNodesView_View_TruncatesRolesWithEllipsis(t *testing.T) {
 	output := v.Render()
 	if !strings.Contains(output, "...") {
 		t.Fatalf("expected roles to be truncated with ellipsis, got: %q", output)
+	}
+}
+
+func TestNodesView_View_DisplaysIPAddress(t *testing.T) {
+	v := NewNodesView()
+	v.SetSize(100, 30) // width >= 66 includes IP column
+	v.SetNodes([]k8s.NodeInfo{
+		{Name: "node-1", IP: "192.168.1.10", Status: "Ready"},
+		{Name: "node-2", IP: "", Status: "Ready"}, // no IP case
+	})
+
+	output := v.Render()
+	if !strings.Contains(output, "IP") {
+		t.Fatalf("expected IP header, got: %q", output)
+	}
+	if !strings.Contains(output, "192.168.1.10") {
+		t.Fatalf("expected IP address to be displayed, got: %q", output)
+	}
+	if !strings.Contains(output, "-") {
+		t.Fatalf("expected '-' for node with no IP, got: %q", output)
+	}
+}
+
+func TestNodesView_View_HidesIPOnNarrowWidth(t *testing.T) {
+	v := NewNodesView()
+	v.SetSize(50, 30) // narrow width hides IP column
+	v.SetNodes([]k8s.NodeInfo{
+		{Name: "node-1", IP: "192.168.1.10", Status: "Ready"},
+	})
+
+	// IP should not appear in header when width is too narrow
+	layout := v.columnLayout()
+	if layout.showIP {
+		t.Fatalf("expected showIP to be false at narrow width, layout: %+v", layout)
 	}
 }
 

@@ -126,6 +126,9 @@ type NodeInfo struct {
 	// Name is the node name
 	Name string `json:"name"`
 
+	// IP is the node IP address (InternalIP preferred, ExternalIP as fallback)
+	IP string `json:"ip"`
+
 	// Status is the node status (Ready/NotReady/Unknown)
 	Status string `json:"status"`
 
@@ -181,6 +184,7 @@ func (c *Client) ListNodesWithCephPods(ctx context.Context, namespace string) ([
 	for _, node := range nodes {
 		info := NodeInfo{
 			Name:           node.Name,
+			IP:             extractNodeIP(&node),
 			Status:         getNodeStatus(&node),
 			Roles:          extractNodeRoles(&node),
 			Schedulable:    !node.Spec.Unschedulable,
@@ -214,15 +218,23 @@ func extractNodeRoles(node *corev1.Node) []string {
 	const rolePrefix = "node-role.kubernetes.io/"
 
 	for label := range node.Labels {
-		if strings.HasPrefix(label, rolePrefix) {
-			role := strings.TrimPrefix(label, rolePrefix)
-			if role != "" {
-				roles = append(roles, role)
-			}
+		if role, ok := strings.CutPrefix(label, rolePrefix); ok && role != "" {
+			roles = append(roles, role)
 		}
 	}
 
 	return roles
+}
+
+// extractNodeIP extracts the node's InternalIP address.
+// Returns empty string if no InternalIP is found.
+func extractNodeIP(node *corev1.Node) string {
+	for _, addr := range node.Status.Addresses {
+		if addr.Type == corev1.NodeInternalIP {
+			return addr.Address
+		}
+	}
+	return ""
 }
 
 // matchesAnyPrefix checks if a string starts with any of the given prefixes

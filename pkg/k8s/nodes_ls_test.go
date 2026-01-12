@@ -317,3 +317,67 @@ func TestMatchesAnyPrefix(t *testing.T) {
 		})
 	}
 }
+
+func TestExtractNodeIP(t *testing.T) {
+	tests := []struct {
+		name      string
+		addresses []corev1.NodeAddress
+		want      string
+	}{
+		{
+			name: "internal IP",
+			addresses: []corev1.NodeAddress{
+				{Type: corev1.NodeInternalIP, Address: "192.168.1.10"},
+			},
+			want: "192.168.1.10",
+		},
+		{
+			name: "multiple internal IPs - takes first",
+			addresses: []corev1.NodeAddress{
+				{Type: corev1.NodeInternalIP, Address: "192.168.1.10"},
+				{Type: corev1.NodeInternalIP, Address: "10.0.0.5"},
+			},
+			want: "192.168.1.10",
+		},
+		{
+			name: "IPv6 address",
+			addresses: []corev1.NodeAddress{
+				{Type: corev1.NodeInternalIP, Address: "fd00::1"},
+			},
+			want: "fd00::1",
+		},
+		{
+			name: "external IP only - not used",
+			addresses: []corev1.NodeAddress{
+				{Type: corev1.NodeExternalIP, Address: "203.0.113.5"},
+			},
+			want: "",
+		},
+		{
+			name: "hostname and DNS only - no IP",
+			addresses: []corev1.NodeAddress{
+				{Type: corev1.NodeHostName, Address: "worker-1"},
+				{Type: corev1.NodeInternalDNS, Address: "worker-1.local"},
+			},
+			want: "",
+		},
+		{
+			name:      "no addresses",
+			addresses: nil,
+			want:      "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			node := &corev1.Node{
+				Status: corev1.NodeStatus{
+					Addresses: tt.addresses,
+				},
+			}
+			if got := extractNodeIP(node); got != tt.want {
+				t.Errorf("extractNodeIP() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
