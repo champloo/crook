@@ -2,7 +2,7 @@
 
 A Kubernetes node maintenance automation tool for Rook-Ceph clusters. Safely manage the process of taking nodes down for maintenance and bringing them back up while preserving Ceph cluster health and state.
 
-## Features
+## ✨ Features
 
 - **Safe Node Maintenance** - Automated procedures that prevent data loss during node maintenance
 - **Ceph Health Protection** - Manages OSDs, monitors, and noout flags to prevent rebalancing
@@ -10,11 +10,62 @@ A Kubernetes node maintenance automation tool for Rook-Ceph clusters. Safely man
 - **Interactive TUI** - Real-time feedback with tabbed views for nodes, deployments, OSDs, and pods
 - **Pre-flight Validation** - Health checks before operations begin
 
-## Installation
+## 📸 Screenshots
 
-### Pre-built Binaries
+<div align="center">
+  <table>
+    <tr>
+      <td align="center">
+        <strong>Nodes View</strong><br>
+        <img src="docs/images/nodes.png" alt="Nodes view" width="400">
+      </td>
+      <td align="center">
+        <strong>Deployments View</strong><br>
+        <img src="docs/images/deployments.png" alt="Deployments view" width="400">
+      </td>
+    </tr>
+    <tr>
+      <td align="center">
+        <strong>OSDs View</strong><br>
+        <img src="docs/images/osds.png" alt="OSDs view" width="400">
+      </td>
+      <td align="center">
+        <strong>Pods View</strong><br>
+        <img src="docs/images/pods.png" alt="Pods view" width="400">
+      </td>
+    </tr>
+  </table>
+</div>
 
-Download the latest release from the [releases page](https://github.com/andri/crook/releases).
+## 🚀 Quick Start
+
+### Prerequisites
+
+1. A Kubernetes cluster with Rook-Ceph deployed
+2. Valid kubeconfig with permissions to:
+   - Get/list/patch nodes
+   - Get/list/patch deployments
+   - Get/list pods and exec into rook-ceph-tools
+   - Get/list replicasets
+3. The `rook-ceph-tools` deployment running in your cluster
+
+### Basic Usage
+
+```bash
+# Launch interactive TUI
+crook
+
+# List cluster resources (table format)
+crook ls
+
+# Take a node down for maintenance
+crook down worker-1
+
+# Restore a node after maintenance
+crook up worker-1
+```
+
+## 📦 Installation
 
 ### Build from Source
 
@@ -61,78 +112,36 @@ For NixOS or home-manager, add to your flake inputs and use:
 environment.systemPackages = [ inputs.crook.packages.${system}.default ];
 ```
 
-## Quick Start
+## 📖 Commands
 
-### Interactive TUI
+### `crook`
 
-crook provides a rich terminal user interface with tabbed views showing real-time cluster state:
+Launch the interactive TUI with tabbed views showing real-time cluster state.
 
-<div align="center">
-  <table>
-    <tr>
-      <td align="center">
-        <strong>Nodes View</strong><br>
-        <img src="docs/images/nodes.png" alt="Nodes view" width="400">
-      </td>
-      <td align="center">
-        <strong>Deployments View</strong><br>
-        <img src="docs/images/deployments.png" alt="Deployments view" width="400">
-      </td>
-    </tr>
-    <tr>
-      <td align="center">
-        <strong>OSDs View</strong><br>
-        <img src="docs/images/osds.png" alt="OSDs view" width="400">
-      </td>
-      <td align="center">
-        <strong>Pods View</strong><br>
-        <img src="docs/images/pods.png" alt="Pods view" width="400">
-      </td>
-    </tr>
-  </table>
-</div>
+### `crook ls [node]`
 
-### Prerequisites
+List Rook-Ceph resources in formatted output.
 
-1. A Kubernetes cluster with Rook-Ceph deployed
-2. Valid kubeconfig with permissions to:
-   - Get/list/patch nodes
-   - Get/list/patch deployments
-   - Get/list pods and exec into rook-ceph-tools
-   - Get/list replicasets
-3. The `rook-ceph-tools` deployment running in your cluster
+**Flags:**
+| Flag | Description |
+|------|-------------|
+| `-o, --output` | Output format: table, json (default: table) |
+| `--show` | Resource types to display: nodes,deployments,osds,pods |
 
-### Basic Usage
-
-**Taking a node down for maintenance:**
-
+**Examples:**
 ```bash
-crook down worker-1
-```
-
-**Restoring a node after maintenance:**
-
-```bash
-crook up worker-1
-```
-
-**Listing cluster resources:**
-
-```bash
-# Interactive TUI with tabbed views
-crook
-
-# Table output for scripting (default)
+# Table output (default)
 crook ls
+
+# Filter by node name
+crook ls worker-1
 
 # JSON output for automation
 crook ls --output json
 
-# Filter by node
-crook ls worker-1
+# Show only specific resource types
+crook ls --show nodes,osds
 ```
-
-## Commands
 
 ### `crook down <node>`
 
@@ -149,6 +158,7 @@ Prepare a node for maintenance by safely scaling down Rook-Ceph workloads.
 | Flag | Description |
 |------|-------------|
 | `--timeout` | Operation timeout (default: 10m) |
+| `-y, --yes` | Skip confirmation prompt |
 
 ### `crook up <node>`
 
@@ -165,19 +175,13 @@ Restore a node after maintenance by scaling up Rook-Ceph workloads.
 | Flag | Description |
 |------|-------------|
 | `--timeout` | Operation timeout (default: 15m) |
+| `-y, --yes` | Skip confirmation prompt |
 
-### `crook ls [node]`
+### `crook version`
 
-List Rook-Ceph resources in formatted output.
-Run `crook` without arguments to launch the interactive TUI.
+Print version, commit, and build date information.
 
-**Flags:**
-| Flag | Description |
-|------|-------------|
-| `-o, --output` | Output format: table, json (default: table) |
-| `--show` | Resource types to display: nodes,deployments,osds,pods |
-
-## Configuration
+## ⚙️ Configuration
 
 Configuration is loaded from multiple sources (highest to lowest precedence):
 
@@ -185,15 +189,6 @@ Configuration is loaded from multiple sources (highest to lowest precedence):
 2. Environment variables (`CROOK_*` prefix)
 3. Config file
 4. Built-in defaults
-
-### Config File Locations
-
-crook searches for configuration in:
-- `./crook.yaml` (current directory)
-- `~/.config/crook/config.yaml` (user config)
-- `/etc/crook/config.yaml` (system config)
-
-Or specify a custom location: `--config /path/to/config.yaml`
 
 ### Global Flags
 
@@ -203,6 +198,15 @@ Or specify a custom location: `--config /path/to/config.yaml`
 | `--config` | Config file path |
 | `--log-level` | Log level: debug, info, warn, error |
 | `--log-file` | Log file path (default: stderr) |
+
+### Config File Locations
+
+crook searches for configuration in:
+- `./crook.yaml` (current directory)
+- `~/.config/crook/config.yaml` (user config)
+- `/etc/crook/config.yaml` (system config)
+
+Or specify a custom location: `--config /path/to/config.yaml`
 
 ### Configuration Options
 
@@ -242,7 +246,7 @@ export CROOK_NAMESPACE=rook-ceph
 export CROOK_LOGGING_LEVEL=debug
 ```
 
-## Examples
+## 💡 Examples
 
 ### Maintenance Workflow
 
@@ -263,25 +267,6 @@ crook up worker-1
 crook ls worker-1
 ```
 
-#### Down Phase Progress
-
-The down phase safely prepares a node for maintenance with confirmation dialogs and real-time progress tracking:
-
-<div align="center">
-  <table>
-    <tr>
-      <td align="center">
-        <strong>Confirmation Prompt</strong><br>
-        <img src="docs/images/down-confirmation.png" alt="Down confirmation prompt" width="400">
-      </td>
-      <td align="center">
-        <strong>Operation Progress</strong><br>
-        <img src="docs/images/down-progress.png" alt="Down phase progress" width="400">
-      </td>
-    </tr>
-  </table>
-</div>
-
 ### JSON Output for Automation
 
 ```bash
@@ -289,7 +274,7 @@ The down phase safely prepares a node for maintenance with confirmation dialogs 
 crook ls --output json | jq '.nodes[] | select(.schedulable == false)'
 ```
 
-## Troubleshooting
+## 🔍 Troubleshooting
 
 ### Common Issues
 
@@ -320,27 +305,33 @@ crook down worker-1 --log-level debug
 export CROOK_LOGGING_LEVEL=debug
 ```
 
-## Architecture
+## 🏗️ Architecture
 
 ```
 crook/
-├── cmd/crook/           # CLI entry point and commands
+├── cmd/crook/           # CLI entry point
 │   └── commands/        # Cobra command implementations
 ├── pkg/
+│   ├── cli/             # CLI utilities (progress, confirmation)
 │   ├── config/          # Configuration management
 │   ├── k8s/             # Kubernetes client operations
 │   ├── maintenance/     # Down/up phase business logic
 │   ├── monitoring/      # Resource monitoring
-│   └── tui/             # Bubble Tea UI components
+│   ├── output/          # Output formatting (table/JSON)
+│   └── tui/             # Bubble Tea UI
 │       ├── components/  # Reusable UI components
+│       ├── format/      # Formatting utilities
+│       ├── keys/        # Key bindings
 │       ├── models/      # Bubble Tea models
-│       ├── views/       # View renderers
-│       └── styles/      # Theme and styling
-└── internal/
-    └── logger/          # Structured logging
+│       ├── styles/      # Theme and styling
+│       ├── terminal/    # Terminal utilities
+│       └── views/       # View renderers
+├── internal/
+│   └── logger/          # Structured logging
+└── test/                # Test fixtures and utilities
 ```
 
-## Development
+## 🛠️ Development
 
 ### Prerequisites
 
@@ -367,6 +358,6 @@ just verify
 just run ls --output table
 ```
 
-## License
+## 📄 License
 
 MIT License - see [LICENSE](LICENSE) for details.
