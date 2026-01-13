@@ -13,7 +13,7 @@ A Kubernetes node maintenance automation tool for Rook-Ceph clusters. Safely man
 ## 📸 Demo
 
 <div align="center">
-  <img src="docs/images/crook.gif" alt="crook TUI demo" width="800">
+  <img src="docs/images/crook.gif" alt="crook TUI demo" width="1200">
 </div>
 
 ## 🚀 Quick Start
