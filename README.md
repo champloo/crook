@@ -10,31 +10,10 @@ A Kubernetes node maintenance automation tool for Rook-Ceph clusters. Safely man
 - **Interactive TUI** - Real-time feedback with tabbed views for nodes, deployments, OSDs, and pods
 - **Pre-flight Validation** - Health checks before operations begin
 
-## 📸 Screenshots
+## 📸 Demo
 
 <div align="center">
-  <table>
-    <tr>
-      <td align="center">
-        <strong>Nodes View</strong><br>
-        <img src="docs/images/nodes.png" alt="Nodes view" width="400">
-      </td>
-      <td align="center">
-        <strong>Deployments View</strong><br>
-        <img src="docs/images/deployments.png" alt="Deployments view" width="400">
-      </td>
-    </tr>
-    <tr>
-      <td align="center">
-        <strong>OSDs View</strong><br>
-        <img src="docs/images/osds.png" alt="OSDs view" width="400">
-      </td>
-      <td align="center">
-        <strong>Pods View</strong><br>
-        <img src="docs/images/pods.png" alt="Pods view" width="400">
-      </td>
-    </tr>
-  </table>
+  <img src="docs/images/crook.gif" alt="crook TUI demo" width="800">
 </div>
 
 ## 🚀 Quick Start
