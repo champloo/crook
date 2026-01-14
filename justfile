@@ -114,3 +114,17 @@ build-darwin-arm64:
 build-all: build-linux-amd64 build-linux-arm64 build-darwin-amd64 build-darwin-arm64
     @echo "Built all release binaries in bin/"
     @ls -la bin/
+
+# Update the Nix flake vendorHash after go.mod/go.sum changes
+update-vendor-hash:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Building flake to get new vendor hash..."
+    NEW_HASH=$(nix build .#crook 2>&1 | grep "got:" | awk '{print $2}' || true)
+    if [ -z "$NEW_HASH" ]; then
+        echo "Build succeeded - vendorHash is already correct"
+        exit 0
+    fi
+    echo "Updating vendorHash to: $NEW_HASH"
+    sed -i "s|vendorHash = \"sha256-[^\"]*\"|vendorHash = \"$NEW_HASH\"|" flake.nix
+    echo "Done! Run 'nix build' to verify."

@@ -82,7 +82,12 @@ just verify             # lint + test + build
 # Run
 just run ls             # Run with arguments
 just install            # Install to GOPATH/bin
+
+# Nix
+just update-vendor-hash # Update flake.nix vendorHash after go.mod/go.sum changes
 ```
+
+**Important:** After modifying `go.mod` or `go.sum` (adding/updating dependencies), run `just update-vendor-hash` to update the Nix flake's vendorHash. This prevents hash mismatch errors when users run `nix run` or `nix build`.
 
 ## Project Conventions
 
