@@ -253,14 +253,3 @@ func (vr *ValidationResults) String() string {
 	}
 	return sb.String()
 }
-
-// FailedChecks returns a slice of failed validation results
-func (vr *ValidationResults) FailedChecks() []ValidationResult {
-	failed := make([]ValidationResult, 0)
-	for _, r := range vr.Results {
-		if !r.Passed {
-			failed = append(failed, r)
-		}
-	}
-	return failed
-}

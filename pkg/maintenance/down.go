@@ -124,31 +124,6 @@ func ExecuteDownPhase(
 	return nil
 }
 
-// ScaleDownDeployments scales down multiple deployments and waits for each
-func ScaleDownDeployments(
-	ctx context.Context,
-	client *k8s.Client,
-	deployments []appsv1.Deployment,
-	opts WaitOptions,
-	progressCallback func(deploymentName string),
-) error {
-	for _, deployment := range deployments {
-		if progressCallback != nil {
-			progressCallback(fmt.Sprintf("%s/%s", deployment.Namespace, deployment.Name))
-		}
-
-		if err := client.ScaleDeployment(ctx, deployment.Namespace, deployment.Name, 0); err != nil {
-			return fmt.Errorf("failed to scale deployment %s/%s: %w", deployment.Namespace, deployment.Name, err)
-		}
-
-		if err := WaitForDeploymentScaleDown(ctx, client, deployment.Namespace, deployment.Name, opts); err != nil {
-			return fmt.Errorf("failed waiting for deployment %s/%s to scale down: %w", deployment.Namespace, deployment.Name, err)
-		}
-	}
-
-	return nil
-}
-
 // updateProgress safely calls the progress callback if it's not nil
 func updateProgress(callback func(DownPhaseProgress), stage, description, deployment string) {
 	if callback != nil {

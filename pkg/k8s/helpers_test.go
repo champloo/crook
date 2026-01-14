@@ -4,15 +4,15 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-// newClientFromInterface creates a Client from a kubernetes.Interface for testing.
-// This is used in tests to inject fake clientsets.
-// Deprecated: Use NewClientFromClientset instead.
-func newClientFromInterface(clientset kubernetes.Interface) *Client {
-	return NewClientFromClientset(clientset)
+// newClientFromClientset creates a Client from an existing clientset for testing.
+func newClientFromClientset(clientset kubernetes.Interface) *Client {
+	return &Client{
+		Clientset:          clientset,
+		cephCommandTimeout: DefaultCephTimeout,
+	}
 }
 
-// newClientFromClientset creates a Client from a kubernetes.Interface for testing.
-// Deprecated: Use NewClientFromClientset instead.
-func newClientFromClientset(clientset kubernetes.Interface) *Client {
-	return NewClientFromClientset(clientset)
+// newClientFromInterface is an alias for newClientFromClientset for backward compatibility.
+func newClientFromInterface(clientset kubernetes.Interface) *Client {
+	return newClientFromClientset(clientset)
 }

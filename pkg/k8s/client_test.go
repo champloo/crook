@@ -48,18 +48,6 @@ func TestBuildConfig(t *testing.T) {
 	}
 }
 
-func TestNewClientFromClientset(t *testing.T) {
-	// Create a client from nil clientset (for testing)
-	client := NewClientFromClientset(nil)
-
-	if client == nil {
-		t.Fatal("NewClientFromClientset returned nil")
-	}
-	if client.Clientset != nil {
-		t.Error("expected nil clientset")
-	}
-}
-
 func TestClientConfig_Defaults(t *testing.T) {
 	cfg := ClientConfig{}
 

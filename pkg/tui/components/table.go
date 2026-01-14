@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/andri/crook/pkg/tui/format"
 	"github.com/andri/crook/pkg/tui/styles"
@@ -98,22 +97,6 @@ func NewSimpleTable(titles ...string) *Table {
 		}
 	}
 	return NewTable(columns)
-}
-
-// Init implements tea.Model
-func (t *Table) Init() tea.Cmd {
-	return nil
-}
-
-// Update implements tea.Model
-func (t *Table) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	// Future: handle keyboard navigation for selectable tables
-	return t, nil
-}
-
-// View implements tea.Model
-func (t *Table) View() tea.View {
-	return tea.NewView(t.Render())
 }
 
 // Render returns the string representation for composition
@@ -294,19 +277,6 @@ func (t *Table) renderSeparator(widths []int) string {
 	return t.borderStyle.Render(strings.Join(parts, "─┼─"))
 }
 
-// AddRow adds a row to the table
-func (t *Table) AddRow(cells ...string) {
-	t.Rows = append(t.Rows, TableRow{Cells: cells})
-}
-
-// AddHighlightedRow adds a highlighted row to the table
-func (t *Table) AddHighlightedRow(cells ...string) {
-	t.Rows = append(t.Rows, TableRow{
-		Cells:       cells,
-		Highlighted: true,
-	})
-}
-
 // AddStyledRow adds a row with custom style
 func (t *Table) AddStyledRow(style lipgloss.Style, cells ...string) {
 	t.Rows = append(t.Rows, TableRow{
@@ -315,46 +285,9 @@ func (t *Table) AddStyledRow(style lipgloss.Style, cells ...string) {
 	})
 }
 
-// SetRows replaces all rows
-func (t *Table) SetRows(rows []TableRow) {
-	t.Rows = rows
-}
-
-// ClearRows removes all rows
-func (t *Table) ClearRows() {
-	t.Rows = make([]TableRow, 0)
-}
-
-// SetWidth sets the total table width
-func (t *Table) SetWidth(width int) {
-	t.Width = width
-}
-
 // SetMaxRows limits the number of displayed rows
 func (t *Table) SetMaxRows(max int) {
 	t.MaxRows = max
-}
-
-// SetTitle sets the table title
-func (t *Table) SetTitle(title string) {
-	t.Title = title
-}
-
-// WithBorders enables borders (for chaining)
-func (t *Table) WithBorders() *Table {
-	t.ShowBorders = true
-	return t
-}
-
-// WithoutHeader hides the header row (for chaining)
-func (t *Table) WithoutHeader() *Table {
-	t.ShowHeader = false
-	return t
-}
-
-// RowCount returns the number of rows
-func (t *Table) RowCount() int {
-	return len(t.Rows)
 }
 
 // KeyValueTable is a specialized table for key-value pairs
@@ -384,30 +317,6 @@ func (kv *KeyValueTable) Add(key, value string) {
 		value:     value,
 		valueType: StatusTypeInfo,
 	})
-}
-
-// AddWithType adds a key-value pair with status type for coloring
-func (kv *KeyValueTable) AddWithType(key, value string, statusType StatusType) {
-	kv.items = append(kv.items, keyValueItem{
-		key:       key,
-		value:     value,
-		valueType: statusType,
-	})
-}
-
-// Init implements tea.Model
-func (kv *KeyValueTable) Init() tea.Cmd {
-	return nil
-}
-
-// Update implements tea.Model
-func (kv *KeyValueTable) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	return kv, nil
-}
-
-// View implements tea.Model
-func (kv *KeyValueTable) View() tea.View {
-	return tea.NewView(kv.Render())
 }
 
 // Render returns the string representation for composition
@@ -456,14 +365,4 @@ func (kv *KeyValueTable) getValueStyle(statusType StatusType) lipgloss.Style {
 		return styles.StyleNormal
 	}
 	return styles.StyleNormal
-}
-
-// SetWidth sets the table width
-func (kv *KeyValueTable) SetWidth(width int) {
-	kv.width = width
-}
-
-// Clear removes all items
-func (kv *KeyValueTable) Clear() {
-	kv.items = make([]keyValueItem, 0)
 }

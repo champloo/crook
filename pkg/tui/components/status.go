@@ -61,36 +61,6 @@ func NewStatusIndicator(label string, statusType StatusType) *StatusIndicator {
 	}
 }
 
-// NewInfoStatus creates an info status indicator
-func NewInfoStatus(label string) *StatusIndicator {
-	return NewStatusIndicator(label, StatusTypeInfo)
-}
-
-// NewSuccessStatus creates a success status indicator
-func NewSuccessStatus(label string) *StatusIndicator {
-	return NewStatusIndicator(label, StatusTypeSuccess)
-}
-
-// NewWarningStatus creates a warning status indicator
-func NewWarningStatus(label string) *StatusIndicator {
-	return NewStatusIndicator(label, StatusTypeWarning)
-}
-
-// NewErrorStatus creates an error status indicator
-func NewErrorStatus(label string) *StatusIndicator {
-	return NewStatusIndicator(label, StatusTypeError)
-}
-
-// NewPendingStatus creates a pending status indicator
-func NewPendingStatus(label string) *StatusIndicator {
-	return NewStatusIndicator(label, StatusTypePending)
-}
-
-// NewRunningStatus creates a running/in-progress status indicator
-func NewRunningStatus(label string) *StatusIndicator {
-	return NewStatusIndicator(label, StatusTypeRunning)
-}
-
 // Init implements tea.Model
 func (s *StatusIndicator) Init() tea.Cmd {
 	if s.Type == StatusTypeRunning {

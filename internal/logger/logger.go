@@ -126,12 +126,6 @@ func Error(msg string, args ...any) {
 	l.Error(msg, args...)
 }
 
-// With returns a logger with the given attributes
-func With(args ...any) *Logger {
-	l, _ := defaultLogger.Load().(*Logger)
-	return l.With(args...)
-}
-
 // SetDefault sets the default logger
 func SetDefault(l *Logger) {
 	defaultLogger.Store(l)

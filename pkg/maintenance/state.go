@@ -120,29 +120,3 @@ func AllDeploymentsScaledDown(deployments []appsv1.Deployment) bool {
 	}
 	return true
 }
-
-// AllDeploymentsScaledUp checks if all deployments are fully scaled up.
-// Returns true if all deployments have:
-//   - Spec.Replicas >= 1
-//   - Status.ReadyReplicas >= Spec.Replicas
-//
-// This ensures deployments are not just requested but actually ready.
-func AllDeploymentsScaledUp(deployments []appsv1.Deployment) bool {
-	for _, d := range deployments {
-		specReplicas := int32(1) // default if nil
-		if d.Spec.Replicas != nil {
-			specReplicas = *d.Spec.Replicas
-		}
-
-		// Must have at least 1 replica requested
-		if specReplicas < 1 {
-			return false
-		}
-
-		// Ready replicas must match spec
-		if d.Status.ReadyReplicas < specReplicas {
-			return false
-		}
-	}
-	return true
-}

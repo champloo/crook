@@ -7,7 +7,6 @@ import (
 
 	"github.com/andri/crook/pkg/config"
 	"github.com/andri/crook/pkg/k8s"
-	appsv1 "k8s.io/api/apps/v1"
 )
 
 // Default durations for wait operations, derived from config constants.
@@ -33,16 +32,6 @@ type WaitOptions struct {
 	ProgressCallback func(status *k8s.DeploymentStatus)
 }
 
-// DefaultWaitOptions returns wait options with spec-compliant defaults
-func DefaultWaitOptions() WaitOptions {
-	return WaitOptions{
-		PollInterval:     DefaultPollInterval,
-		Timeout:          DefaultWaitTimeout,
-		APITimeout:       DefaultAPITimeout,
-		ProgressCallback: nil,
-	}
-}
-
 // WaitForDeploymentScaleDown polls until readyReplicas becomes 0
 // Returns error if timeout is exceeded or context is cancelled
 func WaitForDeploymentScaleDown(ctx context.Context, client *k8s.Client, namespace, name string, opts WaitOptions) error {
@@ -62,17 +51,6 @@ func WaitForDeploymentScaleUp(ctx context.Context, client *k8s.Client, namespace
 			return status.Replicas == targetReplicas && status.ReadyReplicas == targetReplicas
 		},
 		fmt.Sprintf("scale up to %d replicas", targetReplicas),
-	)
-}
-
-// WaitForDeploymentReady polls until deployment has expected ready replicas
-// This is useful for waiting on deployments to become healthy after scaling
-func WaitForDeploymentReady(ctx context.Context, client *k8s.Client, namespace, name string, expectedReady int32, opts WaitOptions) error {
-	return waitForCondition(ctx, client, namespace, name, opts,
-		func(status *k8s.DeploymentStatus) bool {
-			return status.ReadyReplicas >= expectedReady
-		},
-		fmt.Sprintf("reach %d ready replicas", expectedReady),
 	)
 }
 
@@ -165,44 +143,6 @@ func waitForCondition(
 			}
 		}
 	}
-}
-
-// WaitForMultipleDeploymentsScaleDown waits for multiple deployments to scale down
-// Returns error if any deployment fails to scale down within timeout
-func WaitForMultipleDeploymentsScaleDown(
-	ctx context.Context,
-	client *k8s.Client,
-	deployments []appsv1.Deployment,
-	opts WaitOptions,
-) error {
-	for _, deployment := range deployments {
-		if err := WaitForDeploymentScaleDown(ctx, client, deployment.Namespace, deployment.Name, opts); err != nil {
-			return fmt.Errorf("failed waiting for deployment %s/%s: %w", deployment.Namespace, deployment.Name, err)
-		}
-	}
-	return nil
-}
-
-// WaitForMultipleDeploymentsScaleUp waits for multiple deployments to scale up.
-// Target replicas: uses spec.Replicas if set and non-zero, otherwise defaults to 1.
-// For Rook-Ceph node-pinned deployments, the target is typically 1 replica.
-func WaitForMultipleDeploymentsScaleUp(
-	ctx context.Context,
-	client *k8s.Client,
-	deployments []appsv1.Deployment,
-	opts WaitOptions,
-) error {
-	for _, deployment := range deployments {
-		targetReplicas := int32(1)
-		if deployment.Spec.Replicas != nil {
-			targetReplicas = *deployment.Spec.Replicas
-		}
-
-		if err := WaitForDeploymentScaleUp(ctx, client, deployment.Namespace, deployment.Name, targetReplicas, opts); err != nil {
-			return fmt.Errorf("failed waiting for deployment %s/%s: %w", deployment.Namespace, deployment.Name, err)
-		}
-	}
-	return nil
 }
 
 // WaitForMonitorQuorum polls until Ceph monitors establish quorum

@@ -63,58 +63,6 @@ func TestFormatBytes(t *testing.T) {
 	}
 }
 
-func TestFormatBytesShort(t *testing.T) {
-	tests := []struct {
-		bytes    int64
-		expected string
-	}{
-		{0, "0B"},
-		{512, "512B"},
-		{1024, "1.0K"},
-		{1048576, "1.0M"},
-		{1073741824, "1.0G"},
-		{1099511627776, "1.0T"},
-		{1125899906842624, "1.0P"},
-		{1152921504606846976, "1.0E"},
-		{-1024, "-1.0K"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.expected, func(t *testing.T) {
-			result := FormatBytesShort(tt.bytes)
-			if result != tt.expected {
-				t.Errorf("FormatBytesShort(%d) = %q, want %q", tt.bytes, result, tt.expected)
-			}
-		})
-	}
-}
-
-func TestFormatBytesPrecise(t *testing.T) {
-	tests := []struct {
-		bytes     int64
-		precision int
-		expected  string
-	}{
-		{0, 2, "0 B"},
-		{1536, 2, "1.50 KiB"},
-		{1536, 0, "2 KiB"},
-		{1073741824, 2, "1.00 GiB"},
-		{1610612736, 2, "1.50 GiB"},
-		{1610612736, 3, "1.500 GiB"},
-		{-1536, 2, "-1.50 KiB"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.expected, func(t *testing.T) {
-			result := FormatBytesPrecise(tt.bytes, tt.precision)
-			if result != tt.expected {
-				t.Errorf("FormatBytesPrecise(%d, %d) = %q, want %q",
-					tt.bytes, tt.precision, result, tt.expected)
-			}
-		})
-	}
-}
-
 func TestFormatPercent(t *testing.T) {
 	tests := []struct {
 		percent  float64
@@ -133,30 +81,6 @@ func TestFormatPercent(t *testing.T) {
 			result := FormatPercent(tt.percent)
 			if result != tt.expected {
 				t.Errorf("FormatPercent(%f) = %q, want %q", tt.percent, result, tt.expected)
-			}
-		})
-	}
-}
-
-func TestFormatStorageUsage(t *testing.T) {
-	tests := []struct {
-		usedBytes  int64
-		totalBytes int64
-		expected   string
-	}{
-		{0, 1073741824, "0 B / 1.0 GiB (0.0%)"},
-		{536870912, 1073741824, "512.0 MiB / 1.0 GiB (50.0%)"},
-		{1073741824, 1073741824, "1.0 GiB / 1.0 GiB (100.0%)"},
-		{1319413953433, 4398046511104, "1.2 TiB / 4.0 TiB (30.0%)"},
-		{0, 0, "0 B / 0 B (0.0%)"}, // Edge case: zero total
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.expected, func(t *testing.T) {
-			result := FormatStorageUsage(tt.usedBytes, tt.totalBytes)
-			if result != tt.expected {
-				t.Errorf("FormatStorageUsage(%d, %d) = %q, want %q",
-					tt.usedBytes, tt.totalBytes, result, tt.expected)
 			}
 		})
 	}

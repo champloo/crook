@@ -498,15 +498,6 @@ func buildHostnameMap(tree *CephOSDTree) map[int]string {
 	return hostMap
 }
 
-// ParseOSDTree parses the JSON output of 'ceph osd tree --format json'
-func ParseOSDTree(output string) (*CephOSDTree, error) {
-	var tree CephOSDTree
-	if err := json.Unmarshal([]byte(output), &tree); err != nil {
-		return nil, fmt.Errorf("failed to parse ceph osd tree JSON: %w", err)
-	}
-	return &tree, nil
-}
-
 // MonitorStatus represents the Ceph monitor quorum status
 type MonitorStatus struct {
 	// TotalCount is the total number of monitors in the cluster

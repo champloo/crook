@@ -35,16 +35,6 @@ type LsMonitorConfig struct {
 	CephRefreshInterval time.Duration
 }
 
-// DefaultLsMonitorConfig returns a config with default refresh intervals
-func DefaultLsMonitorConfig(client *k8s.Client, namespace string) *LsMonitorConfig {
-	return &LsMonitorConfig{
-		Client:              client,
-		Namespace:           namespace,
-		K8sRefreshInterval:  2 * time.Second,
-		CephRefreshInterval: 5 * time.Second,
-	}
-}
-
 // LsMonitorUpdate contains the latest monitoring data for the ls TUI
 type LsMonitorUpdate struct {
 	// Nodes is the list of cluster nodes

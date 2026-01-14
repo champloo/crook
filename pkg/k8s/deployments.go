@@ -119,14 +119,6 @@ type WaitForReplicasOptions struct {
 	Timeout time.Duration
 }
 
-// DefaultWaitOptions returns default wait options
-func DefaultWaitOptions() WaitForReplicasOptions {
-	return WaitForReplicasOptions{
-		PollInterval: 5 * time.Second,
-		Timeout:      5 * time.Minute,
-	}
-}
-
 // WaitForReplicas waits until the deployment has the expected number of replicas
 func (c *Client) WaitForReplicas(ctx context.Context, namespace, name string, expectedReplicas int32, opts WaitForReplicasOptions) error {
 	return c.waitForCondition(ctx, namespace, name, opts, func(deployment *appsv1.Deployment) bool {

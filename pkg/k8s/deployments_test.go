@@ -343,17 +343,6 @@ func TestWaitForReplicas_Timeout(t *testing.T) {
 	}
 }
 
-func TestDefaultWaitOptions(t *testing.T) {
-	opts := DefaultWaitOptions()
-
-	if opts.PollInterval != 5*time.Second {
-		t.Errorf("expected poll interval 5s, got %v", opts.PollInterval)
-	}
-	if opts.Timeout != 5*time.Minute {
-		t.Errorf("expected timeout 5m, got %v", opts.Timeout)
-	}
-}
-
 func TestGetDeploymentTargetNode(t *testing.T) {
 	tests := []struct {
 		name     string

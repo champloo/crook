@@ -59,15 +59,6 @@ func NewClient(ctx context.Context, cfg ClientConfig) (*Client, error) {
 	return client, nil
 }
 
-// NewClientFromClientset creates a Client from an existing clientset.
-// This is primarily useful for testing with fake clientsets.
-func NewClientFromClientset(clientset kubernetes.Interface) *Client {
-	return &Client{
-		Clientset:          clientset,
-		cephCommandTimeout: DefaultCephTimeout,
-	}
-}
-
 // buildConfig builds a Kubernetes REST config using standard resolution order:
 // 1. In-cluster config (when running inside a pod)
 // 2. KUBECONFIG environment variable (supports colon-separated paths)

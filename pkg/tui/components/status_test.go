@@ -27,32 +27,31 @@ func TestNewStatusIndicator(t *testing.T) {
 	}
 }
 
-func TestStatusIndicator_Constructors(t *testing.T) {
+func TestStatusIndicator_AllTypes(t *testing.T) {
 	tests := []struct {
-		name         string
-		constructor  func(string) *StatusIndicator
-		expectedType StatusType
+		name       string
+		statusType StatusType
 	}{
-		{"Info", NewInfoStatus, StatusTypeInfo},
-		{"Success", NewSuccessStatus, StatusTypeSuccess},
-		{"Warning", NewWarningStatus, StatusTypeWarning},
-		{"Error", NewErrorStatus, StatusTypeError},
-		{"Pending", NewPendingStatus, StatusTypePending},
-		{"Running", NewRunningStatus, StatusTypeRunning},
+		{"Info", StatusTypeInfo},
+		{"Success", StatusTypeSuccess},
+		{"Warning", StatusTypeWarning},
+		{"Error", StatusTypeError},
+		{"Pending", StatusTypePending},
+		{"Running", StatusTypeRunning},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := tt.constructor("Test")
-			if s.Type != tt.expectedType {
-				t.Errorf("Type = %v, want %v", s.Type, tt.expectedType)
+			s := NewStatusIndicator("Test", tt.statusType)
+			if s.Type != tt.statusType {
+				t.Errorf("Type = %v, want %v", s.Type, tt.statusType)
 			}
 		})
 	}
 }
 
 func TestStatusIndicator_View_WithIcon(t *testing.T) {
-	s := NewSuccessStatus("Operation complete")
+	s := NewStatusIndicator("Operation complete", StatusTypeSuccess)
 
 	view := s.Render()
 
@@ -66,7 +65,7 @@ func TestStatusIndicator_View_WithIcon(t *testing.T) {
 }
 
 func TestStatusIndicator_View_WithDetails(t *testing.T) {
-	s := NewInfoStatus("Status").WithDetails("Additional info")
+	s := NewStatusIndicator("Status", StatusTypeInfo).WithDetails("Additional info")
 
 	view := s.Render()
 
@@ -80,7 +79,7 @@ func TestStatusIndicator_View_WithDetails(t *testing.T) {
 }
 
 func TestStatusIndicator_View_WithoutIcon(t *testing.T) {
-	s := NewInfoStatus("Status").WithoutIcon()
+	s := NewStatusIndicator("Status", StatusTypeInfo).WithoutIcon()
 
 	view := s.Render()
 
@@ -117,7 +116,7 @@ func TestStatusIndicator_GetIcon(t *testing.T) {
 }
 
 func TestStatusIndicator_SetMethods(t *testing.T) {
-	s := NewInfoStatus("Original")
+	s := NewStatusIndicator("Original", StatusTypeInfo)
 
 	s.SetType(StatusTypeError)
 	if s.Type != StatusTypeError {
@@ -136,7 +135,7 @@ func TestStatusIndicator_SetMethods(t *testing.T) {
 }
 
 func TestStatusIndicator_Running_Spinner(t *testing.T) {
-	s := NewRunningStatus("Processing")
+	s := NewStatusIndicator("Processing", StatusTypeRunning)
 
 	// Should return tick command
 	cmd := s.Init()
@@ -159,7 +158,7 @@ func TestStatusIndicator_Running_Spinner(t *testing.T) {
 }
 
 func TestStatusIndicator_Update_Tick(t *testing.T) {
-	s := NewRunningStatus("Processing")
+	s := NewStatusIndicator("Processing", StatusTypeRunning)
 	initialFrame := s.spinnerFrame
 
 	// Send tick
@@ -181,8 +180,8 @@ func TestStatusIndicator_Update_Tick(t *testing.T) {
 func TestStatusList(t *testing.T) {
 	list := NewStatusList()
 
-	list.Add(NewSuccessStatus("Step 1"))
-	list.Add(NewRunningStatus("Step 2"))
+	list.Add(NewStatusIndicator("Step 1", StatusTypeSuccess))
+	list.Add(NewStatusIndicator("Step 2", StatusTypeRunning))
 	list.AddStatus("Step 3", StatusTypePending)
 
 	if list.Count() != 3 {
