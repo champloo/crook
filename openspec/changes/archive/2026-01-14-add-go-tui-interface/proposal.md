@@ -19,8 +19,8 @@ A Go-based TUI application will provide:
 - **Create Go application** using Bubble Tea TUI framework
 - **Replace bash script** with compiled Go binary (bash script will be removed)
 - **Add configuration system** with YAML config files and CLI flag overrides
-- **Implement live progress tracking** with progress bars for all async operations
-- **Add resource listing command** (`crook ls`) for interactive cluster inspection with tabbed views
+- **Implement live progress tracking** with status icons and X/Y counts for async operations
+- **Add resource listing** via `crook` (interactive multi-pane TUI) and `crook ls` (non-interactive table/JSON output)
 - **Kubernetes client integration** using official client-go library
 - **Stateless architecture** using nodeSelector-based deployment discovery (no state files)
 - **Interactive workflows** for both down and up phases with confirmations
@@ -35,7 +35,7 @@ New functionality beyond bash script:
 - Pane navigation with Tab/1-3 keys, active pane gets 50% height with highlighted border
 - Deployments/Pods toggle in middle pane using `[` and `]` keys
 - Real-time cluster health summary header
-- Multiple output formats (TUI, table, JSON, YAML) for scripting integration
+- Multiple output formats (table, JSON) via `crook ls` for scripting integration
 
 ## Impact
 

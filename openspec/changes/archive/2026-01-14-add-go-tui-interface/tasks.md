@@ -114,7 +114,7 @@
   - [ ] Define text styles (heading, status, error, warning)
   - [ ] Define border styles
 - [ ] 6.2 Create reusable components in pkg/tui/components/:
-  - [ ] 6.2.1 Progress bar component (progress.go)
+  - [ ] 6.2.1 Progress/status component with icons and counts (progress.go)
   - [ ] 6.2.2 Status indicator component (status.go)
   - [ ] 6.2.3 Confirmation prompt component (confirm.go)
   - [ ] 6.2.4 Table display component (table.go)

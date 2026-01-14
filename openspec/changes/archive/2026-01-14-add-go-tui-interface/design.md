@@ -185,9 +185,9 @@ logging:
 7. `Complete` - Show summary
 
 **Progress Tracking**:
-- Each state with async operations shows progress bar
+- Each state with async operations shows status icons (spinner, checkmark, X) and X/Y counts
 - Updates via Bubble Tea messages from goroutines
-- Errors transition to error state with retry/abort options
+- Errors transition to error state with retry/quit options
 
 **Rationale**: Clear state transitions, easy to test, visual progress mapping.
 
@@ -217,24 +217,24 @@ logging:
 
 ## Migration Plan
 
-### Phase 1: Foundation (Week 1)
+### Phase 1: Foundation
 1. Initialize Go module
 2. Set up project structure
 3. Implement Kubernetes client wrapper
 4. Write unit tests for core components
 
-### Phase 2: Core Logic (Week 2)
+### Phase 2: Core Logic
 1. Implement down phase operations (without TUI)
 2. Implement up phase operations (without TUI)
 3. Add validation and error handling
 4. Write integration tests
 
-### Phase 3: TUI (Week 3)
+### Phase 3: TUI
 1. Build Bubble Tea models for each phase
 2. Implement progress tracking components
 3. Implement confirmation prompts
 
-### Phase 4: Polish (Week 4)
+### Phase 4: Polish
 1. Add configuration loading (Viper)
 2. Build CLI with Cobra
 3. Add logging
