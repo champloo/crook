@@ -189,6 +189,15 @@ logging:
 - Updates via Bubble Tea messages from goroutines
 - Errors transition to error state with retry/quit options
 
+**Navigation During Flows**:
+- Navigation keys remain functional during maintenance flows for monitoring:
+  - Pane switching: Tab, Shift-Tab, 1, 2, 3
+  - View toggle: [ ] (deployments/pods in pane 2)
+  - Cursor movement: j, k, Up, Down
+- Action keys disabled during flow (d, u, r for refresh, q)
+- Flow-specific keys handled by flow model (y/n, Ctrl+C, r for retry, Enter)
+- Implementation uses dual-pass key routing: navigation keys handled by LS model first, remaining keys passed to flow
+
 **Rationale**: Clear state transitions, easy to test, visual progress mapping.
 
 ## Risks / Trade-offs

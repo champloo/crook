@@ -103,6 +103,21 @@ The system SHALL support intuitive keyboard controls for navigation and actions.
 - **WHEN** user is in error state
 - **THEN** system accepts 'r' (retry) or 'q'/'Esc' (quit)
 
+#### Scenario: Navigation during maintenance flows
+
+- **WHEN** maintenance flow (down/up) is active
+- **THEN** navigation keys remain functional:
+  - `Tab` / `Shift+Tab` -> Cycle through panes
+  - `1` / `2` / `3` -> Jump to specific pane
+  - `[` / `]` -> Toggle Deployments/Pods view (when pane 2 active)
+  - `j` / `k` / Up / Down -> Scroll within active pane
+- **THEN** action keys are disabled (d, u, r for refresh, q)
+- **THEN** flow-specific keys are handled by the maintenance flow:
+  - Confirmation: 'y', 'n', 'Esc'
+  - Running: 'Ctrl+C' (interrupt)
+  - Error: 'r' (retry), 'q' (quit)
+  - Complete: 'Enter', 'q', 'Esc' (exit)
+
 ### Requirement: Resource List View (Multi-pane Layout)
 
 The system SHALL provide a multi-pane layout showing Ceph-related Kubernetes resources.

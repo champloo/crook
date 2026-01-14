@@ -349,15 +349,10 @@ func (m *LsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	if m.maintenanceFlow != nil {
-		updatedFlow, cmd := m.maintenanceFlow.Update(msg)
-		if flow, ok := updatedFlow.(sizedModel); ok {
-			m.maintenanceFlow = flow
-		}
-		if cmd != nil {
+		if cmd, handled := m.handleFlowMessage(msg); handled {
+			return m, cmd
+		} else if cmd != nil {
 			cmds = append(cmds, cmd)
-		}
-		if _, ok := msg.(tea.KeyMsg); ok {
-			return m, tea.Batch(cmds...)
 		}
 	}
 
@@ -613,6 +608,51 @@ func (m *LsModel) handleKeyPress(msg tea.KeyMsg) tea.Cmd {
 func (m *LsModel) updateKeyBindings() {
 	showingPods := m.deploymentsPodsView != nil && m.deploymentsPodsView.IsShowingPods()
 	m.keyMap.SetContext(keys.LsPane(m.activePane), showingPods)
+	// Disable action keys when maintenance flow is active
+	m.keyMap.SetFlowActive(m.maintenanceFlow != nil)
+}
+
+// handleFlowMessage handles messages when a maintenance flow is active.
+// Returns (cmd, true) if the message was handled and Update should return early.
+// Returns (nil, false) if the message should continue to normal processing.
+func (m *LsModel) handleFlowMessage(msg tea.Msg) (tea.Cmd, bool) {
+	// Handle navigation keys in LS even when flow is active
+	if keyMsg, isKey := msg.(tea.KeyMsg); isKey {
+		if m.keyMap.IsNavigationKey(keyMsg) {
+			// Navigation keys (Tab, 1-3, [ ], j/k/up/down) handled by LS
+			m.updateKeyBindings()
+			if m.handlePaneNavKey(keyMsg) {
+				return nil, true
+			}
+			if _, handled := m.handlePaneSwitchKey(keyMsg); handled {
+				return nil, true
+			}
+			if m.handleDeploymentsToggleKey(keyMsg) {
+				return nil, true
+			}
+			if m.handleCursorKey(keyMsg) {
+				return nil, true
+			}
+			return nil, true
+		}
+
+		// Non-navigation keys go to flow
+		updatedFlow, cmd := m.maintenanceFlow.Update(msg)
+		if flow, isFlow := updatedFlow.(sizedModel); isFlow {
+			m.maintenanceFlow = flow
+		}
+		return cmd, true
+	}
+
+	// Non-key messages go to flow but don't cause early return
+	updatedFlow, cmd := m.maintenanceFlow.Update(msg)
+	if flow, isFlow := updatedFlow.(sizedModel); isFlow {
+		m.maintenanceFlow = flow
+	}
+	if cmd != nil {
+		return cmd, false // Don't return early, let other handlers process too
+	}
+	return nil, false
 }
 
 func (m *LsModel) handleQuitKey(msg tea.KeyMsg) (tea.Cmd, bool) {

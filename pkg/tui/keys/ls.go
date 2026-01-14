@@ -2,6 +2,7 @@ package keys
 
 import (
 	"charm.land/bubbles/v2/key"
+	tea "charm.land/bubbletea/v2"
 )
 
 // LsPane represents the active pane in the ls view.
@@ -138,4 +139,21 @@ func (k LsKeyMap) FullHelp() [][]key.Binding {
 		{k.NodeDown, k.NodeUp, k.Refresh, k.ShowDeploy, k.ShowPods},
 		{k.Quit},
 	}
+}
+
+// IsNavigationKey returns true if the key message matches a navigation-only key.
+// Navigation keys are: Tab, Shift-Tab, 1, 2, 3, [, ], j, k, up, down
+// These keys should remain active during maintenance flows.
+func (k *LsKeyMap) IsNavigationKey(msg tea.KeyMsg) bool {
+	return key.Matches(msg, k.NextPane, k.PrevPane, k.Pane1, k.Pane2, k.Pane3, k.ShowDeploy, k.ShowPods, k.Up, k.Down)
+}
+
+// SetFlowActive enables or disables action keys based on maintenance flow state.
+// When a flow is active, action keys (d, u, r, q) should be disabled
+// as they are handled by the flow model.
+func (k *LsKeyMap) SetFlowActive(active bool) {
+	k.NodeDown.SetEnabled(!active)
+	k.NodeUp.SetEnabled(!active)
+	k.Refresh.SetEnabled(!active)
+	k.Quit.SetEnabled(!active)
 }
