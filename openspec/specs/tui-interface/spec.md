@@ -41,6 +41,18 @@ The system SHALL provide an interactive TUI for the down phase with state transi
 - **THEN** system proceeds only if user presses 'y' or 'Y'
 - **THEN** system aborts if user presses 'n', 'N', or Esc
 
+#### Scenario: Warning when other nodes in maintenance
+
+- **WHEN** user initiates down phase
+- **AND** another node appears to be in maintenance
+- **THEN** system displays warning box indicating potential conflict
+- **THEN** warning is triggered by any of:
+  - Ceph 'noout' flag already set
+  - Other nodes are cordoned (unschedulable)
+  - Other cordoned nodes have scaled-down rook-ceph deployments
+- **THEN** warning is displayed in both TUI and CLI modes
+- **THEN** user can still proceed despite warning
+
 ### Requirement: Up Phase Interactive Workflow
 
 The system SHALL provide an interactive TUI for the up phase with state transitions and progress tracking.
