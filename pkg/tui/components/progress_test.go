@@ -5,26 +5,6 @@ import (
 	"testing"
 )
 
-func TestNewProgressBar(t *testing.T) {
-	p := NewProgressBar("Test")
-
-	if p.Label != "Test" {
-		t.Errorf("Label = %q, want %q", p.Label, "Test")
-	}
-
-	if p.Progress != 0 {
-		t.Errorf("Progress = %f, want 0", p.Progress)
-	}
-
-	if p.State != ProgressStateInProgress {
-		t.Errorf("State = %v, want ProgressStateInProgress", p.State)
-	}
-
-	if !p.ShowPercentage {
-		t.Error("ShowPercentage should be true by default")
-	}
-}
-
 func TestNewIndeterminateProgress(t *testing.T) {
 	p := NewIndeterminateProgress("Loading")
 
@@ -38,7 +18,10 @@ func TestNewIndeterminateProgress(t *testing.T) {
 }
 
 func TestProgressBar_SetProgress(t *testing.T) {
-	p := NewProgressBar("Test")
+	p := NewIndeterminateProgress("Test")
+	p.Indeterminate = false
+	p.ShowPercentage = true
+	p.Width = 40
 
 	p.SetProgress(0.5)
 	if p.Progress != 0.5 {
@@ -53,7 +36,7 @@ func TestProgressBar_SetProgress(t *testing.T) {
 }
 
 func TestProgressBar_Complete(t *testing.T) {
-	p := NewProgressBar("Test")
+	p := NewIndeterminateProgress("Test")
 	p.Complete()
 
 	if p.Progress != 1.0 {
@@ -66,7 +49,7 @@ func TestProgressBar_Complete(t *testing.T) {
 }
 
 func TestProgressBar_Error(t *testing.T) {
-	p := NewProgressBar("Test")
+	p := NewIndeterminateProgress("Test")
 	p.Error()
 
 	if p.State != ProgressStateError {
@@ -75,7 +58,7 @@ func TestProgressBar_Error(t *testing.T) {
 }
 
 func TestProgressBar_Reset(t *testing.T) {
-	p := NewProgressBar("Test")
+	p := NewIndeterminateProgress("Test")
 	p.SetProgress(0.5)
 	p.Error()
 	p.Reset()
@@ -90,7 +73,9 @@ func TestProgressBar_Reset(t *testing.T) {
 }
 
 func TestProgressBar_View_Determinate(t *testing.T) {
-	p := NewProgressBar("Downloading")
+	p := NewIndeterminateProgress("Downloading")
+	p.Indeterminate = false
+	p.ShowPercentage = true
 	p.Width = 20
 	p.SetProgress(0.5)
 
@@ -132,7 +117,8 @@ func TestProgressBar_View_Indeterminate(t *testing.T) {
 }
 
 func TestProgressBar_View_Clamping(t *testing.T) {
-	p := NewProgressBar("Test")
+	p := NewIndeterminateProgress("Test")
+	p.Indeterminate = false
 	p.Width = 20
 	p.ShowPercentage = false
 
@@ -158,7 +144,8 @@ func TestProgressBar_View_Clamping(t *testing.T) {
 
 func TestProgressBar_Init(t *testing.T) {
 	// Determinate should return nil
-	p := NewProgressBar("Test")
+	p := NewIndeterminateProgress("Test")
+	p.Indeterminate = false
 	cmd := p.Init()
 	if cmd != nil {
 		t.Error("Determinate progress Init should return nil")
@@ -192,55 +179,13 @@ func TestProgressBar_Update_SpinnerTick(t *testing.T) {
 	}
 }
 
-func TestMultiProgress(t *testing.T) {
-	mp := NewMultiProgress()
-
-	bar1 := NewProgressBar("Task 1")
-	bar2 := NewProgressBar("Task 2")
-
-	mp.AddBar(bar1)
-	mp.AddBar(bar2)
-
-	if mp.Count() != 2 {
-		t.Errorf("Count() = %d, want 2", mp.Count())
-	}
-
-	if mp.GetBar(0) != bar1 {
-		t.Error("GetBar(0) should return bar1")
-	}
-
-	if mp.GetBar(5) != nil {
-		t.Error("GetBar(5) should return nil for out of bounds")
-	}
-
-	// Test view contains both bars
-	view := mp.Render()
-	if !strings.Contains(view, "Task 1") {
-		t.Error("View should contain Task 1")
-	}
-	if !strings.Contains(view, "Task 2") {
-		t.Error("View should contain Task 2")
-	}
-}
-
-func TestMultiProgress_SetWidth(t *testing.T) {
-	mp := NewMultiProgress()
-	bar := NewProgressBar("Test")
-	mp.AddBar(bar)
-
-	mp.SetWidth(60)
-
-	if bar.Width != 60 {
-		t.Errorf("Bar width = %d, want 60", bar.Width)
-	}
-}
-
 func TestProgressBar_View_SmallWidth(t *testing.T) {
 	// Test that small widths with ShowPercentage=true don't panic
 	smallWidths := []int{0, 1, 2, 3, 4, 5}
 
 	for _, width := range smallWidths {
-		p := NewProgressBar("Test")
+		p := NewIndeterminateProgress("Test")
+		p.Indeterminate = false
 		p.Width = width
 		p.ShowPercentage = true
 		p.Progress = 0.5
@@ -255,7 +200,8 @@ func TestProgressBar_View_SmallWidth(t *testing.T) {
 }
 
 func TestProgressBar_View_ZeroWidth(t *testing.T) {
-	p := NewProgressBar("Test")
+	p := NewIndeterminateProgress("Test")
+	p.Indeterminate = false
 	p.Width = 0
 	p.ShowPercentage = true
 	p.Progress = 0.75
@@ -269,7 +215,8 @@ func TestProgressBar_View_ZeroWidth(t *testing.T) {
 }
 
 func TestProgressBar_View_NegativeWidth(t *testing.T) {
-	p := NewProgressBar("Test")
+	p := NewIndeterminateProgress("Test")
+	p.Indeterminate = false
 	p.Width = -10
 	p.ShowPercentage = true
 	p.Progress = 0.5

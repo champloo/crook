@@ -78,33 +78,3 @@ func (t TabBindings) ShortHelp() []key.Binding {
 func (t TabBindings) FullHelp() [][]key.Binding {
 	return [][]key.Binding{{t.Next, t.Prev, t.Select}}
 }
-
-// DetailBindings for detail panel.
-type DetailBindings struct {
-	NavigationBindings
-	Close key.Binding
-}
-
-// DefaultDetailBindings returns the default detail panel keybindings.
-func DefaultDetailBindings() DetailBindings {
-	return DetailBindings{
-		NavigationBindings: DefaultNavigationBindings(),
-		Close: key.NewBinding(
-			key.WithKeys("esc", "q"),
-			key.WithHelp("Esc/q", "close"),
-		),
-	}
-}
-
-// ShortHelp implements help.KeyMap.
-func (d DetailBindings) ShortHelp() []key.Binding {
-	return []key.Binding{d.Down, d.Up, d.Top, d.Bottom, d.Close}
-}
-
-// FullHelp implements help.KeyMap.
-func (d DetailBindings) FullHelp() [][]key.Binding {
-	return [][]key.Binding{
-		{d.Up, d.Down, d.Top, d.Bottom},
-		{d.Close},
-	}
-}

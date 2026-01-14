@@ -27,14 +27,6 @@ func TestNewConfirmPrompt(t *testing.T) {
 	}
 }
 
-func TestNewConfirmPromptWithDefault(t *testing.T) {
-	p := NewConfirmPromptWithDefault("Continue?", true)
-
-	if !p.DefaultYes {
-		t.Error("DefaultYes should be true")
-	}
-}
-
 func TestConfirmPrompt_Update_Yes(t *testing.T) {
 	p := NewConfirmPrompt("Continue?")
 
@@ -250,63 +242,5 @@ func TestConfirmPrompt_Chaining(t *testing.T) {
 
 	if p.ShowHint {
 		t.Error("WithoutHint should hide hint")
-	}
-}
-
-func TestConfirmDialog(t *testing.T) {
-	d := NewConfirmDialog("Confirm Action", "Are you sure?")
-
-	if d.title != "Confirm Action" {
-		t.Errorf("title = %q, want %q", d.title, "Confirm Action")
-	}
-
-	// Test that prompt is accessible
-	prompt := d.GetPrompt()
-	if prompt.Question != "Are you sure?" {
-		t.Error("Prompt question should be set")
-	}
-
-	// Test view contains both title and question
-	d.SetWidth(60)
-	view := d.Render()
-
-	if !strings.Contains(view, "Confirm Action") {
-		t.Error("View should contain title")
-	}
-
-	if !strings.Contains(view, "Are you sure?") {
-		t.Error("View should contain question")
-	}
-}
-
-func TestConfirmDialog_Update(t *testing.T) {
-	d := NewConfirmDialog("Test", "Continue?")
-
-	// Update with 'y'
-	newModel, cmd := d.Update(tea.KeyPressMsg{Code: 'y', Text: "y"})
-	updated, ok := newModel.(*ConfirmDialog)
-	if !ok {
-		t.Fatal("expected *ConfirmDialog type")
-	}
-
-	if !updated.IsConfirmed() {
-		t.Error("Dialog should be confirmed")
-	}
-
-	if cmd == nil {
-		t.Error("Should return command")
-	}
-}
-
-func TestConfirmDialog_IsAnswered(t *testing.T) {
-	d := NewConfirmDialog("Test", "Continue?")
-
-	if d.IsAnswered() {
-		t.Error("Should not be answered initially")
-	}
-
-	d.prompt.Result = ConfirmYes
-	if !d.IsAnswered() {
-		t.Error("Should be answered after prompt is answered")
 	}
 }

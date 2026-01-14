@@ -58,17 +58,6 @@ func NewConfirmPrompt(question string) *ConfirmPrompt {
 	}
 }
 
-// NewConfirmPromptWithDefault creates a confirmation prompt with a default answer
-func NewConfirmPromptWithDefault(question string, defaultYes bool) *ConfirmPrompt {
-	return &ConfirmPrompt{
-		Question:    question,
-		DefaultYes:  defaultYes,
-		Result:      ConfirmPending,
-		ShowHint:    true,
-		keyBindings: keys.DefaultConfirmBindings(),
-	}
-}
-
 // ConfirmResultMsg is sent when the user answers the prompt
 type ConfirmResultMsg struct {
 	Result ConfirmResult
@@ -208,72 +197,4 @@ func (c *ConfirmPrompt) WithDefaultYes() *ConfirmPrompt {
 func (c *ConfirmPrompt) WithoutHint() *ConfirmPrompt {
 	c.ShowHint = false
 	return c
-}
-
-// ConfirmDialog wraps a confirmation prompt in a styled box
-type ConfirmDialog struct {
-	prompt *ConfirmPrompt
-	title  string
-	width  int
-}
-
-// NewConfirmDialog creates a boxed confirmation dialog
-func NewConfirmDialog(title, question string) *ConfirmDialog {
-	return &ConfirmDialog{
-		prompt: NewConfirmPrompt(question),
-		title:  title,
-		width:  50,
-	}
-}
-
-// Init implements tea.Model
-func (d *ConfirmDialog) Init() tea.Cmd {
-	return d.prompt.Init()
-}
-
-// Update implements tea.Model
-func (d *ConfirmDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	newPrompt, cmd := d.prompt.Update(msg)
-	d.prompt, _ = newPrompt.(*ConfirmPrompt)
-	return d, cmd
-}
-
-// View implements tea.Model
-func (d *ConfirmDialog) View() tea.View {
-	return tea.NewView(d.Render())
-}
-
-// Render returns the string representation for composition
-func (d *ConfirmDialog) Render() string {
-	content := ""
-
-	if d.title != "" {
-		content = styles.StyleHeading.Render(d.title) + "\n\n"
-	}
-
-	content += d.prompt.Render()
-
-	box := styles.StyleBox.Width(d.width)
-
-	return box.Render(content)
-}
-
-// SetWidth sets the dialog width
-func (d *ConfirmDialog) SetWidth(width int) {
-	d.width = width
-}
-
-// GetPrompt returns the underlying prompt
-func (d *ConfirmDialog) GetPrompt() *ConfirmPrompt {
-	return d.prompt
-}
-
-// IsAnswered returns true if the prompt has been answered
-func (d *ConfirmDialog) IsAnswered() bool {
-	return d.prompt.IsAnswered()
-}
-
-// IsConfirmed returns true if the user confirmed
-func (d *ConfirmDialog) IsConfirmed() bool {
-	return d.prompt.IsConfirmed()
 }

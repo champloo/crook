@@ -56,18 +56,6 @@ const (
 // Spinner frames for indeterminate progress
 var spinnerFrames = []string{"◐", "◓", "◑", "◒"}
 
-// NewProgressBar creates a new progress bar with default settings
-func NewProgressBar(label string) *ProgressBar {
-	return &ProgressBar{
-		Label:          label,
-		Progress:       0,
-		State:          ProgressStateInProgress,
-		Width:          40,
-		ShowPercentage: true,
-		Indeterminate:  false,
-	}
-}
-
 // NewIndeterminateProgress creates a spinner-style progress indicator
 func NewIndeterminateProgress(label string) *ProgressBar {
 	return &ProgressBar{
@@ -254,85 +242,4 @@ func (p *ProgressBar) Reset() {
 	p.Progress = 0
 	p.State = ProgressStateInProgress
 	p.spinnerFrame = 0
-}
-
-// MultiProgress manages multiple progress bars
-type MultiProgress struct {
-	bars  []*ProgressBar
-	width int
-}
-
-// NewMultiProgress creates a container for multiple progress bars
-func NewMultiProgress() *MultiProgress {
-	return &MultiProgress{
-		bars:  make([]*ProgressBar, 0),
-		width: 40,
-	}
-}
-
-// AddBar adds a progress bar to the multi-progress container
-func (m *MultiProgress) AddBar(bar *ProgressBar) {
-	bar.Width = m.width
-	m.bars = append(m.bars, bar)
-}
-
-// SetWidth sets the width for all progress bars
-func (m *MultiProgress) SetWidth(width int) {
-	m.width = width
-	for _, bar := range m.bars {
-		bar.Width = width
-	}
-}
-
-// Init implements tea.Model
-func (m *MultiProgress) Init() tea.Cmd {
-	var cmds []tea.Cmd
-	for _, bar := range m.bars {
-		if cmd := bar.Init(); cmd != nil {
-			cmds = append(cmds, cmd)
-		}
-	}
-	return tea.Batch(cmds...)
-}
-
-// Update implements tea.Model
-func (m *MultiProgress) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var cmds []tea.Cmd
-	for i, bar := range m.bars {
-		newBar, cmd := bar.Update(msg)
-		if pb, ok := newBar.(*ProgressBar); ok {
-			m.bars[i] = pb
-		}
-		if cmd != nil {
-			cmds = append(cmds, cmd)
-		}
-	}
-	return m, tea.Batch(cmds...)
-}
-
-// View implements tea.Model
-func (m *MultiProgress) View() tea.View {
-	return tea.NewView(m.Render())
-}
-
-// Render returns the string representation for composition
-func (m *MultiProgress) Render() string {
-	var views []string
-	for _, bar := range m.bars {
-		views = append(views, bar.Render())
-	}
-	return strings.Join(views, "\n")
-}
-
-// GetBar returns a progress bar by index
-func (m *MultiProgress) GetBar(index int) *ProgressBar {
-	if index < 0 || index >= len(m.bars) {
-		return nil
-	}
-	return m.bars[index]
-}
-
-// Count returns the number of progress bars
-func (m *MultiProgress) Count() int {
-	return len(m.bars)
 }
