@@ -413,7 +413,7 @@ func (m *UpModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.discoveredDeployments = msg.Deployments // Store for execution
 
 		// Check if already in desired up state (node uncordoned, noout unset, operator running, no scaled-down deployments)
-		if msg.AlreadyInDesiredState {
+		if msg.AlreadyInDesiredState || len(m.restorePlan) == 0 {
 			m.state = UpStateNothingToDo
 		} else {
 			m.state = UpStateConfirm
@@ -653,13 +653,19 @@ func (m *UpModel) View() tea.View {
 	return tea.NewView(m.Render())
 }
 
+// NodeName returns the target node name.
+func (m *UpModel) NodeName() string {
+	return m.config.NodeName
+}
+
+// PhaseName returns "Up" for the up phase.
+func (m *UpModel) PhaseName() string {
+	return "Up"
+}
+
 // Render returns the string representation for composition
 func (m *UpModel) Render() string {
 	var b strings.Builder
-
-	// Header with current state
-	b.WriteString(m.renderHeader())
-	b.WriteString("\n\n")
 
 	// Main content based on state
 	switch m.state { //nolint:exhaustive // default handles all operation states uniformly
@@ -688,16 +694,6 @@ func (m *UpModel) Render() string {
 	return styles.StyleBox.Width(min(m.width-4, 80)).Render(b.String())
 }
 
-// renderHeader renders the state header
-func (m *UpModel) renderHeader() string {
-	title := fmt.Sprintf("Up Phase: %s", m.config.NodeName)
-	stateInfo := fmt.Sprintf("%s - %s", m.state.String(), m.state.Description())
-
-	return fmt.Sprintf("%s\n%s",
-		styles.StyleHeading.Render(title),
-		styles.StyleSubtle.Render(stateInfo))
-}
-
 // renderLoading renders the loading state
 func (m *UpModel) renderLoading() string {
 	return fmt.Sprintf("%s Discovering scaled-down deployments on node %s...",
@@ -709,36 +705,7 @@ func (m *UpModel) renderLoading() string {
 func (m *UpModel) renderConfirmation() string {
 	var b strings.Builder
 
-	// Target node info
-	b.WriteString(styles.StyleStatus.Render("Target Node: "))
-	b.WriteString(m.config.NodeName)
-	b.WriteString("\n\n")
-
-	// Restore plan table
-	if len(m.restorePlan) > 0 {
-		b.WriteString(styles.StyleStatus.Render("Deployments to restore:"))
-		b.WriteString("\n")
-
-		// Create table
-		table := components.NewSimpleTable("Deployment", "Current", "Target", "Status")
-		for _, item := range m.restorePlan {
-			deployName := fmt.Sprintf("%s/%s", item.Namespace, item.Name)
-			currentStr := fmt.Sprintf("%d", item.CurrentReplicas)
-			targetStr := "1" // All deployments will be scaled to 1
-
-			statusStyle := styles.StyleSubtle
-			table.AddStyledRow(statusStyle, deployName, currentStr, targetStr, item.Status)
-		}
-		table.SetMaxRows(10)
-		b.WriteString(table.Render())
-	} else {
-		b.WriteString(styles.StyleWarning.Render("No scaled-down deployments found on this node."))
-		b.WriteString("\n")
-	}
-	b.WriteString("\n")
-
 	// What will happen
-	b.WriteString("\n")
 	b.WriteString(styles.StyleStatus.Render("This will:"))
 	b.WriteString("\n")
 	b.WriteString("  1. Uncordon the node to allow pod scheduling\n")
@@ -746,8 +713,25 @@ func (m *UpModel) renderConfirmation() string {
 	b.WriteString("  3. Scale up rook-ceph-operator to 1\n")
 	b.WriteString("  4. Unset Ceph noout flag to allow rebalancing\n")
 
-	b.WriteString("\n")
-	b.WriteString(m.confirmPrompt.Render())
+	// Restore plan table
+	if len(m.restorePlan) > 0 {
+		b.WriteString("\n")
+
+		// Create table
+		table := components.NewSimpleTable("Deployment", "Current", "Target")
+		for _, item := range m.restorePlan {
+			deployName := fmt.Sprintf("%s/%s", item.Namespace, item.Name)
+			currentStr := fmt.Sprintf("%d", item.CurrentReplicas)
+			targetStr := "1" // All deployments will be scaled to 1
+
+			table.AddStyledRow(styles.StyleSubtle, deployName, currentStr, targetStr)
+		}
+		table.SetMaxRows(10)
+		b.WriteString(table.Render())
+	} else {
+		b.WriteString("\n")
+		b.WriteString(styles.StyleWarning.Render("No scaled-down deployments found on this node."))
+	}
 
 	return b.String()
 }
@@ -757,11 +741,6 @@ func (m *UpModel) renderNothingToDo() string {
 	var b strings.Builder
 
 	b.WriteString(styles.StyleSuccess.Render(fmt.Sprintf("%s All deployments are already scaled up", styles.IconCheckmark)))
-	b.WriteString("\n\n")
-
-	// Target node info
-	b.WriteString(styles.StyleStatus.Render("Target Node: "))
-	b.WriteString(m.config.NodeName)
 	b.WriteString("\n\n")
 
 	b.WriteString(styles.StyleSubtle.Render("No scaling action needed - the node is already operational."))

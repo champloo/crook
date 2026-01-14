@@ -159,6 +159,12 @@ type sizedModel interface {
 	FlowKeyMap() help.KeyMap // Returns flow keybindings for status bar help model
 }
 
+// flowInfoModel provides node name and phase information for the maintenance pane title.
+type flowInfoModel interface {
+	NodeName() string
+	PhaseName() string
+}
+
 const (
 	paneContentHorizontalPadding = 4 // 2 borders + 2 padding (see components.Pane)
 	paneContentVerticalPadding   = 3 // pane borders plus typical view chrome
@@ -994,8 +1000,16 @@ func (m *LsModel) reselectNodeIfNeeded() {
 // getPaneContent returns the view content for a specific pane
 func (m *LsModel) maintenanceContent() string {
 	if m.maintenanceFlow != nil {
+		// Update pane title with node name and phase
+		if flow, ok := m.maintenanceFlow.(flowInfoModel); ok {
+			title := fmt.Sprintf("Node Maintenance [%s]: %s", strings.ToUpper(flow.PhaseName()), flow.NodeName())
+			m.maintenancePane.SetTitle(title)
+		}
 		return m.maintenanceFlow.Render()
 	}
+
+	// Reset to default title when no flow is active
+	m.maintenancePane.SetTitle("Node Maintenance")
 
 	var b strings.Builder
 	b.WriteString(styles.StyleSubtle.Render("Select a node and start maintenance:"))

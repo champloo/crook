@@ -104,7 +104,7 @@ func runUp(cmd *cobra.Command, nodeName string, opts *UpOptions) error {
 
 	pw := cli.NewProgressWriter(cmd.OutOrStdout())
 
-	if maintenance.IsInUpState(ctx, client, cfg, nodeName, deployments) {
+	if maintenance.IsInUpState(ctx, client, cfg, nodeName, deployments) || len(deployments) == 0 {
 		pw.PrintSuccess(fmt.Sprintf("Node %s is already operational (uncordoned, noout unset, operator running)", nodeName))
 		return nil
 	}

@@ -628,12 +628,13 @@ func TestDownModel_View_Init(t *testing.T) {
 
 	view := model.Render()
 
-	if !contains(view, "Down Phase") {
-		t.Errorf("View should contain 'Down Phase', got %q", view)
+	// Node name should appear in loading message
+	if !contains(view, "test-node") {
+		t.Errorf("View should contain node name in loading message, got %q", view)
 	}
 
-	if !contains(view, "test-node") {
-		t.Errorf("View should contain node name, got %q", view)
+	if !contains(view, "Discovering") {
+		t.Errorf("View should contain 'Discovering', got %q", view)
 	}
 }
 
@@ -653,12 +654,12 @@ func TestDownModel_View_Confirm(t *testing.T) {
 
 	view := model.Render()
 
-	if !contains(view, "Target Node") {
-		t.Errorf("View should contain 'Target Node', got %q", view)
-	}
-
 	if !contains(view, "deploy1") {
 		t.Errorf("View should contain deployment names, got %q", view)
+	}
+
+	if !contains(view, "This will") {
+		t.Errorf("View should contain 'This will', got %q", view)
 	}
 }
 
@@ -675,10 +676,6 @@ func TestDownModel_View_NothingToDo(t *testing.T) {
 
 	if !contains(view, "All deployments are already scaled down") {
 		t.Errorf("View should contain 'All deployments are already scaled down', got %q", view)
-	}
-
-	if !contains(view, "test-node") {
-		t.Errorf("View should contain node name, got %q", view)
 	}
 
 	if !contains(view, "No scaling action needed") {

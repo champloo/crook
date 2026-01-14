@@ -28,16 +28,16 @@ The system SHALL provide an interactive TUI for the down phase with state transi
 - **THEN** system transitions through states: Init -> Confirm -> PreFlight -> Cordoning -> SettingNoOut -> ScalingOperator -> DiscoveringDeployments -> ScalingDeployments -> Complete
 - **THEN** NothingToDo state used when all deployments already at 0 replicas
 - **THEN** Error state used on any failure
-- **THEN** system displays current state name and description
 - **THEN** system shows progress for each async operation
 
 #### Scenario: Down phase user confirmation
 
 - **WHEN** user reaches confirmation state
 - **THEN** system displays summary showing:
-  - Target node name
-  - Deployment table with Name, Current replicas, Target replicas (0), Status
-- **THEN** system shows prompt "Press y to confirm, Esc to cancel"
+  - "This will:" block listing actions to be performed
+  - Deployment table with Name, Current replicas, Target replicas (0)
+  - Maintenance warning box if another node may be in maintenance
+- **THEN** system shows prompt "y proceed • n/Esc cancel"
 - **THEN** system proceeds only if user presses 'y' or 'Y'
 - **THEN** system aborts if user presses 'n', 'N', or Esc
 
@@ -49,15 +49,17 @@ The system SHALL provide an interactive TUI for the up phase with state transiti
 
 - **WHEN** user initiates up phase for node via `u` key or `crook up <node>`
 - **THEN** system transitions through states: Init -> Discovering -> Confirm -> PreFlight -> Uncordoning -> RestoringDeployments -> ScalingOperator -> UnsettingNoOut -> Complete
-- **THEN** NothingToDo state used when all deployments already at 1 replica
+- **THEN** NothingToDo state used when all deployments already at 1 replica or no deployments to restore
 - **THEN** Error state used on any failure
 - **THEN** system discovers scaled-down deployments via nodeSelector
 
 #### Scenario: Up phase with detailed restore plan
 
 - **WHEN** user reaches confirmation state
-- **THEN** system displays table with: Deployment Name, Current Replicas (0), Target Replicas (1)
-- **THEN** system prompts "Press y to confirm, Esc to cancel"
+- **THEN** system displays summary showing:
+  - "This will:" block listing actions to be performed
+  - Deployment table with Name, Current replicas, Target replicas (1)
+- **THEN** system shows prompt "y proceed • n/Esc cancel"
 
 ### Requirement: Real-time Progress Tracking
 
@@ -158,11 +160,12 @@ The system SHALL embed maintenance flows in the main TUI when initiated via keyb
 
 - **WHEN** user is in Nodes pane and presses `d`
 - **THEN** system displays Maintenance pane with Down Phase confirmation UI
+- **THEN** pane title updates to "Node Maintenance [DOWN]: <node-name>"
 - **THEN** key input is routed to embedded flow
 - **THEN** `Esc` cancels and returns Maintenance pane to idle
 - **THEN** `y` confirms and starts workflow
 - **WHEN** user presses `u`
-- **THEN** same flow for Up Phase
+- **THEN** same flow for Up Phase with title "Node Maintenance [UP]: <node-name>"
 
 ### Requirement: Terminal Compatibility
 

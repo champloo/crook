@@ -503,12 +503,13 @@ func TestUpModel_View_Init(t *testing.T) {
 
 	view := model.Render()
 
-	if !contains(view, "Up Phase") {
-		t.Errorf("View should contain 'Up Phase', got %q", view)
+	// Node name should appear in loading message
+	if !contains(view, "test-node") {
+		t.Errorf("View should contain node name in loading message, got %q", view)
 	}
 
-	if !contains(view, "test-node") {
-		t.Errorf("View should contain node name, got %q", view)
+	if !contains(view, "Discovering") {
+		t.Errorf("View should contain 'Discovering', got %q", view)
 	}
 }
 
@@ -526,12 +527,12 @@ func TestUpModel_View_Confirm(t *testing.T) {
 
 	view := model.Render()
 
-	if !contains(view, "Target Node") {
-		t.Errorf("View should contain 'Target Node', got %q", view)
+	if !contains(view, "This will") {
+		t.Errorf("View should contain 'This will', got %q", view)
 	}
 
-	if !contains(view, "Deployments to restore") {
-		t.Errorf("View should contain 'Deployments to restore', got %q", view)
+	if !contains(view, "deploy1") {
+		t.Errorf("View should contain deployment names, got %q", view)
 	}
 }
 
@@ -704,10 +705,6 @@ func TestUpModel_View_NothingToDo(t *testing.T) {
 
 	if !contains(view, "All deployments are already scaled up") {
 		t.Errorf("View should contain 'All deployments are already scaled up', got %q", view)
-	}
-
-	if !contains(view, "test-node") {
-		t.Errorf("View should contain node name, got %q", view)
 	}
 
 	if !contains(view, "No scaling action needed") {

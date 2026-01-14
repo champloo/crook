@@ -664,13 +664,19 @@ func (m *DownModel) View() tea.View {
 	return tea.NewView(m.Render())
 }
 
+// NodeName returns the target node name.
+func (m *DownModel) NodeName() string {
+	return m.config.NodeName
+}
+
+// PhaseName returns "Down" for the down phase.
+func (m *DownModel) PhaseName() string {
+	return "Down"
+}
+
 // Render returns the string representation for composition
 func (m *DownModel) Render() string {
 	var b strings.Builder
-
-	// Header with current state
-	b.WriteString(m.renderHeader())
-	b.WriteString("\n\n")
 
 	// Main content based on state
 	switch m.state { //nolint:exhaustive // default handles all operation states uniformly
@@ -699,16 +705,6 @@ func (m *DownModel) Render() string {
 	return styles.StyleBox.Width(min(m.width-4, 80)).Render(b.String())
 }
 
-// renderHeader renders the state header
-func (m *DownModel) renderHeader() string {
-	title := fmt.Sprintf("Down Phase: %s", m.config.NodeName)
-	stateInfo := fmt.Sprintf("%s - %s", m.state.String(), m.state.Description())
-
-	return fmt.Sprintf("%s\n%s",
-		styles.StyleHeading.Render(title),
-		styles.StyleSubtle.Render(stateInfo))
-}
-
 // renderLoading renders the loading state
 func (m *DownModel) renderLoading() string {
 	return fmt.Sprintf("%s Discovering deployments on node %s...",
@@ -720,14 +716,42 @@ func (m *DownModel) renderLoading() string {
 func (m *DownModel) renderConfirmation() string {
 	var b strings.Builder
 
-	// Show maintenance warning prominently if other nodes are in maintenance
+	// What will happen
+	b.WriteString(styles.StyleStatus.Render("This will:"))
+	b.WriteString("\n")
+	b.WriteString("  1. Cordon the node (mark unschedulable)\n")
+	b.WriteString("  2. Set Ceph noout flag\n")
+	b.WriteString("  3. Scale down rook-ceph-operator\n")
+	fmt.Fprintf(&b, "  4. Scale down %d deployment(s) to 0 replicas\n", m.deploymentCount)
+
+	// Down plan table
+	if len(m.downPlan) > 0 {
+		b.WriteString("\n")
+
+		// Create table
+		table := components.NewSimpleTable("Deployment", "Current", "Target")
+		for _, item := range m.downPlan {
+			deployName := fmt.Sprintf("%s/%s", item.Namespace, item.Name)
+			currentStr := fmt.Sprintf("%d", item.CurrentReplicas)
+			targetStr := "0" // All deployments will be scaled to 0
+
+			table.AddStyledRow(styles.StyleSubtle, deployName, currentStr, targetStr)
+		}
+		table.SetMaxRows(10)
+		b.WriteString(table.Render())
+	} else {
+		b.WriteString("\n")
+		b.WriteString(styles.StyleWarning.Render("No deployments found on this node."))
+	}
+
+	// Show maintenance warning if other nodes are in maintenance
 	if m.maintenanceWarning != nil && m.maintenanceWarning.HasWarning() {
-		b.WriteString(styles.StyleWarning.Render("⚠ WARNING: Another node may be in maintenance!"))
-		b.WriteString("\n\n")
+		var warning strings.Builder
+		warning.WriteString(styles.StyleWarning.Render("⚠ WARNING: Another node may be in maintenance!"))
 
 		if m.maintenanceWarning.NoOutFlagSet {
-			b.WriteString(styles.StyleWarning.Render("  • Ceph 'noout' flag is already set"))
-			b.WriteString("\n")
+			warning.WriteString("\n")
+			warning.WriteString(styles.StyleWarning.Render("• Ceph 'noout' flag is already set"))
 		}
 
 		for _, node := range m.maintenanceWarning.NodesInMaintenance {
@@ -738,51 +762,13 @@ func (m *DownModel) renderConfirmation() string {
 			if node.HasScaledDownDeployments {
 				reasons = append(reasons, "has scaled-down deployments")
 			}
-			b.WriteString(styles.StyleWarning.Render(fmt.Sprintf("  • Node '%s' is %s", node.NodeName, strings.Join(reasons, " and "))))
-			b.WriteString("\n")
+			warning.WriteString("\n")
+			warning.WriteString(styles.StyleWarning.Render(fmt.Sprintf("• Node '%s' is %s", node.NodeName, strings.Join(reasons, " and "))))
 		}
+
 		b.WriteString("\n")
+		b.WriteString(styles.StyleBoxWarning.Padding(0, 1).Render(warning.String()))
 	}
-
-	// Target node info
-	b.WriteString(styles.StyleStatus.Render("Target Node: "))
-	b.WriteString(m.config.NodeName)
-	b.WriteString("\n\n")
-
-	// Down plan table
-	if len(m.downPlan) > 0 {
-		b.WriteString(styles.StyleStatus.Render("Deployments to scale down:"))
-		b.WriteString("\n")
-
-		// Create table
-		table := components.NewSimpleTable("Deployment", "Current", "Target", "Status")
-		for _, item := range m.downPlan {
-			deployName := fmt.Sprintf("%s/%s", item.Namespace, item.Name)
-			currentStr := fmt.Sprintf("%d", item.CurrentReplicas)
-			targetStr := "0" // All deployments will be scaled to 0
-
-			statusStyle := styles.StyleSubtle
-			table.AddStyledRow(statusStyle, deployName, currentStr, targetStr, item.Status)
-		}
-		table.SetMaxRows(10)
-		b.WriteString(table.Render())
-	} else {
-		b.WriteString(styles.StyleWarning.Render("No deployments found on this node."))
-		b.WriteString("\n")
-	}
-	b.WriteString("\n")
-
-	// What will happen
-	b.WriteString("\n")
-	b.WriteString(styles.StyleWarning.Render("This will:"))
-	b.WriteString("\n")
-	b.WriteString("  1. Cordon the node (mark unschedulable)\n")
-	b.WriteString("  2. Set Ceph noout flag\n")
-	b.WriteString("  3. Scale down rook-ceph-operator\n")
-	fmt.Fprintf(&b, "  4. Scale down %d deployment(s) to 0 replicas\n", m.deploymentCount)
-
-	b.WriteString("\n")
-	b.WriteString(m.confirmPrompt.Render())
 
 	return b.String()
 }
@@ -792,11 +778,6 @@ func (m *DownModel) renderNothingToDo() string {
 	var b strings.Builder
 
 	b.WriteString(styles.StyleSuccess.Render(fmt.Sprintf("%s All deployments are already scaled down", styles.IconCheckmark)))
-	b.WriteString("\n\n")
-
-	// Target node info
-	b.WriteString(styles.StyleStatus.Render("Target Node: "))
-	b.WriteString(m.config.NodeName)
 	b.WriteString("\n\n")
 
 	b.WriteString(styles.StyleSubtle.Render("No scaling action needed - the node is already prepared for maintenance."))
