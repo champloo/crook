@@ -1,9 +1,8 @@
-# Capability: Kubernetes Client
+# kubernetes-client Specification
 
-Wrapper around Kubernetes client-go library providing domain-specific operations.
-
-## ADDED Requirements
-
+## Purpose
+TBD - created by archiving change add-go-tui-interface. Update Purpose after archive.
+## Requirements
 ### Requirement: Client Initialization
 
 The system SHALL initialize Kubernetes client from kubeconfig with fallback to in-cluster configuration.
@@ -61,17 +60,18 @@ The system SHALL provide operations for cordoning and uncordoning nodes.
 - **THEN** system returns error: "Node '<name>' not found in cluster"
 - **THEN** system does not retry
 
-### Requirement: Deployment Operations
+### Requirement: Deployment Scaling
 
-The system SHALL provide operations for scaling deployments and querying deployment status.
+The system SHALL scale deployments using the Kubernetes scale subresource for least-privilege RBAC.
 
-#### Scenario: Scale deployment
+#### Scenario: Scale deployment via scale subresource
 
 - **WHEN** system scales deployment "rook-ceph-osd-0" in namespace "rook-ceph" to 0 replicas
-- **THEN** system retrieves deployment object
-- **THEN** system updates `.spec.replicas = 0`
-- **THEN** system patches deployment
+- **THEN** system calls GetScale to retrieve current scale subresource
+- **THEN** system updates scale.spec.replicas to 0
+- **THEN** system calls UpdateScale to apply the change
 - **THEN** system returns success immediately (does not wait)
+- **THEN** system requires only `deployments/scale` permission (not full `deployments` update)
 
 #### Scenario: Get deployment status
 
@@ -89,6 +89,32 @@ The system SHALL provide operations for scaling deployments and querying deploym
 - **WHEN** system lists deployments in "rook-ceph" namespace
 - **THEN** system calls List API with namespace filter
 - **THEN** system returns array of deployment names and replica counts
+
+### Requirement: Node-Pinned Deployment Discovery
+
+The system SHALL discover deployments pinned to specific nodes via nodeSelector or nodeAffinity.
+
+#### Scenario: List node-pinned deployments
+
+- **WHEN** system lists deployments pinned to node "worker-01"
+- **THEN** system lists all deployments in namespace
+- **THEN** system checks each deployment for nodeSelector with `kubernetes.io/hostname=worker-01`
+- **THEN** system checks nodeAffinity requiredDuringScheduling as fallback
+- **THEN** system returns deployments matching the target node
+
+#### Scenario: List scaled-down deployments for node
+
+- **WHEN** system lists scaled-down deployments for node "worker-01"
+- **THEN** system finds node-pinned deployments
+- **THEN** system filters to deployments with spec.replicas == 0
+- **THEN** system returns filtered list for up phase restoration
+
+#### Scenario: Get deployment target node
+
+- **WHEN** system extracts target node from deployment spec
+- **THEN** system checks nodeSelector for `kubernetes.io/hostname` first
+- **THEN** system falls back to nodeAffinity requiredDuringScheduling
+- **THEN** system returns hostname or empty string if not node-pinned
 
 ### Requirement: Pod Operations
 
@@ -110,7 +136,7 @@ The system SHALL provide operations for querying pods and their ownership.
 - **THEN** system extracts ReplicaSet name from `.metadata.ownerReferences[0].name`
 - **THEN** system retrieves ReplicaSet object
 - **THEN** system extracts Deployment name from ReplicaSet's `.metadata.ownerReferences[0].name`
-- **THEN** system returns ownership chain: Pod → ReplicaSet → Deployment
+- **THEN** system returns ownership chain: Pod -> ReplicaSet -> Deployment
 
 #### Scenario: Pod without owner
 
@@ -146,36 +172,12 @@ The system SHALL execute Ceph CLI commands via rook-ceph-tools deployment.
 
 #### Scenario: Ceph command timeout
 
-- **WHEN** Ceph command does not respond within 10 seconds
+- **WHEN** Ceph command does not respond within configured timeout
 - **THEN** system cancels the command execution
-- **THEN** system returns error: "ceph command timed out after 10s (cluster may be degraded)"
+- **THEN** system returns error: "ceph command timed out after <timeout> (cluster may be degraded)"
 - **THEN** system does not hang indefinitely
 - **THEN** caller can handle timeout gracefully and continue with partial data
-
-### Requirement: Error Handling and Retries
-
-The system SHALL handle transient Kubernetes API errors with exponential backoff retry.
-
-#### Scenario: Transient network error
-
-- **WHEN** API call fails with network timeout
-- **THEN** system retries up to 3 times
-- **THEN** system uses exponential backoff: 1s, 2s, 4s
-- **THEN** system returns error if all retries fail
-- **THEN** system includes original error and retry count in error message
-
-#### Scenario: Permanent error
-
-- **WHEN** API call fails with 404 Not Found
-- **THEN** system does not retry
-- **THEN** system returns error immediately
-
-#### Scenario: API rate limiting
-
-- **WHEN** API returns 429 Too Many Requests
-- **THEN** system extracts Retry-After header
-- **THEN** system waits specified duration before retry
-- **THEN** system retries up to 3 times total
+- **THEN** default timeout is 20 seconds (configurable via `timeouts.ceph-command-timeout-seconds`)
 
 ### Requirement: Context-based Cancellation
 
@@ -195,3 +197,4 @@ The system SHALL support cancellation of in-flight operations via Go context.
 - **THEN** system cancels context
 - **THEN** system aborts operation
 - **THEN** system returns context.DeadlineExceeded error
+

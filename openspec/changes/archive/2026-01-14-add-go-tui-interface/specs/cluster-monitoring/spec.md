@@ -140,27 +140,30 @@ The system SHALL refresh monitoring data at configurable intervals without block
 #### Scenario: Background data refresh
 
 - **WHEN** monitoring is active
-- **THEN** system spawns goroutine for each monitor type (node, Ceph, deployments)
-- **THEN** system refreshes node status every 2 seconds
-- **THEN** system refreshes Ceph health every 5 seconds
-- **THEN** system refreshes deployment status every 2 seconds
-- **THEN** system sends update messages to Bubble Tea model on each refresh
+- **THEN** system spawns separate goroutines for K8s and Ceph resource polling
+- **THEN** system refreshes Kubernetes resources (nodes, deployments, pods) at K8s interval
+- **THEN** system refreshes Ceph resources (OSDs, cluster header) at Ceph interval
+- **THEN** system aggregates updates from all pollers via channels
+- **THEN** system sends combined update messages to Bubble Tea model
 - **THEN** system updates display without blocking user input
 
 #### Scenario: Refresh error handling
 
 - **WHEN** API call fails during refresh
 - **THEN** system logs error to log file
-- **THEN** system displays stale data with "Last updated X seconds ago" indicator
+- **THEN** system displays stale data with last known values
 - **THEN** system continues retry on next refresh cycle
 - **THEN** system does not crash or stop refreshing other monitors
+- **THEN** errors are tracked per resource type and combined for display
 
 #### Scenario: Configurable refresh rates
 
-- **WHEN** user configures custom refresh intervals in config file
-- **THEN** system uses configured intervals instead of defaults
-- **THEN** system validates intervals are >= 1 second
-- **THEN** system warns if intervals are too aggressive (< 1 second)
+- **WHEN** user configures refresh intervals in config file
+- **THEN** system uses two categories of refresh intervals:
+  - `ui.k8s-refresh-ms` (default: 2000ms) for nodes, deployments, pods
+  - `ui.ceph-refresh-ms` (default: 5000ms) for OSDs, cluster header/status
+- **THEN** system validates intervals are > 0
+- **THEN** system applies configured intervals to respective resource pollers
 
 ### Requirement: Status Aggregation
 
