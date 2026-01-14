@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/andri/crook/pkg/k8s"
-
+	"charm.land/bubbles/v2/help"
 	tea "charm.land/bubbletea/v2"
 	"github.com/andri/crook/pkg/config"
+	"github.com/andri/crook/pkg/k8s"
 	"github.com/andri/crook/pkg/monitoring"
 	"github.com/andri/crook/pkg/tui/components"
 )
@@ -29,6 +29,8 @@ func (m *stubSizedModel) View() tea.View { return tea.NewView(m.Render()) }
 func (m *stubSizedModel) Render() string { return "" }
 
 func (m *stubSizedModel) SetSize(width, height int) {}
+
+func (m *stubSizedModel) FlowKeyMap() help.KeyMap { return nil }
 
 func TestLsTab_String(t *testing.T) {
 	tests := []struct {
@@ -581,6 +583,7 @@ func (m *testSizedModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *testSizedModel) View() tea.View            { return tea.NewView(m.Render()) }
 func (m *testSizedModel) Render() string            { return "" }
 func (m *testSizedModel) SetSize(width, height int) {}
+func (m *testSizedModel) FlowKeyMap() help.KeyMap   { return nil }
 
 func TestLsModel_Update_MaintenanceExitClosesFlow(t *testing.T) {
 	model := NewLsModel(LsModelConfig{

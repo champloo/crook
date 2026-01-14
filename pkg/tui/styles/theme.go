@@ -191,3 +191,20 @@ const (
 	IconSpinnerASCII   = "[*]"
 	IconArrowASCII     = "->"
 )
+
+// Maintenance mode styles for status bar
+var (
+	// ColorMaintenance is the color for maintenance mode elements
+	ColorMaintenance   = compat.AdaptiveColor{Light: lipgloss.Color("#D75F00"), Dark: lipgloss.Color("#FF8700")} // Orange
+	ColorMaintenanceFg = compat.AdaptiveColor{Light: lipgloss.Color("#FFFFFF"), Dark: lipgloss.Color("#000000")}
+
+	// StyleMaintenanceBadge is the badge shown when maintenance flow is active
+	StyleMaintenanceBadge = lipgloss.NewStyle().
+				Background(ColorMaintenance).
+				Foreground(ColorMaintenanceFg).
+				Bold(true).
+				Padding(0, 1)
+)
+
+// Maintenance mode icon
+const IconMaintenance = "⚙"

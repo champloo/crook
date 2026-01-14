@@ -836,3 +836,9 @@ func (m *UpModel) SetSize(width, height int) {
 	m.width = width
 	m.height = height
 }
+
+// FlowKeyMap returns the flow keybindings for status bar help model
+func (m *UpModel) FlowKeyMap() help.KeyMap {
+	m.updateKeyBindings()
+	return &m.keyBindings
+}

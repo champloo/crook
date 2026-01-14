@@ -112,11 +112,13 @@ The system SHALL support intuitive keyboard controls for navigation and actions.
   - `[` / `]` -> Toggle Deployments/Pods view (when pane 2 active)
   - `j` / `k` / Up / Down -> Scroll within active pane
 - **THEN** action keys are disabled (d, u, r for refresh, q)
-- **THEN** flow-specific keys are handled by the maintenance flow:
+- **THEN** flow-specific keys only work when Nodes pane is selected:
   - Confirmation: 'y', 'n', 'Esc'
   - Running: 'Ctrl+C' (interrupt)
   - Error: 'r' (retry), 'q' (quit)
   - Complete: 'Enter', 'q', 'Esc' (exit)
+- **THEN** status bar displays maintenance badge `[⚙ MAINT]` with distinct styling
+- **THEN** flow keys shown in status bar with different color when on Nodes pane
 
 ### Requirement: Resource List View (Multi-pane Layout)
 

@@ -196,7 +196,14 @@ logging:
   - Cursor movement: j, k, Up, Down
 - Action keys disabled during flow (d, u, r for refresh, q)
 - Flow-specific keys handled by flow model (y/n, Ctrl+C, r for retry, Enter)
+- Flow keys only work when Nodes pane is selected (safety feature)
 - Implementation uses dual-pass key routing: navigation keys handled by LS model first, remaining keys passed to flow
+
+**Maintenance Mode Visual Feedback**:
+- Status bar shows `[⚙ MAINT]` badge with orange background when flow is active
+- Flow keys displayed in orange color to distinguish from navigation keys
+- Flow keys only shown in status bar when Nodes pane is selected
+- Format: `[⚙ MAINT] y proceed · Esc cancel │ Tab switch · j/k scroll`
 
 **Rationale**: Clear state transitions, easy to test, visual progress mapping.
 

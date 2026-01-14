@@ -147,14 +147,16 @@ type LsModel struct {
 	podsView        *views.PodsView
 
 	// Keybindings and help
-	keyMap    keys.LsKeyMap
-	helpModel help.Model
+	keyMap        keys.LsKeyMap
+	helpModel     help.Model
+	flowHelpModel help.Model // Separate help model with maintenance styling for flow keys
 }
 
 type sizedModel interface {
 	tea.Model
 	SetSize(width, height int)
 	Render() string
+	FlowKeyMap() help.KeyMap // Returns flow keybindings for status bar help model
 }
 
 const (
@@ -260,6 +262,13 @@ func NewLsModel(cfg LsModelConfig) *LsModel {
 	h.Styles.FullKey = h.Styles.FullKey.Foreground(styles.ColorInfo)
 	h.Styles.FullDesc = h.Styles.FullDesc.Foreground(styles.ColorSubtle)
 
+	// Initialize flow help model with maintenance styling (orange)
+	fh := help.New()
+	fh.Styles.ShortKey = fh.Styles.ShortKey.Foreground(styles.ColorMaintenance).Bold(true)
+	fh.Styles.ShortDesc = fh.Styles.ShortDesc.Foreground(styles.ColorMaintenance)
+	fh.Styles.FullKey = fh.Styles.FullKey.Foreground(styles.ColorMaintenance).Bold(true)
+	fh.Styles.FullDesc = fh.Styles.FullDesc.Foreground(styles.ColorMaintenance)
+
 	return &LsModel{
 		config:              cfg,
 		activePane:          LsPaneNodes,
@@ -276,8 +285,9 @@ func NewLsModel(cfg LsModelConfig) *LsModel {
 		deploymentsView: deploymentsPodsView.GetDeploymentsView(),
 		podsView:        deploymentsPodsView.GetPodsView(),
 		// Keybindings and help
-		keyMap:    keys.DefaultLsKeyMap(),
-		helpModel: h,
+		keyMap:        keys.DefaultLsKeyMap(),
+		helpModel:     h,
+		flowHelpModel: fh,
 	}
 }
 
@@ -636,12 +646,17 @@ func (m *LsModel) handleFlowMessage(msg tea.Msg) (tea.Cmd, bool) {
 			return nil, true
 		}
 
-		// Non-navigation keys go to flow
-		updatedFlow, cmd := m.maintenanceFlow.Update(msg)
-		if flow, isFlow := updatedFlow.(sizedModel); isFlow {
-			m.maintenanceFlow = flow
+		// Non-navigation keys go to flow only when Nodes pane is selected
+		// This ensures flow keys (y/n, Ctrl+C, r, q) only work when focused on nodes
+		if m.activePane == LsPaneNodes {
+			updatedFlow, cmd := m.maintenanceFlow.Update(msg)
+			if flow, isFlow := updatedFlow.(sizedModel); isFlow {
+				m.maintenanceFlow = flow
+			}
+			return cmd, true
 		}
-		return cmd, true
+		// Flow keys ignored when not on Nodes pane - just consume the key
+		return nil, true
 	}
 
 	// Non-key messages go to flow but don't cause early return
@@ -1037,13 +1052,51 @@ func (m *LsModel) renderStatusBar() string {
 	m.updateKeyBindings()
 	m.helpModel.SetWidth(m.width)
 
-	status := m.helpModel.View(&m.keyMap)
-	if m.lastError == nil {
-		return status
+	var parts []string
+
+	// Add maintenance help if flow is active
+	if m.maintenanceFlow != nil {
+		if maintHelp := m.renderMaintenanceHelp(); maintHelp != "" {
+			parts = append(parts, maintHelp)
+			parts = append(parts, styles.StyleSubtle.Render("│"))
+		}
 	}
 
-	errText := styles.StyleError.Render("error: " + format.SanitizeForDisplay(m.lastError.Error()))
-	return errText + "  " + status
+	// Navigation/action keys
+	navHelp := m.helpModel.View(&m.keyMap)
+	if navHelp != "" {
+		parts = append(parts, navHelp)
+	}
+
+	status := strings.Join(parts, " ")
+
+	if m.lastError != nil {
+		errText := styles.StyleError.Render("error: " + format.SanitizeForDisplay(m.lastError.Error()))
+		return errText + "  " + status
+	}
+
+	return status
+}
+
+// renderMaintenanceHelp renders the maintenance badge and flow keys
+func (m *LsModel) renderMaintenanceHelp() string {
+	var parts []string
+
+	// Badge: [⚙ MAINT]
+	badge := styles.StyleMaintenanceBadge.Render(styles.IconMaintenance + " MAINT")
+	parts = append(parts, badge)
+
+	// Flow keys (styled with flowHelpModel) - only show if on Nodes pane
+	if m.activePane == LsPaneNodes {
+		flowKeyMap := m.maintenanceFlow.FlowKeyMap()
+		if flowKeyMap != nil {
+			if flowHelp := m.flowHelpModel.View(flowKeyMap); flowHelp != "" {
+				parts = append(parts, flowHelp)
+			}
+		}
+	}
+
+	return strings.Join(parts, " ")
 }
 
 // SetSize implements SubModel
