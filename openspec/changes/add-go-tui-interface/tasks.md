@@ -43,190 +43,170 @@
 - [ ] 2.7 Add context-based cancellation support
 - [ ] 2.8 Write unit tests for all k8s client functions
 
-## 3. State Persistence
+## 3. Configuration Management
 
-- [ ] 3.1 Define state data structure in pkg/state/state.go
-- [ ] 3.2 Implement JSON format writer in pkg/state/format.go:
-  - [ ] Write root object fields: `version`, `node`, `timestamp`, `operatorReplicas`, `resources`
-  - [ ] Pretty-print with 2-space indentation (deterministic output)
-  - [ ] Sort resources deterministically (namespace, then name)
-  - [ ] Atomic file write (temp file + rename)
-- [ ] 3.3 Implement JSON format parser:
-  - [ ] Parse file as JSON
-  - [ ] Validate required fields and data types (`version`, `resources`, resource fields)
-  - [ ] Return structured errors for malformed JSON / missing fields
-- [ ] 3.4 Implement state file path resolution with template substitution
-- [ ] 3.5 Implement state file backup functionality
-- [ ] 3.6 Add state file validation functions
-- [ ] 3.7 Write unit tests for state persistence
-
-## 4. Configuration Management
-
-- [ ] 4.1 Define configuration schema in pkg/config/config.go
-- [ ] 4.2 Implement Viper-based config loading:
+- [ ] 3.1 Define configuration schema in pkg/config/config.go
+- [ ] 3.2 Implement Viper-based config loading:
   - [ ] Load from default locations
   - [ ] Support explicit --config flag
   - [ ] Environment variable overrides (CROOK_*)
   - [ ] CLI flag overrides
-- [ ] 4.3 Implement configuration validation
-- [ ] 4.4 Add default configuration values
-- [ ] 4.5 Write unit tests for configuration loading and merging
-- [ ] 4.8 Create example config file with documentation comments
+- [ ] 3.3 Implement configuration validation
+- [ ] 3.4 Add default configuration values
+- [ ] 3.5 Write unit tests for configuration loading and merging
+- [ ] 3.6 Create example config file with documentation comments
 
-## 5. Core Maintenance Logic (CLI only, no TUI yet)
+## 4. Core Maintenance Logic (CLI only, no TUI yet)
 
-- [ ] 5.1 Implement down phase orchestration in pkg/maintenance/down.go:
+- [ ] 4.1 Implement down phase orchestration in pkg/maintenance/down.go:
   - [ ] Pre-flight validation
   - [ ] Cordon node
   - [ ] Set Ceph noout flag
   - [ ] Scale down operator
-  - [ ] Discover target deployments
+  - [ ] Discover target deployments via nodeSelector
   - [ ] Scale down deployments with waiting
-  - [ ] Save state file
-- [ ] 5.2 Implement up phase orchestration in pkg/maintenance/up.go:
-  - [ ] Load and validate state file
+- [ ] 4.2 Implement up phase orchestration in pkg/maintenance/up.go:
+  - [ ] Discover scaled-down deployments via nodeSelector
   - [ ] Uncordon node
-  - [ ] Restore deployment replicas with waiting
+  - [ ] Restore deployment replicas with MON quorum gating
   - [ ] Scale up operator
   - [ ] Unset Ceph noout flag
-- [ ] 5.3 Implement deployment discovery in pkg/maintenance/discovery.go:
-  - [ ] Find pods on target node
-  - [ ] Trace ownership chain
-  - [ ] Filter by configured prefixes
-  - [ ] Return unique deployment list
-- [ ] 5.4 Implement pre-flight validation in pkg/maintenance/validator.go:
+- [ ] 4.3 Implement deployment discovery in pkg/maintenance/discovery.go:
+  - [ ] Find deployments with nodeSelector matching target node
+  - [ ] Support nodeAffinity fallback
+  - [ ] Filter by replicas (for up phase)
+- [ ] 4.4 Implement pre-flight validation in pkg/maintenance/validator.go:
   - [ ] Check cluster connectivity
   - [ ] Check node exists
   - [ ] Check namespaces exist
   - [ ] Check rook-ceph-tools exists
   - [ ] Check RBAC permissions (best-effort)
-- [ ] 5.5 Add comprehensive error handling
-- [ ] 5.6 Write unit tests for maintenance orchestration
-- [ ] 5.7 Write integration tests (requires test cluster or mocks)
+- [ ] 4.5 Add comprehensive error handling
+- [ ] 4.6 Write unit tests for maintenance orchestration
+- [ ] 4.7 Write integration tests (requires test cluster or mocks)
 
-## 6. Cluster Monitoring
+## 5. Cluster Monitoring
 
-- [ ] 6.1 Implement node status monitoring in pkg/monitoring/node.go:
+- [ ] 5.1 Implement node status monitoring in pkg/monitoring/node.go:
   - [ ] Query node status
   - [ ] Extract ready condition
   - [ ] Extract scheduling status and taints
-- [ ] 6.2 Implement Ceph health monitoring in pkg/monitoring/ceph.go:
+- [ ] 5.2 Implement Ceph health monitoring in pkg/monitoring/ceph.go:
   - [ ] Execute `ceph status --format json`
   - [ ] Parse health status
   - [ ] Extract OSD, monitor, PG information
-- [ ] 6.3 Implement OSD monitoring:
+- [ ] 5.3 Implement OSD monitoring:
   - [ ] Execute `ceph osd tree --format json`
   - [ ] Filter OSDs by node
   - [ ] Extract status (up/down, in/out)
-- [ ] 6.4 Implement deployment monitoring in pkg/monitoring/deployments.go:
+- [ ] 5.4 Implement deployment monitoring in pkg/monitoring/deployments.go:
   - [ ] Monitor operator deployment
   - [ ] Monitor discovered deployments
   - [ ] Calculate aggregate status
-- [ ] 6.5 Implement background refresh with goroutines
-- [ ] 6.6 Add configurable refresh intervals
-- [ ] 6.7 Write unit tests for monitoring functions
+- [ ] 5.5 Implement background refresh with goroutines
+- [ ] 5.6 Add configurable refresh intervals
+- [ ] 5.7 Write unit tests for monitoring functions
 
-## 7. TUI Components (Bubble Tea)
+## 6. TUI Components (Bubble Tea)
 
-- [ ] 7.1 Create theme and styles in pkg/tui/styles/theme.go:
+- [ ] 6.1 Create theme and styles in pkg/tui/styles/theme.go:
   - [ ] Define color palette
   - [ ] Define text styles (heading, status, error, warning)
   - [ ] Define border styles
-- [ ] 7.2 Create reusable components in pkg/tui/components/:
-  - [ ] 7.2.1 Progress bar component (progress.go)
-  - [ ] 7.2.2 Status indicator component (status.go)
-  - [ ] 7.2.3 Confirmation prompt component (confirm.go)
-  - [ ] 7.2.4 Table display component (table.go)
-- [ ] 7.3 Create main app model in pkg/tui/models/app.go:
+- [ ] 6.2 Create reusable components in pkg/tui/components/:
+  - [ ] 6.2.1 Progress bar component (progress.go)
+  - [ ] 6.2.2 Status indicator component (status.go)
+  - [ ] 6.2.3 Confirmation prompt component (confirm.go)
+  - [ ] 6.2.4 Table display component (table.go)
+- [ ] 6.3 Create main app model in pkg/tui/models/app.go:
   - [ ] Define app state
   - [ ] Implement Init() method
   - [ ] Implement Update() method for global messages
   - [ ] Implement View() method for routing to sub-models
-- [ ] 7.5 Create down phase model in pkg/tui/models/down.go:
+- [ ] 6.5 Create down phase model in pkg/tui/models/down.go:
   - [ ] Define state machine states
   - [ ] Implement state transitions
   - [ ] Display current state and progress
   - [ ] Handle async operation updates
   - [ ] Handle errors with retry/abort options
-- [ ] 7.6 Create up phase model in pkg/tui/models/up.go:
+- [ ] 6.6 Create up phase model in pkg/tui/models/up.go:
   - [ ] Define state machine states
   - [ ] Display restore plan
   - [ ] Implement state transitions
   - [ ] Display progress for each operation
-- [ ] 7.7 Implement keyboard navigation and shortcuts
-- [ ] 7.8 Add terminal size detection and responsive rendering
-- [ ] 7.9 Add color support detection and fallback
-- [ ] 7.10 `crook ls`: permanent Maintenance pane for up/down flows
-  - [ ] 7.10.1 Make UpModel/DownModel support embedded rendering (no outer frame)
-  - [ ] 7.10.2 Render Nodes + Maintenance panes side-by-side (top row)
-  - [ ] 7.10.3 Route key input to embedded flow while active; preserve node selection on exit
-  - [ ] 7.10.4 Make Nodes view responsive to reduced width (column sizing/degradation)
-  - [ ] 7.10.5 Update/add TUI tests for the split layout and embedded flows
+- [ ] 6.7 Implement keyboard navigation and shortcuts
+- [ ] 6.8 Add terminal size detection and responsive rendering
+- [ ] 6.9 Add color support detection and fallback
+- [ ] 6.10 `crook ls`: permanent Maintenance pane for up/down flows
+  - [ ] 6.10.1 Make UpModel/DownModel support embedded rendering (no outer frame)
+  - [ ] 6.10.2 Render Nodes + Maintenance panes side-by-side (top row)
+  - [ ] 6.10.3 Route key input to embedded flow while active; preserve node selection on exit
+  - [ ] 6.10.4 Make Nodes view responsive to reduced width (column sizing/degradation)
+  - [ ] 6.10.5 Update/add TUI tests for the split layout and embedded flows
 
-## 8. CLI Commands (Cobra)
+## 7. CLI Commands (Cobra)
 
-- [ ] 8.1 Create root command in cmd/crook/main.go:
+- [ ] 7.1 Create root command in cmd/crook/main.go:
   - [ ] Initialize Cobra app
   - [ ] Add global flags
   - [ ] Set up logging
   - [ ] Load configuration
-- [ ] 8.2 Create `crook down` command:
+- [ ] 7.2 Create `crook down` command:
   - [ ] Accept node name argument
   - [ ] Accept command-specific flags
   - [ ] Initialize TUI or run headless based on flag
   - [ ] Execute down phase
-- [ ] 8.3 Create `crook up` command:
+- [ ] 7.3 Create `crook up` command:
   - [ ] Accept node name argument
   - [ ] Accept command-specific flags
   - [ ] Initialize TUI or run headless based on flag
   - [ ] Execute up phase
-- [ ] 8.4 Create `crook version` command
+- [ ] 7.4 Create `crook version` command
 
-## 9. Integration and Testing
+## 8. Integration and Testing
 
-- [ ] 9.1 Write integration tests for complete workflows:
+- [ ] 8.1 Write integration tests for complete workflows:
   - [ ] Test down phase end-to-end
   - [ ] Test up phase end-to-end
   - [ ] Test error recovery scenarios
-- [ ] 9.2 Test with real Kubernetes cluster (if available) or kind
-- [ ] 9.3 Test TUI in various terminals (xterm, tmux, screen)
-- [ ] 9.4 Test configuration loading from all sources
-- [ ] 9.5 Test state file backward compatibility with bash script files
-- [ ] 9.6 Test cancellation handling (Ctrl+C during operations)
+- [ ] 8.2 Test with real Kubernetes cluster (if available) or kind
+- [ ] 8.3 Test TUI in various terminals (xterm, tmux, screen)
+- [ ] 8.4 Test configuration loading from all sources
+- [ ] 8.5 Test cancellation handling (Ctrl+C during operations)
 
-## 10. Documentation and Polish
+## 9. Documentation and Polish
 
-- [ ] 10.1 Write comprehensive README.md:
+- [ ] 9.1 Write comprehensive README.md:
   - [ ] Installation instructions
   - [ ] Quick start guide
   - [ ] Configuration documentation
   - [ ] Command reference
   - [ ] Troubleshooting guide
-- [ ] 10.2 Create EXAMPLES.md with common workflows
-- [ ] 10.3 Add godoc comments to all exported functions
-- [ ] 10.4 Create CONTRIBUTING.md with development setup
-- [ ] 10.5 Add LICENSE file
-- [ ] 10.6 Create justfile with common tasks:
+- [ ] 9.2 Create EXAMPLES.md with common workflows
+- [ ] 9.3 Add godoc comments to all exported functions
+- [ ] 9.4 Create CONTRIBUTING.md with development setup
+- [ ] 9.5 Add LICENSE file
+- [ ] 9.6 Create justfile with common tasks:
   - [ ] build, test, lint, install targets
-- [ ] 10.7 Set up CI/CD pipeline (GitHub Actions):
+- [ ] 9.7 Set up CI/CD pipeline (GitHub Actions):
   - [ ] Run tests on PR
   - [ ] Build binaries for releases
   - [ ] Run linters (golangci-lint)
-- [ ] 10.8 Create release process and versioning strategy
+- [ ] 9.8 Create release process and versioning strategy
 
-## 11. Final Validation
+## 10. Final Validation
 
-- [ ] 12.1 Run `openspec validate add-go-tui-interface --strict`
-- [ ] 12.2 Verify all requirements have corresponding code
-- [ ] 12.3 Verify all scenarios are tested
-- [ ] 12.4 Perform manual end-to-end testing
-- [ ] 12.5 Collect feedback from early users (if applicable)
-- [ ] 12.6 Address any issues found during validation
-- [ ] 12.7 Tag v1.0.0 release
+- [ ] 10.1 Run `openspec validate add-go-tui-interface --strict`
+- [ ] 10.2 Verify all requirements have corresponding code
+- [ ] 10.3 Verify all scenarios are tested
+- [ ] 10.4 Perform manual end-to-end testing
+- [ ] 10.5 Collect feedback from early users (if applicable)
+- [ ] 10.6 Address any issues found during validation
+- [ ] 10.7 Tag v1.0.0 release
 
 ## Notes
 
 - Tasks can be parallelized where indicated (e.g., 2.x and 3.x can be worked on concurrently)
-- Integration tests (9.x) require tasks 2-8 to be complete
-- TUI work (7.x) can start after monitoring (6.x) is partially complete
+- Integration tests (8.x) require tasks 2-7 to be complete
+- TUI work (6.x) can start after monitoring (5.x) is partially complete
 - Each checkbox represents a verifiable unit of work that can be demonstrated or tested

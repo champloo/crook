@@ -6,36 +6,28 @@ Core orchestration of Rook-Ceph node maintenance operations (down and up phases)
 
 ### Requirement: Down Phase Orchestration
 
-The system SHALL execute the node down phase by performing these steps in order: cordon node, set Ceph noout flag, scale down Rook operator, discover target deployments, scale down deployments, and save state to file.
+The system SHALL execute the node down phase by performing these steps in order: pre-flight validation, cordon node, set Ceph noout flag, scale down Rook operator, discover target deployments via nodeSelector, and scale down deployments.
 
 #### Scenario: Successful down phase
 
 - **WHEN** user initiates down phase for node "worker-01"
+- **THEN** system runs pre-flight validation checks
 - **THEN** system cordons the node
 - **THEN** system sets Ceph `noout` flag via rook-ceph-tools
 - **THEN** system scales rook-ceph-operator deployment to 0 replicas
-- **THEN** system discovers all deployments with pods on target node matching configured prefixes
+- **THEN** system waits for operator to reach 0 ready replicas
+- **THEN** system discovers all node-pinned deployments via nodeSelector
 - **THEN** system scales each discovered deployment to 0 replicas
 - **THEN** system waits for each deployment's readyReplicas to become 0
-- **THEN** system saves deployment state (namespace, name, original replica count) to JSON state file
-- **THEN** system displays success message with state file location
+- **THEN** system displays success message
 
 #### Scenario: Down phase with no matching deployments
 
 - **WHEN** user initiates down phase for node with no Ceph pods
 - **THEN** system completes cordon, noout, and operator scaling steps
 - **THEN** system discovers zero matching deployments
-- **THEN** system logs warning that no deployments were found
-- **THEN** system creates empty state file for consistency
+- **THEN** system logs info that no deployments were found
 - **THEN** system completes successfully
-
-#### Scenario: Down phase interrupted during deployment scaling
-
-- **WHEN** deployment scaling fails or is interrupted (network error, timeout)
-- **THEN** system captures error details
-- **THEN** system displays current state (which deployments succeeded, which failed)
-- **THEN** system exits with error code
-- **THEN** system does NOT create state file if any operation failed
 
 #### Scenario: Down phase with ordered deployment scaling
 
@@ -43,46 +35,33 @@ The system SHALL execute the node down phase by performing these steps in order:
 - **THEN** system scales deployments in controlled order for Ceph stability
 - **THEN** scaling order is: rook-ceph-osd (first), rook-ceph-mon, rook-ceph-exporter, rook-ceph-crashcollector (last)
 - **THEN** system waits for each deployment to reach 0 replicas before proceeding to next
-- **THEN** system records all deployments in state file
 
 ### Requirement: Up Phase Orchestration
 
-The system SHALL execute the node up phase by performing these steps in order: validate state file exists, uncordon node, restore deployment replicas, scale up Rook operator and unset Ceph noout flag.
+The system SHALL execute the node up phase by performing these steps in order: pre-flight validation, discover scaled-down deployments via nodeSelector, uncordon node, restore deployments with MON quorum gating, scale up Rook operator, and unset Ceph noout flag.
 
 #### Scenario: Successful up phase
 
 - **WHEN** user initiates up phase for node "worker-01"
-- **THEN** system validates state file exists at expected path
-- **THEN** system parses state file and validates format
-- **THEN** system uncordons the node
-- **THEN** system scales each deployment listed in state file back to original replica count
-- **THEN** system waits for each deployment's replicas to reach desired count
+- **THEN** system runs pre-flight validation checks
+- **THEN** system discovers scaled-down deployments via nodeSelector (replicas=0)
+- **THEN** system uncordons the node BEFORE scaling (allows pod scheduling)
+- **THEN** system scales MON deployments first with quorum gating
+- **THEN** system scales remaining deployments (OSDs, etc.) in order
+- **THEN** system waits for each deployment's replicas to become ready
 - **THEN** system scales rook-ceph-operator back to 1 replica
-- **THEN** system unsets Ceph `noout` flag
+- **THEN** system unsets Ceph `noout` flag (LAST)
 - **THEN** system displays success message confirming node is operational
-
-#### Scenario: Up phase with missing state file
-
-- **WHEN** user initiates up phase but state file does not exist
-- **THEN** system displays error message indicating state file not found
-- **THEN** system shows expected state file path
-- **THEN** system exits with error code without modifying cluster
-
-#### Scenario: Up phase with corrupted state file
-
-- **WHEN** state file exists but has invalid format or corrupted data
-- **THEN** system displays error message with parse details
-- **THEN** system exits with error code without modifying cluster
-- **THEN** system suggests manual inspection of state file
 
 #### Scenario: Up phase with ordered deployment scaling
 
-- **WHEN** restoring deployments from state file
-- **THEN** system scales deployments in controlled order for Ceph stability
-- **THEN** scaling order is: rook-ceph-mon (first), rook-ceph-osd, rook-ceph-exporter, rook-ceph-crashcollector (last)
+- **WHEN** restoring deployments
+- **THEN** system separates MON deployments from other deployments
+- **THEN** system scales MON deployments first
+- **THEN** system waits for Ceph monitor quorum to establish
+- **THEN** system scales remaining deployments in order: rook-ceph-osd, rook-ceph-exporter, rook-ceph-crashcollector
 - **THEN** system waits for each deployment to become ready before proceeding to next
-- **THEN** system ensures monitors establish quorum before scaling OSDs
-- **THEN** order is different from down phase to ensure safe cluster recovery
+- **THEN** MON quorum gating ensures safe cluster recovery
 
 ### Requirement: Pre-flight Validation
 
@@ -91,42 +70,21 @@ The system SHALL validate cluster prerequisites before allowing down or up phase
 #### Scenario: Pre-flight checks before down phase
 
 - **WHEN** user initiates down phase
-- **THEN** system validates kubectl connectivity to cluster
+- **THEN** system validates cluster connectivity
 - **THEN** system validates target node exists in cluster
-- **THEN** system validates rook-operator-namespace exists
-- **THEN** system validates rook-cluster-namespace exists
+- **THEN** system validates rook-ceph namespace exists
 - **THEN** system validates rook-ceph-tools deployment exists and is ready
-- **THEN** system validates current user has required RBAC permissions (cordon, scale, exec)
+- **THEN** system validates current user has required RBAC permissions (via SelfSubjectAccessReview)
 - **THEN** system proceeds to down phase only if all checks pass
 - **THEN** system displays specific error if any check fails
 
 #### Scenario: Pre-flight checks before up phase
 
 - **WHEN** user initiates up phase
-- **THEN** system validates state file exists and is readable
-- **THEN** system validates kubectl connectivity to cluster
-- **THEN** system validates all deployments in state file still exist
+- **THEN** system validates cluster connectivity
+- **THEN** system validates target node exists
+- **THEN** system validates namespace exists
 - **THEN** system proceeds to up phase only if all checks pass
-
-### Requirement: Deployment Discovery
-
-The system SHALL discover target deployments by querying pods on the target node and filtering by configured prefixes.
-
-#### Scenario: Discovery with multiple matching deployments
-
-- **WHEN** node has pods from deployments: rook-ceph-osd-0, rook-ceph-mon-a, rook-ceph-exporter
-- **THEN** system queries pods with field selector `spec.nodeName=<node>`
-- **THEN** system traces ownership: Pod → ReplicaSet → Deployment
-- **THEN** system filters deployments matching regex `^(rook-ceph-osd|rook-ceph-mon|rook-ceph-exporter|rook-ceph-crashcollector)`
-- **THEN** system returns unique list of deployment names
-- **THEN** system includes deployments from configured namespace only
-
-#### Scenario: Discovery with ownership chain traversal
-
-- **WHEN** pod is owned by ReplicaSet which is owned by Deployment
-- **THEN** system reads pod's ownerReferences for ReplicaSet
-- **THEN** system reads ReplicaSet's ownerReferences for Deployment
-- **THEN** system returns deployment name if prefix matches
 
 ### Requirement: Wait Operations
 
@@ -137,16 +95,16 @@ The system SHALL wait for asynchronous Kubernetes operations to complete before 
 - **WHEN** deployment is scaled to 0 replicas
 - **THEN** system polls deployment status every 5 seconds
 - **THEN** system checks `.status.readyReplicas` field
-- **THEN** system continues waiting while readyReplicas is non-empty
-- **THEN** system proceeds when readyReplicas becomes empty or null
+- **THEN** system continues waiting while readyReplicas > 0
+- **THEN** system proceeds when readyReplicas becomes 0
 
 #### Scenario: Wait for deployment scale up
 
 - **WHEN** deployment is scaled to N replicas
 - **THEN** system polls deployment status every 5 seconds
-- **THEN** system checks `.status.replicas` field
-- **THEN** system continues waiting while replicas != N
-- **THEN** system proceeds when replicas equals desired count
+- **THEN** system checks `.status.replicas` and `.status.readyReplicas` fields
+- **THEN** system continues waiting while replicas != N OR readyReplicas != N
+- **THEN** system proceeds when both match target
 
 #### Scenario: Wait operation timeout
 
@@ -154,3 +112,55 @@ The system SHALL wait for asynchronous Kubernetes operations to complete before 
 - **THEN** system displays timeout error with current state
 - **THEN** system exits with error code
 - **THEN** system provides guidance on manual inspection
+
+### Requirement: Node-Pinned Deployment Discovery
+
+The system SHALL discover node-pinned deployments by examining the `nodeSelector["kubernetes.io/hostname"]` field in deployment specs.
+
+#### Scenario: Discover deployments via nodeSelector
+
+- **WHEN** querying deployments for a target node
+- **THEN** return all deployments where `spec.template.spec.nodeSelector["kubernetes.io/hostname"]` matches the target node name
+
+#### Scenario: Discover deployments via nodeAffinity fallback
+
+- **WHEN** a deployment has no nodeSelector but has `requiredDuringSchedulingIgnoredDuringExecution` nodeAffinity with `kubernetes.io/hostname` key
+- **THEN** extract the target node from the first matching nodeAffinity value
+
+#### Scenario: Ignore portable deployments
+
+- **WHEN** a deployment has neither nodeSelector nor required nodeAffinity for hostname
+- **THEN** exclude it from node-pinned deployment discovery
+
+### Requirement: MON Quorum Gating
+
+The system SHALL wait for Ceph monitor quorum before scaling up OSDs during up phase.
+
+#### Scenario: Wait for monitor quorum
+
+- **WHEN** restoring deployments that include MON deployments
+- **THEN** system scales MON deployments first
+- **THEN** system polls Ceph quorum status via rook-ceph-tools
+- **THEN** system executes `ceph quorum_status` and parses JSON response
+- **THEN** system proceeds to scale OSDs only after quorum is established
+
+#### Scenario: Monitor quorum timeout
+
+- **WHEN** quorum is not established within timeout
+- **THEN** system displays timeout error with current quorum state
+- **THEN** system shows monitors in quorum vs out of quorum
+- **THEN** system suggests manual inspection via `ceph quorum_status`
+
+### Requirement: Stateless Architecture
+
+The system SHALL operate without external state files, using Kubernetes API as the single source of truth.
+
+#### Scenario: No state configuration required
+
+- **WHEN** running crook without state configuration in config file
+- **THEN** node maintenance operations work correctly using nodeSelector discovery
+
+#### Scenario: Restore to single replica
+
+- **WHEN** restoring a scaled-down deployment
+- **THEN** scale it to 1 replica (Rook-Ceph node-pinned deployments are always 1 replica by design)

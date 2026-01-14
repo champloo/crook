@@ -38,40 +38,17 @@ The system SHALL load configuration from multiple sources with defined precedenc
 
 The system SHALL support configuration options for all operational parameters.
 
-#### Scenario: Kubernetes configuration
+#### Scenario: Namespace configuration
 
-- **WHEN** config file contains kubernetes section
-- **THEN** system reads:
-  - `rook-operator-namespace` (default: "rook-ceph")
-  - `rook-cluster-namespace` (default: "rook-ceph")
-  - `kubeconfig` (default: standard kubeconfig locations)
-  - `context` (optional, default: current context)
-
-#### Scenario: State file configuration
-
-- **WHEN** config file contains state section
-- **THEN** system reads:
-  - `file-path-template` (default: "./crook-state-{{.Node}}.json")
-  - `backup-enabled` (default: true)
-  - `backup-directory` (default: "~/.local/state/crook/backups")
-
-#### Scenario: Deployment filter configuration
-
-- **WHEN** config file contains deployment-filters section
-- **THEN** system reads:
-  - `prefixes` (array of strings, default: ["rook-ceph-osd", "rook-ceph-mon", "rook-ceph-exporter", "rook-ceph-crashcollector"])
+- **WHEN** config file contains namespace field
+- **THEN** system reads `namespace` (default: "rook-ceph")
 
 #### Scenario: UI configuration
 
 - **WHEN** config file contains ui section
 - **THEN** system reads:
-  - `theme` (default: "default")
-  - `progress-refresh-ms` (default: 100)
-  - `ls-refresh-nodes-ms` (default: 2000)
-  - `ls-refresh-deployments-ms` (default: 2000)
-  - `ls-refresh-pods-ms` (default: 2000)
-  - `ls-refresh-osds-ms` (default: 5000)
-  - `ls-refresh-header-ms` (default: 5000)
+  - `k8s-refresh-ms` (default: 2000) - all Kubernetes API resources (nodes, deployments, pods)
+  - `ceph-refresh-ms` (default: 5000) - all Ceph CLI operations (OSDs, header)
 
 #### Scenario: Timeout configuration
 
@@ -79,7 +56,36 @@ The system SHALL support configuration options for all operational parameters.
 - **THEN** system reads:
   - `api-call-timeout-seconds` (default: 30)
   - `wait-deployment-timeout-seconds` (default: 300)
-  - `ceph-command-timeout-seconds` (default: 60)
+  - `ceph-command-timeout-seconds` (default: 20)
+
+#### Scenario: Logging configuration
+
+- **WHEN** config file contains logging section
+- **THEN** system reads:
+  - `level` (default: "info") - one of debug, info, warn, error
+  - `file` (default: "") - optional log file path
+  - `format` (default: "text") - one of text, json
+
+#### Scenario: Example valid configuration
+
+- **WHEN** config file contains:
+```yaml
+namespace: rook-ceph
+
+ui:
+  k8s-refresh-ms: 2000
+  ceph-refresh-ms: 5000
+
+timeouts:
+  api-call-timeout-seconds: 30
+  wait-deployment-timeout-seconds: 300
+  ceph-command-timeout-seconds: 20
+
+logging:
+  level: info
+  format: text
+```
+- **THEN** system parses and applies all values
 
 ### Requirement: Environment Variable Overrides
 
@@ -87,17 +93,16 @@ The system SHALL support environment variables with CROOK_ prefix.
 
 #### Scenario: Environment variable mapping
 
-- **WHEN** environment variable `CROOK_KUBERNETES_ROOK_OPERATOR_NAMESPACE=custom-rook` is set
-- **THEN** system overrides `kubernetes.rook-operator-namespace` with "custom-rook"
-- **WHEN** environment variable `CROOK_STATE_FILE_PATH_TEMPLATE=/tmp/state-{{.Node}}.json` is set
-- **THEN** system overrides `state.file-path-template` with specified value
+- **WHEN** environment variable `CROOK_NAMESPACE=custom-rook` is set
+- **THEN** system overrides `namespace` with "custom-rook"
+- **WHEN** environment variable `CROOK_UI_K8S_REFRESH_MS=3000` is set
+- **THEN** system overrides `ui.k8s-refresh-ms` with 3000
 
 #### Scenario: Nested configuration via env vars
 
 - **WHEN** environment variables use underscores to denote nesting
 - **THEN** system maps `CROOK_A_B_C` to config path `a.b.c`
 - **THEN** system converts to lowercase (CROOK_FOO_BAR → foo.bar)
-- **THEN** system replaces hyphens with underscores in env var names
 
 ### Requirement: Configuration Validation
 
@@ -108,13 +113,6 @@ The system SHALL validate configuration values and provide clear error messages.
 - **WHEN** namespace configuration is invalid (empty string, invalid characters)
 - **THEN** system returns error: "Invalid namespace '<value>': must be non-empty and match Kubernetes naming rules"
 - **THEN** system exits with error code 1
-
-#### Scenario: Validate file paths
-
-- **WHEN** state file template contains invalid placeholder
-- **THEN** system returns error: "Invalid state file template: unknown placeholder '{{.Foo}}', valid: {{.Node}}"
-- **WHEN** kubeconfig path does not exist
-- **THEN** system returns error: "Kubeconfig file not found: <path>"
 
 #### Scenario: Validate numeric ranges
 
@@ -127,35 +125,6 @@ The system SHALL validate configuration values and provide clear error messages.
 ### Requirement: Configuration File Format
 
 The system SHALL support YAML configuration file format.
-
-#### Scenario: Example valid configuration
-
-- **WHEN** config file contains:
-```yaml
-kubernetes:
-  rook-operator-namespace: rook-ceph
-  rook-cluster-namespace: rook-ceph
-  kubeconfig: ~/.kube/config
-
-state:
-  file-path-template: "./crook-state-{{.Node}}.json"
-  backup-enabled: true
-
-deployment-filters:
-  prefixes:
-    - rook-ceph-osd
-    - rook-ceph-mon
-    - rook-ceph-exporter
-
-ui:
-  theme: default
-  progress-refresh-ms: 100
-
-timeouts:
-  api-call-timeout-seconds: 30
-  wait-deployment-timeout-seconds: 300
-```
-- **THEN** system parses and applies all values
 
 #### Scenario: Partial configuration
 

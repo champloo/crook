@@ -171,8 +171,9 @@ just update-vendor-hash # Update flake.nix vendorHash after go.mod/go.sum change
   - `pkg/` - Public packages (reusable by external tools)
   - `internal/` - Private packages (project-specific utilities)
 - **State Management:**
-  - JSON state files for deployment replica tracking (`resources` array, versioned)
+  - Stateless architecture using nodeSelector-based deployment discovery
   - In-memory state machines for TUI workflow progression
+  - Kubernetes API is the single source of truth (no external state files)
 - **Dependency Injection:** Pass dependencies explicitly (no global state)
 - **Interface Segregation:** Small, focused interfaces for testability
 - **Separation of Concerns:**
@@ -196,7 +197,6 @@ just update-vendor-hash # Update flake.nix vendorHash after go.mod/go.sum change
 **Integration Tests:**
 - Test against real Kubernetes API (or kind cluster)
 - Validate end-to-end workflows (down/up phases)
-- Test state file format invariants (JSON v1 parsing/writing)
 - Use build tags: `// +build integration`
 
 **TUI Tests:**
@@ -277,7 +277,6 @@ go test -bench=. ./...           # Benchmarks
 
 ### Operational Constraints
 - **Single Node Maintenance:** Designed for one node at a time (parallel maintenance not supported initially)
-- **State File Dependency:** "up" operation requires state file from corresponding "down" operation
 - **Kubernetes API Dependency:** Requires valid kubeconfig and cluster access
 - **Terminal Requirements:** TUI requires terminal with minimum 80 columns width
 - **rook-ceph-tools Required:** Needs rook-ceph-tools deployment for Ceph CLI access
@@ -285,7 +284,7 @@ go test -bench=. ./...           # Benchmarks
 ### Safety Constraints
 - **No Data Loss:** Must prevent Ceph data rebalancing/recovery during maintenance
 - **Graceful Shutdown:** Must wait for deployments to fully scale down before proceeding
-- **Atomic Operations:** State changes must be tracked for complete restoration
+- **Idempotent Discovery:** Up phase discovers scaled-down deployments via nodeSelector (no stale state risk)
 
 ## External Dependencies
 
@@ -308,11 +307,10 @@ go test -bench=. ./...           # Benchmarks
   4. Defaults (lowest priority)
 
 - **Key Configuration Options:**
-  - `kubernetes.rook-operator-namespace` (default: `rook-ceph`)
-  - `kubernetes.rook-cluster-namespace` (default: `rook-ceph`)
-  - `kubernetes.kubeconfig` (default: standard kubeconfig locations)
-  - `state.file-path-template` (default: `./crook-state-{{.Node}}.json`)
-  - `deployment-filters.prefixes` (default: `[rook-ceph-osd, rook-ceph-mon, ...]`)
+  - `namespace` (default: `rook-ceph`) - Rook-Ceph namespace for operator and cluster
+  - `ui.k8s-refresh-ms` (default: 2000) - Kubernetes resource refresh interval
+  - `ui.ceph-refresh-ms` (default: 5000) - Ceph CLI operations refresh interval
+  - `timeouts.wait-deployment-timeout-seconds` (default: 300)
 
 - **RBAC Permissions Required:**
   - Nodes: get, patch (cordon/uncordon, validation)

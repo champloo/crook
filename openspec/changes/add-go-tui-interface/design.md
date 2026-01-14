@@ -5,7 +5,6 @@
 Current implementation is a ~130-line bash script that:
 - Provides CLI-only interface with no feedback during long operations
 - Has no validation of cluster state before operations
-- Requires manual state file management
 - Is difficult to test and extend
 
 We're building a Go application with TUI to provide:
@@ -35,7 +34,7 @@ We're building a Go application with TUI to provide:
 - Add resource listing command (`crook ls`) for cluster inspection
 - Implement proper error handling and validation
 - Support configuration via file + CLI flags
-- Maintain a stable, versioned state file format
+- Use stateless nodeSelector-based discovery (no state files)
 
 ### Non-Goals
 
@@ -61,14 +60,12 @@ pkg/
     down.go           # Down phase orchestration
     up.go             # Up phase orchestration
     validator.go      # Pre-flight checks
+    discovery.go      # nodeSelector-based deployment discovery
   k8s/               # Kubernetes client wrapper
     client.go         # K8s client initialization
     deployments.go    # Deployment operations
     nodes.go          # Node operations (cordon/uncordon)
     ceph.go           # Ceph command execution
-  state/             # State persistence
-    state.go          # State file read/write
-    format.go         # JSON format handling
   tui/               # Bubble Tea components
     models/
       app.go          # Main app model
@@ -123,88 +120,66 @@ internal/            # Internal utilities
 **Config schema**:
 ```yaml
 # crook.yaml
-kubernetes:
-  rook-operator-namespace: rook-ceph
-  rook-cluster-namespace: rook-ceph
-  kubeconfig: ~/.kube/config  # Optional, defaults to standard locations
-
-state:
-  file-path-template: "./crook-state-{{.Node}}.json"
-  backup-enabled: true
-
-deployment-filters:
-  prefixes:
-    - rook-ceph-osd
-    - rook-ceph-mon
-    - rook-ceph-exporter
-    - rook-ceph-crashcollector
-    - rook-ceph-operator
+namespace: rook-ceph
 
 ui:
-  theme: default  # Future: support custom themes
-  progress-refresh-ms: 100
+  k8s-refresh-ms: 2000
+  ceph-refresh-ms: 5000
+
+timeouts:
+  api-call-timeout-seconds: 30
+  wait-deployment-timeout-seconds: 300
+  ceph-command-timeout-seconds: 20
+
+logging:
+  level: info
+  format: text
 ```
 
 **Rationale**: Standard Go tooling pattern, familiar to operators, supports automation.
 
-### State Persistence: JSON Format
+### Stateless Architecture: nodeSelector-based Discovery
 
-**Decision**: Use JSON format for state files, with a `resources` array for future extensibility.
+**Decision**: Use nodeSelector-based deployment discovery instead of state files.
 
-**Format**:
-```json
-{
-  "version": "v1",
-  "node": "worker-01",
-  "timestamp": "2026-01-03T10:30:00Z",
-  "operatorReplicas": 1,
-  "resources": [
-    {
-      "kind": "Deployment",
-      "namespace": "rook-ceph",
-      "name": "rook-ceph-osd-0",
-      "replicas": 1
-    },
-    {
-      "kind": "Deployment",
-      "namespace": "rook-ceph",
-      "name": "rook-ceph-mon-a",
-      "replicas": 1
-    }
-  ]
-}
-```
+**Pattern**:
+- Down phase: Discover deployments via `nodeSelector["kubernetes.io/hostname"]` matching target node
+- Up phase: Discover scaled-down deployments (replicas=0) via nodeSelector
+- No external state files written or read
+- Kubernetes API is the single source of truth
 
-**Notes**:
-- Use `version` for schema evolution.
-- Keep the top-level shape stable; add new optional fields as needed.
+**Benefits**:
+- No stale state file risk
+- No file I/O failures
+- Works even if state file was lost
+- Simpler configuration (no path templates)
+- Rook-Ceph node-pinned deployments are always 1 replica by design
 
 **Alternatives considered**:
-- **TSV**: Simpler, but requires custom parsing/validation and is harder to evolve
-- **YAML**: Human-friendly, but less strict and more error-prone for automation
-- **SQLite**: Too heavy for simple state persistence
+- **JSON state files**: More complex, requires backup/validation, stale state risk
+- **SQLite**: Too heavy for simple state tracking
 
-**Rationale**: JSON is structured, has native Go support, and supports schema evolution cleanly.
+**Rationale**: Stateless architecture is simpler and more robust for this use case.
 
 ### TUI Flow: State Machine Pattern
 
 **Decision**: Model each phase (down/up) as a state machine
 
 **Down Phase States**:
-1. `Init` - Validate inputs and load initial state
+1. `Init` - Validate inputs and discover deployments
 2. `Confirm` - Confirm node and show impact
 3. `Cordoning` - Cordon node with progress
 4. `SettingNoOut` - Set Ceph noout flag
 5. `ScalingOperator` - Scale operator to 0
 6. `DiscoveringDeployments` - Find target deployments
 7. `ScalingDeployments` - Scale each deployment (sub-state per deployment)
-8. `Complete` - Show summary, state file location
+8. `Complete` - Show summary
 
 **Up Phase States**:
-1. `Init` - Load state file, validate
+1. `Init` - Discover scaled-down deployments via nodeSelector
 2. `Confirm` - Show restore plan
 3. `Uncordoning` - Uncordon node
-4. `RestoringDeployments` - Scale deployments back up
+4. `RestoringDeployments` - Scale deployments back up (MON first with quorum gating)
 5. `ScalingOperator` - Restore operator
 6. `UnsettingNoOut` - Unset Ceph flag
 7. `Complete` - Show summary
@@ -240,20 +215,13 @@ ui:
 - Test on common terminals (xterm, tmux, screen)
 - Provide `--no-tui` fallback mode for automation (future)
 
-### Risk: State file format changes breaking compatibility
-
-**Mitigation**:
-- Version the state file format (`version` field)
-- Validate state file version before parsing
-
 ## Migration Plan
 
 ### Phase 1: Foundation (Week 1)
 1. Initialize Go module
 2. Set up project structure
 3. Implement Kubernetes client wrapper
-4. Implement state persistence (JSON read/write)
-5. Write unit tests for core components
+4. Write unit tests for core components
 
 ### Phase 2: Core Logic (Week 2)
 1. Implement down phase operations (without TUI)
