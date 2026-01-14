@@ -38,7 +38,7 @@
 
           # Update this hash when go.mod/go.sum changes
           # Run: nix build 2>&1 | grep "got:" to get the new hash
-          vendorHash = "sha256-pQ7Pfbl5NHLz/XxGVYumLdY8DMoacZqheZMTJc0OQtw=";
+          vendorHash = "sha256-jH4UV9yC7E0g1PEWTDhTMzRpDFefOj9PWjidnfKO1UE=";
 
           ldflags = [
             "-s"
