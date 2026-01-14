@@ -77,3 +77,8 @@ func (pw *ProgressWriter) PrintSuccess(message string) {
 func (pw *ProgressWriter) PrintError(message string) {
 	_, _ = fmt.Fprintf(pw.w, "\u2717 %s\n", message)
 }
+
+// PrintWarning prints a warning message.
+func (pw *ProgressWriter) PrintWarning(message string) {
+	_, _ = fmt.Fprintf(pw.w, "\u26A0 %s\n", message)
+}

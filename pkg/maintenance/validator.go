@@ -244,7 +244,7 @@ func (vr *ValidationResults) String() string {
 		if !r.Passed {
 			status = "✗"
 		}
-		sb.WriteString(fmt.Sprintf("  %s %s: %s\n", status, r.Check, r.Message))
+		fmt.Fprintf(&sb, "  %s %s: %s\n", status, r.Check, r.Message)
 	}
 	if vr.AllPassed {
 		sb.WriteString("\nAll checks passed - ready to proceed\n")
@@ -252,4 +252,121 @@ func (vr *ValidationResults) String() string {
 		sb.WriteString("\nSome checks failed - resolve issues before proceeding\n")
 	}
 	return sb.String()
+}
+
+// MaintenanceStatus describes the maintenance state of a node
+type MaintenanceStatus struct {
+	// NodeName is the name of the node
+	NodeName string
+	// Cordoned indicates the node is cordoned (unschedulable)
+	Cordoned bool
+	// HasScaledDownDeployments indicates the node has rook-ceph deployments scaled to 0
+	HasScaledDownDeployments bool
+}
+
+// OtherNodesMaintenanceInfo holds information about other nodes currently in maintenance
+type OtherNodesMaintenanceInfo struct {
+	// NodesInMaintenance lists nodes that appear to be in maintenance
+	NodesInMaintenance []MaintenanceStatus
+	// NoOutFlagSet indicates the Ceph noout flag is already set
+	NoOutFlagSet bool
+}
+
+// HasWarning returns true if there are any warnings to display
+func (info *OtherNodesMaintenanceInfo) HasWarning() bool {
+	return len(info.NodesInMaintenance) > 0 || info.NoOutFlagSet
+}
+
+// WarningMessage returns a formatted warning message about nodes in maintenance
+func (info *OtherNodesMaintenanceInfo) WarningMessage() string {
+	if !info.HasWarning() {
+		return ""
+	}
+
+	var sb strings.Builder
+	sb.WriteString("WARNING: Another node may be in maintenance!\n\n")
+
+	if info.NoOutFlagSet {
+		sb.WriteString("  • Ceph 'noout' flag is already set\n")
+	}
+
+	for _, node := range info.NodesInMaintenance {
+		reasons := []string{}
+		if node.Cordoned {
+			reasons = append(reasons, "cordoned")
+		}
+		if node.HasScaledDownDeployments {
+			reasons = append(reasons, "has scaled-down deployments")
+		}
+		fmt.Fprintf(&sb, "  • Node '%s' is %s\n", node.NodeName, strings.Join(reasons, " and "))
+	}
+
+	sb.WriteString("\nTaking multiple nodes down simultaneously risks Ceph cluster availability\n")
+	sb.WriteString("and data redundancy. Only proceed if you understand the risks.\n")
+
+	return sb.String()
+}
+
+// CheckOtherNodesInMaintenance checks if any other nodes are currently in maintenance.
+// It returns information about:
+// - Other cordoned nodes (excluding the target node)
+// - Whether the noout flag is already set (indicating ongoing maintenance)
+// - Other nodes with scaled-down rook-ceph deployments
+func CheckOtherNodesInMaintenance(
+	ctx context.Context,
+	client *k8s.Client,
+	cfg config.Config,
+	targetNodeName string,
+) (*OtherNodesMaintenanceInfo, error) {
+	info := &OtherNodesMaintenanceInfo{
+		NodesInMaintenance: make([]MaintenanceStatus, 0),
+	}
+
+	// Check Ceph noout flag (best-effort - don't fail if ceph is unreachable)
+	cephFlags, cephErr := client.GetCephFlags(ctx, cfg.Namespace)
+	if cephErr == nil && cephFlags != nil {
+		info.NoOutFlagSet = cephFlags.NoOut
+	}
+
+	// Get all nodes
+	nodes, err := client.ListNodes(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list nodes: %w", err)
+	}
+
+	// Check each node (except target) for maintenance indicators
+	for i := range nodes {
+		node := &nodes[i]
+		if node.Name == targetNodeName {
+			continue
+		}
+
+		status := MaintenanceStatus{
+			NodeName: node.Name,
+			Cordoned: node.Spec.Unschedulable,
+		}
+
+		// Check if node has scaled-down deployments
+		if status.Cordoned {
+			// Only check for scaled-down deployments if the node is cordoned
+			// to avoid expensive API calls for every node
+			deployments, listErr := client.ListNodePinnedDeployments(ctx, cfg.Namespace, node.Name)
+			if listErr == nil {
+				for j := range deployments {
+					dep := &deployments[j]
+					if dep.Spec.Replicas != nil && *dep.Spec.Replicas == 0 {
+						status.HasScaledDownDeployments = true
+						break
+					}
+				}
+			}
+		}
+
+		// Add to list if node shows signs of maintenance
+		if status.Cordoned || status.HasScaledDownDeployments {
+			info.NodesInMaintenance = append(info.NodesInMaintenance, status)
+		}
+	}
+
+	return info, nil
 }

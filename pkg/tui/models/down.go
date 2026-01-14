@@ -171,6 +171,9 @@ type DownModel struct {
 	// (where the confirmed plan differs from what actually gets executed).
 	discoveredDeployments []appsv1.Deployment
 
+	// maintenanceWarning contains info about other nodes in maintenance
+	maintenanceWarning *maintenance.OtherNodesMaintenanceInfo
+
 	// Cancellation and progress
 	cancelFunc     context.CancelFunc // Cancel function for ongoing operation
 	progressChan   chan maintenance.DownPhaseProgress
@@ -232,6 +235,8 @@ type DeploymentsDiscoveredMsg struct {
 	// AlreadyInDesiredState indicates the node is fully in down state
 	// (cordoned, noout set, operator down, all deployments scaled down).
 	AlreadyInDesiredState bool
+	// MaintenanceWarning contains info about other nodes in maintenance, if any
+	MaintenanceWarning *maintenance.OtherNodesMaintenanceInfo
 }
 
 // DownProgressChannelClosedMsg signals that the progress channel was closed
@@ -287,10 +292,19 @@ func (m *DownModel) discoverDeploymentsCmd() tea.Cmd {
 			orderedDeployments,
 		)
 
+		// Check for other nodes in maintenance
+		maintenanceWarning, _ := maintenance.CheckOtherNodesInMaintenance(
+			m.config.Context,
+			m.config.Client,
+			m.config.Config,
+			m.config.NodeName,
+		)
+
 		return DeploymentsDiscoveredMsg{
 			DownPlan:              downPlan,
 			Deployments:           orderedDeployments, // Include ordered deployments for execution
 			AlreadyInDesiredState: alreadyInState,
+			MaintenanceWarning:    maintenanceWarning,
 		}
 	}
 }
@@ -411,6 +425,7 @@ func (m *DownModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.downPlan = msg.DownPlan
 		m.discoveredDeployments = msg.Deployments // Store for execution
 		m.deploymentCount = len(msg.DownPlan)
+		m.maintenanceWarning = msg.MaintenanceWarning // Store for display
 
 		// Check if already in desired down state (node cordoned, noout set, operator down, deployments scaled)
 		if msg.AlreadyInDesiredState {
@@ -705,6 +720,30 @@ func (m *DownModel) renderLoading() string {
 func (m *DownModel) renderConfirmation() string {
 	var b strings.Builder
 
+	// Show maintenance warning prominently if other nodes are in maintenance
+	if m.maintenanceWarning != nil && m.maintenanceWarning.HasWarning() {
+		b.WriteString(styles.StyleWarning.Render("⚠ WARNING: Another node may be in maintenance!"))
+		b.WriteString("\n\n")
+
+		if m.maintenanceWarning.NoOutFlagSet {
+			b.WriteString(styles.StyleWarning.Render("  • Ceph 'noout' flag is already set"))
+			b.WriteString("\n")
+		}
+
+		for _, node := range m.maintenanceWarning.NodesInMaintenance {
+			reasons := []string{}
+			if node.Cordoned {
+				reasons = append(reasons, "cordoned")
+			}
+			if node.HasScaledDownDeployments {
+				reasons = append(reasons, "has scaled-down deployments")
+			}
+			b.WriteString(styles.StyleWarning.Render(fmt.Sprintf("  • Node '%s' is %s", node.NodeName, strings.Join(reasons, " and "))))
+			b.WriteString("\n")
+		}
+		b.WriteString("\n")
+	}
+
 	// Target node info
 	b.WriteString(styles.StyleStatus.Render("Target Node: "))
 	b.WriteString(m.config.NodeName)
@@ -740,7 +779,7 @@ func (m *DownModel) renderConfirmation() string {
 	b.WriteString("  1. Cordon the node (mark unschedulable)\n")
 	b.WriteString("  2. Set Ceph noout flag\n")
 	b.WriteString("  3. Scale down rook-ceph-operator\n")
-	b.WriteString(fmt.Sprintf("  4. Scale down %d deployment(s) to 0 replicas\n", m.deploymentCount))
+	fmt.Fprintf(&b, "  4. Scale down %d deployment(s) to 0 replicas\n", m.deploymentCount)
 
 	b.WriteString("\n")
 	b.WriteString(m.confirmPrompt.Render())

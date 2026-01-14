@@ -110,6 +110,12 @@ func runDown(cmd *cobra.Command, nodeName string, opts *DownOptions) error {
 		return nil
 	}
 
+	// Check if other nodes are in maintenance
+	maintenanceInfo, err := maintenance.CheckOtherNodesInMaintenance(ctx, client, cfg, nodeName)
+	if err != nil {
+		logger.Warn("failed to check for other nodes in maintenance", "error", err)
+	}
+
 	// Build deployment names for display
 	var deploymentNames []string
 	for _, d := range deployments {
@@ -118,6 +124,11 @@ func runDown(cmd *cobra.Command, nodeName string, opts *DownOptions) error {
 
 	// Show summary
 	pw.PrintSummary(nodeName, len(deployments), deploymentNames)
+
+	// Show warning if other nodes are in maintenance
+	if maintenanceInfo != nil && maintenanceInfo.HasWarning() {
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), maintenanceInfo.WarningMessage())
+	}
 
 	// Confirm unless -y
 	if !opts.Yes {
