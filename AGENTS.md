@@ -37,12 +37,14 @@ Make sure to review @openspec/project.md for project conventions.
 ### Task tracking
 
 * Use the 'br' CLI (beads_rust) for any task tracking work. Do not use the beads MCP.
+* `br ready` lists open work that nothing blocks. Priorities are numbers 0-4 (0 is critical), not words.
 * When creating tasks make sure that tasks are detailed focusing carefully on dependencies, detailed designs and potential parallelization.
   * Put enough detail and context in the Beads tasks to enable you to execute them at a later time
   * Add references relevan openspec specs, design and proposals to allow you to fetch data later on
+  * Record ordering with `br dep add <issue> <depends-on>` so `br ready` only offers tasks that can start now
 * When I ask you to work on multiple beads tasks then do tasks one by one and for each task
-  * Mark the task as In Progress whens starting the task
+  * Mark the task as In Progress (`br update <id> --status=in_progress`) when starting the task
   * Print out a work summary for each task as soon as you finish it and then commit the changes to git.
-  * Mark task as complete in beads once you have completed it and  add a resolution comment with summary of what was done (more the why certain decision were made, dont list out file changes)
+  * Mark task as complete in beads once you have completed it with `br close <id> --reason="..."`, where the reason is the resolution summary (more the why certain decision were made, dont list out file changes)
   * Don't stop until you have completed all tasks
   * Finally provide overall summary for all completedtasks
