@@ -709,7 +709,7 @@ func (m *UpModel) renderConfirmation() string {
 	b.WriteString(styles.StyleStatus.Render("This will:"))
 	b.WriteString("\n")
 	b.WriteString("  1. Uncordon the node to allow pod scheduling\n")
-	b.WriteString(fmt.Sprintf("  2. Scale up %d deployment(s) to 1 replica\n", len(m.restorePlan)))
+	fmt.Fprintf(&b, "  2. Scale up %d deployment(s) to 1 replica\n", len(m.restorePlan))
 	b.WriteString("  3. Scale up rook-ceph-operator to 1\n")
 	b.WriteString("  4. Unset Ceph noout flag to allow rebalancing\n")
 
