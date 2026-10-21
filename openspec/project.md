@@ -224,7 +224,7 @@ go test -bench=. ./...           # Benchmarks
 ```
 
 ### Git Workflow
-- **Issue Tracking:** Beads (AI-native, git-based issue tracker in `.beads/`)
+- **Issue Tracking:** Beads via `br` (beads_rust; SQLite + `.beads/issues.jsonl`)
 - **Change Management:** OpenSpec for architectural changes and proposals
 - **Session Completion:** Mandatory workflow (see AGENTS.md):
   1. File issues for remaining work
@@ -233,7 +233,7 @@ go test -bench=. ./...           # Benchmarks
      - `golangci-lint run` - No linter errors
      - `go build ./cmd/crook` - Clean build
   3. Update issue status
-  4. **MANDATORY:** `git pull --rebase && bd sync && git push`
+  4. **MANDATORY:** `br sync --flush-only`, commit `.beads/` (br never commits itself), then `git pull --rebase && git push`
   5. Clean up stashes and branches
   6. Verify all changes pushed
   7. Provide handoff context
