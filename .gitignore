@@ -43,3 +43,5 @@ crook-state-*.tsv
 crook-state-*.json
 
 loopy.sh
+# br doctor per-run artifacts
+.doctor/
